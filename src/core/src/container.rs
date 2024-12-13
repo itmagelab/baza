@@ -1,4 +1,4 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use bundle::Bundle;
 
@@ -33,10 +33,9 @@ impl Container {
     }
 
     pub(crate) fn add_bundle(&mut self, mut bundle: Bundle) -> &mut Self {
-        if let Some(r#box) = self.boxes.last_mut() {
-            bundle.path = r#box.borrow().path(self.dir.clone());
-            bundle.path.push(bundle.name.clone());
-            r#box.borrow_mut().bundle.push(bundle)
+        if let Some(r#box) = self.boxes.last() {
+            bundle.parent = Some(Rc::clone(r#box));
+            r#box.borrow_mut().bundle.push(bundle);
         }
         self
     }
