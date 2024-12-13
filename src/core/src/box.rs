@@ -1,32 +1,30 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use crate::bundle::Bundle;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct r#Box {
-    pub name: String,
-    pub(crate) bundle: Vec<Bundle>,
-    parent: Option<Rc<RefCell<r#Box>>>,
+    name: Arc<str>,
+    pub bundles: Vec<Bundle>,
+    pub parent: Option<Rc<RefCell<r#Box>>>,
 }
 
 impl r#Box {
-    pub(crate) fn new(
-        name: String,
-        bundle: Vec<Bundle>,
-        parent: Option<Rc<RefCell<r#Box>>>,
-    ) -> Self {
+    pub(crate) fn new(name: String, parent: Option<Rc<RefCell<r#Box>>>) -> Self {
+        let name = Arc::from(name);
         Self {
             name,
-            bundle,
             parent,
+            ..Default::default()
         }
     }
 
-    pub fn path(&self, mut path: PathBuf) -> PathBuf {
+    pub(crate) fn path(&self) -> PathBuf {
+        let mut path = PathBuf::new();
         if let Some(parent) = self.parent.as_ref() {
-            path = parent.borrow().path(path);
+            path = parent.borrow().path();
         };
-        path.push(&self.name);
+        path.push(&*self.name);
 
         path
     }

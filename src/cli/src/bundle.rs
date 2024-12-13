@@ -1,4 +1,4 @@
-use core::container;
+use core::{container, BazaR};
 
 use clap::{command, Args as ClapArgs, Subcommand};
 
@@ -13,10 +13,11 @@ pub(crate) enum Commands {
     Create { name: String },
 }
 
-pub(crate) fn handle(args: Args) {
+pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         Commands::Create { name } => {
-            container::create(name);
+            container::create(name)?;
         }
-    }
+    };
+    Ok(())
 }

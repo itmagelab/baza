@@ -11,3 +11,4 @@ path = "src/lib.rs"
 rand = "0.8.5"
 tempfile = "3.14.0"
 thiserror = { workspace = true }
+tracing = { workspace = true }

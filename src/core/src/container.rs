@@ -1,19 +1,25 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use bundle::Bundle;
 
 use super::*;
 
 // cover, container, box, bundle
-#[derive(Debug, Default)]
-pub struct Container {
-    pub dir: PathBuf,
-    pub name: String,
-    pub(crate) boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+#[derive(Debug)]
+struct Container {
+    dir: PathBuf,
+    name: String,
+    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
-impl Container {
-    pub(crate) fn new(name: String) -> Self {
+struct ContainerBuilder {
+    dir: PathBuf,
+    name: String,
+    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+}
+
+impl ContainerBuilder {
+    fn new(name: String) -> Self {
         Self {
             dir: PathBuf::from("/var/tmp/baza"),
             name,
@@ -21,24 +27,47 @@ impl Container {
         }
     }
 
-    pub(crate) fn builder(&mut self) -> &mut Self {
-        self
-    }
-
-    pub(crate) fn add_box(&mut self, name: String) -> &mut Self {
+    fn add_box(&mut self, mut r#box: r#box::r#Box) -> &mut Self {
         let parent = self.boxes.last().map(Rc::clone);
-        let r#box = r#box::r#Box::new(name, vec![], parent);
+        r#box.parent = parent;
         self.boxes.push(Rc::new(RefCell::new(r#box)));
         self
     }
 
-    pub(crate) fn add_bundle(&mut self, mut bundle: Bundle) -> &mut Self {
-        if let Some(r#box) = self.boxes.last_mut() {
-            bundle.path = r#box.borrow().path(self.dir.clone());
-            bundle.path.push(bundle.name.clone());
-            r#box.borrow_mut().bundle.push(bundle)
+    fn add_bundle(&mut self, bundle: Bundle) -> &mut Self {
+        if let Some(r#box) = self.boxes.last() {
+            r#box.borrow_mut().bundles.push(bundle);
         }
         self
+    }
+
+    fn build(self) -> Container {
+        let Self { dir, name, boxes } = self;
+        Container { dir, name, boxes }
+    }
+}
+
+impl Container {
+    fn builder(name: String) -> ContainerBuilder {
+        ContainerBuilder::new(name)
+    }
+
+    fn save(self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let path = self.dir.join(r#box.borrow().path());
+            match fs::create_dir_all(path.clone()) {
+                Ok(_) => {}
+                Err(err) => println!("Failed to create dir: {}", err),
+            };
+            let bundles = &mut r#box.borrow_mut().bundles;
+
+            while let Some(bundle) = bundles.pop() {
+                let path = path.join(&*bundle.name);
+                let file = bundle.file;
+                file.persist_noclobber(path).map_err(Error::TempBazaError)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -52,17 +81,24 @@ impl Container {
 /// .add_bundle("login")
 /// .build();
 /// ```
-pub fn create(str: String) {
-    let mut container = Container::new(str.clone());
-    let builder = container.builder();
+#[tracing::instrument]
+pub fn create(str: String) -> BazaR<()> {
+    let mut builder = Container::builder(str.clone());
 
     let mut pack: Vec<&str> = str.trim().split(SEP).collect();
-    let bundle = pack.pop().unwrap();
+    let Some(bundle) = pack.pop() else {
+        return Err(Error::TooFewArguments);
+    };
     pack.reverse();
     while let Some(r#box) = pack.pop() {
-        builder.add_box(r#box.to_string());
+        let r#box = r#box::r#Box::new(r#box.to_string(), None);
+        builder.add_box(r#box);
     }
-    let bundle = Bundle::new(bundle.to_string());
+    let bundle = Bundle::new(bundle.to_string())?;
+    let bundle = bundle.create()?;
+    let bundle = bundle.edit()?;
     builder.add_bundle(bundle);
-    println!("{:#?}", container);
+    let container = builder.build();
+    container.save()?;
+    Ok(())
 }

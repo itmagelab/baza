@@ -10,12 +10,9 @@ pub mod error;
 
 const SEP: &str = "::";
 
-pub fn generate(
-    length: u8,
-    no_latters: bool,
-    no_symbols: bool,
-    no_numbers: bool,
-) -> Result<String, Error> {
+pub type BazaR<T> = Result<T, Error>;
+
+pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool) -> BazaR<String> {
     let latters = "abcdefghijklmnopqrstuvwxyz\
                   ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let numbers = "0123456789";
