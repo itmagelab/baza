@@ -1,0 +1,64 @@
+use crate::error::Error;
+use crate::{r#box, BazaR};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::{
+    env,
+    path::PathBuf,
+    process::{exit, Command},
+};
+use tempfile::NamedTempFile;
+
+#[derive(Debug)]
+pub struct Bundle {
+    pub name: Arc<str>,
+    pub file: NamedTempFile,
+    pub parent: Option<Rc<RefCell<r#box::r#Box>>>,
+}
+
+impl Bundle {
+    pub(crate) fn new(name: String) -> BazaR<Self> {
+        let file = NamedTempFile::new()?;
+        let name = Arc::from(name);
+        Ok(Self {
+            name,
+            file,
+            parent: None,
+        })
+    }
+
+    fn path(&self) -> PathBuf {
+        let mut path = self
+            .parent
+            .as_ref()
+            .map(|parent| parent.borrow().path())
+            .unwrap_or_default();
+        path.push(&*self.name);
+        path
+    }
+
+    pub(crate) fn create(self) -> BazaR<Self> {
+        let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
+
+        let temp_file_path = self.file.path().as_os_str();
+        let status = Command::new(editor).arg(temp_file_path).status()?;
+        if !status.success() {
+            exit(1);
+        }
+
+        Ok(self)
+    }
+
+    pub(crate) fn edit(self) -> BazaR<Self> {
+        let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
+
+        let file = self.file.path().as_os_str();
+        let status = Command::new(editor).arg(file).status()?;
+        if !status.success() {
+            exit(1);
+        }
+
+        Ok(self)
+    }
+}
