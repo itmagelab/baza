@@ -50,8 +50,9 @@ impl ContainerBuilder {
         self
     }
 
-    fn add_bundle(&mut self, bundle: Bundle) -> &mut Self {
+    fn add_bundle(&mut self, mut bundle: Bundle) -> &mut Self {
         if let Some(r#box) = self.boxes.last() {
+            bundle.parent = Some(Rc::clone(r#box));
             r#box.borrow_mut().bundles.push(bundle);
         }
         self
@@ -81,6 +82,20 @@ impl Container {
         Ok(self)
     }
 
+    fn edit(self) -> BazaR<Self> {
+        if let Some(r#box) = self.boxes.last() {
+            let mut bundle = r#box
+                .borrow_mut()
+                .bundles
+                .pop()
+                .ok_or(Error::CommonBazaError)?;
+            let path = self.dir.join(bundle.path());
+            bundle = bundle.edit(path)?;
+            r#box.borrow_mut().bundles.push(bundle);
+        }
+        Ok(self)
+    }
+
     fn save(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let path = self.dir.join(r#box.borrow().path());
@@ -91,6 +106,21 @@ impl Container {
                 let path = path.join(&*bundle.name);
                 let file = bundle.file;
                 file.persist_noclobber(path).map_err(Error::TempBazaError)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn rewrite(self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let path = self.dir.join(r#box.borrow().path());
+            fs::create_dir_all(path.clone())?;
+            let bundles = &mut r#box.borrow_mut().bundles;
+
+            while let Some(bundle) = bundles.pop() {
+                let path = path.join(&*bundle.name);
+                let file = bundle.file;
+                file.persist(path).map_err(Error::TempBazaError)?;
             }
         }
         Ok(())
@@ -109,16 +139,20 @@ impl Container {
 /// ```
 #[tracing::instrument]
 pub fn create(str: String) -> BazaR<()> {
-    let container = Container::builder().from_str(str)?.build().create()?.save();
-
-    // let bundle = bundle.create()?;
-    // let bundle = bundle.edit()?;
-    // let container = builder.build();
-    // container.save()?;
+    Container::builder()
+        .from_str(str)?
+        .build()
+        .create()?
+        .save()?;
     Ok(())
 }
 
 #[tracing::instrument]
 pub fn edit(str: String) -> BazaR<()> {
+    Container::builder()
+        .from_str(str)?
+        .build()
+        .edit()?
+        .rewrite()?;
     Ok(())
 }

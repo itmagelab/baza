@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::{r#box, BazaR};
 use std::cell::RefCell;
+use std::fs;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{
@@ -28,7 +29,7 @@ impl Bundle {
         })
     }
 
-    fn path(&self) -> PathBuf {
+    pub fn path(&self) -> PathBuf {
         let mut path = self
             .parent
             .as_ref()
@@ -50,10 +51,11 @@ impl Bundle {
         Ok(self)
     }
 
-    pub(crate) fn edit(self) -> BazaR<Self> {
+    pub(crate) fn edit(self, path: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().as_os_str();
+        fs::copy(path, file)?;
         let status = Command::new(editor).arg(file).status()?;
         if !status.success() {
             exit(1);

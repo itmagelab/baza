@@ -11,12 +11,16 @@ pub(crate) struct Args {
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
     Create { name: String },
+    Edit { name: String },
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         Commands::Create { name } => {
             container::create(name)?;
+        }
+        Commands::Edit { name } => {
+            container::edit(name)?;
         }
     };
     Ok(())
