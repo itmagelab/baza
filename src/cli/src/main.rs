@@ -1,3 +1,5 @@
+use core::pgp;
+
 use clap::{Parser, Subcommand};
 
 mod bundle;
@@ -7,6 +9,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
+    Init,
     Bundle(bundle::Args),
     Password(password::Args),
 }
@@ -30,6 +33,10 @@ pub async fn main() {
     let result = match args.command {
         Commands::Password(s) => password::handle(s),
         Commands::Bundle(s) => bundle::handle(s),
+        Commands::Init => {
+            pgp::generate();
+            Ok(())
+        },
     };
     match result {
         Ok(_) => (),

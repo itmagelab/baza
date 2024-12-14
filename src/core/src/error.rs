@@ -27,4 +27,6 @@ pub enum Error {
     StripPrefixError(#[from] StripPrefixError),
     #[error("PersistError: {0}")]
     PersistErrorError(#[from] PersistError),
+    #[error("anyhow::Error: {0}")]
+    AnyhowError(#[from] anyhow::Error),
 }

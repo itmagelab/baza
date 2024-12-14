@@ -13,3 +13,5 @@ tempfile = "3.14.0"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }
+anyhow = { workspace = true }
+sequoia-openpgp = { workspace = true }
