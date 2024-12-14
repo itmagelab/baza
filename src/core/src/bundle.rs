@@ -1,4 +1,3 @@
-use crate::error::Error;
 use crate::{r#box, BazaR};
 use std::cell::RefCell;
 use std::fs;

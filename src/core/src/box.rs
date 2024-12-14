@@ -28,8 +28,4 @@ impl r#Box {
 
         path
     }
-
-    pub(crate) fn is_head(&self) -> bool {
-        self.parent.is_none()
-    }
 }

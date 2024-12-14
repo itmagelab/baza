@@ -1,6 +1,12 @@
-use std::{cell::RefCell, fmt, fs, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell,
+    env, fmt, fs,
+    path::{PathBuf, MAIN_SEPARATOR},
+    rc::Rc,
+};
 
 use bundle::Bundle;
+use walkdir::WalkDir;
 
 use super::*;
 
@@ -14,16 +20,16 @@ struct Container {
 
 impl fmt::Display for Container {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let boxes: Vec<String> = self
+        let _boxes: Vec<String> = self
             .boxes
             .iter()
             .map(|b| b.borrow().name.to_string())
             .collect();
-        write!(f, "{} {:?}", self.name, boxes)
+        write!(f, "{}", self.name)
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct ContainerBuilder {
     dir: PathBuf,
     name: String,
@@ -32,8 +38,9 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
+        let home = env::var("BAZA_DIR").unwrap_or(String::from("/var/tmp/baza"));
         Self {
-            dir: PathBuf::from("/var/tmp/baza"),
+            dir: PathBuf::from(home),
             boxes: vec![],
             ..Default::default()
         }
@@ -81,10 +88,6 @@ impl Container {
         ContainerBuilder::new()
     }
 
-    fn is_box(&self) -> bool {
-        true
-    }
-
     fn create(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
             let mut bundle = r#box
@@ -121,7 +124,7 @@ impl Container {
             while let Some(bundle) = bundles.pop() {
                 let path = path.join(&*bundle.name);
                 let file = bundle.file;
-                file.persist_noclobber(path).map_err(Error::TempBazaError)?;
+                file.persist_noclobber(path)?;
             }
         }
         Ok(())
@@ -136,7 +139,7 @@ impl Container {
             while let Some(bundle) = bundles.pop() {
                 let path = path.join(&*bundle.name);
                 let file = bundle.file;
-                file.persist(path).map_err(Error::TempBazaError)?;
+                file.persist(path)?;
             }
         }
         Ok(())
@@ -174,8 +177,21 @@ pub fn edit(str: String) -> BazaR<()> {
 }
 
 #[tracing::instrument]
-pub fn list(str: String) -> BazaR<()> {
-    let container = Container::builder().create_from_str(str)?.build();
-    println!("{}", container);
+pub fn search(str: String) -> BazaR<()> {
+    let builder = ContainerBuilder::new();
+    for entry in WalkDir::new(&builder.dir) {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            let path = path.strip_prefix(&builder.dir)?;
+            let lossy = path.to_string_lossy().replace(MAIN_SEPARATOR, "::");
+
+            if lossy.contains(&str) {
+                let container = builder.clone().create_from_str(lossy)?.build();
+                println!("{}", container);
+            }
+        }
+    }
     Ok(())
 }
