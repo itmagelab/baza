@@ -28,7 +28,7 @@ impl ContainerBuilder {
         }
     }
 
-    fn from_str(mut self, name: String) -> BazaR<Self> {
+    fn create_from_str(mut self, name: String) -> BazaR<Self> {
         let mut pack: Vec<&str> = name.trim().split(SEP).collect();
         let Some(bundle) = pack.pop() else {
             return Err(Error::TooFewArguments);
@@ -140,7 +140,7 @@ impl Container {
 #[tracing::instrument]
 pub fn create(str: String) -> BazaR<()> {
     Container::builder()
-        .from_str(str)?
+        .create_from_str(str)?
         .build()
         .create()?
         .save()?;
@@ -150,7 +150,7 @@ pub fn create(str: String) -> BazaR<()> {
 #[tracing::instrument]
 pub fn edit(str: String) -> BazaR<()> {
     Container::builder()
-        .from_str(str)?
+        .create_from_str(str)?
         .build()
         .edit()?
         .rewrite()?;
