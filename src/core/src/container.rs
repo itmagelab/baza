@@ -55,10 +55,7 @@ impl Container {
     fn save(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let path = self.dir.join(r#box.borrow().path());
-            match fs::create_dir_all(path.clone()) {
-                Ok(_) => {}
-                Err(err) => println!("Failed to create dir: {}", err),
-            };
+            fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
             while let Some(bundle) = bundles.pop() {
