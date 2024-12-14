@@ -4,7 +4,7 @@ use crate::bundle::Bundle;
 
 #[derive(Debug, Default)]
 pub struct r#Box {
-    name: Arc<str>,
+    pub name: Arc<str>,
     pub bundles: Vec<Bundle>,
     pub parent: Option<Rc<RefCell<r#Box>>>,
 }

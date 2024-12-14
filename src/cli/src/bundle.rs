@@ -12,6 +12,7 @@ pub(crate) struct Args {
 pub(crate) enum Commands {
     Create { name: String },
     Edit { name: String },
+    List { name: String },
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
@@ -21,6 +22,9 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
         }
         Commands::Edit { name } => {
             container::edit(name)?;
+        }
+        Commands::List { name } => {
+            container::list(name)?;
         }
     };
     Ok(())

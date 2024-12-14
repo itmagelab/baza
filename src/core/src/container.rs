@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fmt, fs, path::PathBuf, rc::Rc};
 
 use bundle::Bundle;
 
@@ -10,6 +10,17 @@ struct Container {
     dir: PathBuf,
     name: String,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+}
+
+impl fmt::Display for Container {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let boxes: Vec<String> = self
+            .boxes
+            .iter()
+            .map(|b| b.borrow().name.to_string())
+            .collect();
+        write!(f, "{} {:?}", self.name, boxes)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -29,6 +40,7 @@ impl ContainerBuilder {
     }
 
     fn create_from_str(mut self, name: String) -> BazaR<Self> {
+        self.name = name.clone();
         let mut pack: Vec<&str> = name.trim().split(SEP).collect();
         let Some(bundle) = pack.pop() else {
             return Err(Error::TooFewArguments);
@@ -67,6 +79,10 @@ impl ContainerBuilder {
 impl Container {
     fn builder() -> ContainerBuilder {
         ContainerBuilder::new()
+    }
+
+    fn is_box(&self) -> bool {
+        true
     }
 
     fn create(self) -> BazaR<Self> {
@@ -154,5 +170,12 @@ pub fn edit(str: String) -> BazaR<()> {
         .build()
         .edit()?
         .rewrite()?;
+    Ok(())
+}
+
+#[tracing::instrument]
+pub fn list(str: String) -> BazaR<()> {
+    let container = Container::builder().create_from_str(str)?.build();
+    println!("{}", container);
     Ok(())
 }
