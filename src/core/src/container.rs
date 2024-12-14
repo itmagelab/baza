@@ -12,6 +12,7 @@ struct Container {
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
+#[derive(Debug, Default)]
 struct ContainerBuilder {
     dir: PathBuf,
     name: String,
@@ -19,12 +20,27 @@ struct ContainerBuilder {
 }
 
 impl ContainerBuilder {
-    fn new(name: String) -> Self {
+    fn new() -> Self {
         Self {
             dir: PathBuf::from("/var/tmp/baza"),
-            name,
             boxes: vec![],
+            ..Default::default()
         }
+    }
+
+    fn from_str(mut self, name: String) -> BazaR<Self> {
+        let mut pack: Vec<&str> = name.trim().split(SEP).collect();
+        let Some(bundle) = pack.pop() else {
+            return Err(Error::TooFewArguments);
+        };
+        pack.reverse();
+        while let Some(r#box) = pack.pop() {
+            let r#box = r#box::r#Box::new(r#box.to_string(), None);
+            self.add_box(r#box);
+        }
+        let bundle = Bundle::new(bundle.to_string())?;
+        self.add_bundle(bundle);
+        Ok(self)
     }
 
     fn add_box(&mut self, mut r#box: r#box::r#Box) -> &mut Self {
@@ -48,8 +64,21 @@ impl ContainerBuilder {
 }
 
 impl Container {
-    fn builder(name: String) -> ContainerBuilder {
-        ContainerBuilder::new(name)
+    fn builder() -> ContainerBuilder {
+        ContainerBuilder::new()
+    }
+
+    fn create(self) -> BazaR<Self> {
+        if let Some(r#box) = self.boxes.last() {
+            let mut bundle = r#box
+                .borrow_mut()
+                .bundles
+                .pop()
+                .ok_or(Error::CommonBazaError)?;
+            bundle = bundle.create()?;
+            r#box.borrow_mut().bundles.push(bundle);
+        }
+        Ok(self)
     }
 
     fn save(self) -> BazaR<()> {
@@ -80,22 +109,16 @@ impl Container {
 /// ```
 #[tracing::instrument]
 pub fn create(str: String) -> BazaR<()> {
-    let mut builder = Container::builder(str.clone());
+    let container = Container::builder().from_str(str)?.build().create()?.save();
 
-    let mut pack: Vec<&str> = str.trim().split(SEP).collect();
-    let Some(bundle) = pack.pop() else {
-        return Err(Error::TooFewArguments);
-    };
-    pack.reverse();
-    while let Some(r#box) = pack.pop() {
-        let r#box = r#box::r#Box::new(r#box.to_string(), None);
-        builder.add_box(r#box);
-    }
-    let bundle = Bundle::new(bundle.to_string())?;
-    let bundle = bundle.create()?;
-    let bundle = bundle.edit()?;
-    builder.add_bundle(bundle);
-    let container = builder.build();
-    container.save()?;
+    // let bundle = bundle.create()?;
+    // let bundle = bundle.edit()?;
+    // let container = builder.build();
+    // container.save()?;
+    Ok(())
+}
+
+#[tracing::instrument]
+pub fn edit(str: String) -> BazaR<()> {
     Ok(())
 }
