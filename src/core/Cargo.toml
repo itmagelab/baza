@@ -8,10 +8,14 @@ authors = { workspace = true }
 path = "src/lib.rs"
 
 [dependencies]
-rand = "0.8.5"
 tempfile = "3.14.0"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }
 anyhow = { workspace = true }
 sequoia-openpgp = { workspace = true }
+rand = "0.8.5"
+aes = "0.8.4"
+aes-gcm = "0.10.3"
+uuid = { version = "1.11.0", features = ["v4"] }
+colored = "2.2.0"

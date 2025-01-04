@@ -11,16 +11,18 @@ pub enum Error {
     OpenEditor,
     #[error("Path already exists")]
     PathExists,
-    #[error("IO error: {0}")]
-    IO(#[from] std::io::Error),
     #[error("Size must be greater than zero")]
     ZeroSize,
     #[error("You must specify at least one of the following: latters, numbers, symbols")]
     MustSpecifyAtLeastOne,
     #[error("Too few arguments")]
     TooFewArguments,
+    #[error("Encription error")]
+    EncriptionError(aes_gcm::Error),
 
     // From traits
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
     #[error("walkdir::Error: {0}")]
     WalkdirError(#[from] walkdir::Error),
     #[error("StripPrefixError: {0}")]

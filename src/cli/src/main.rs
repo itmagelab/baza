@@ -35,8 +35,9 @@ pub async fn main() {
         Commands::Bundle(s) => bundle::handle(s),
         Commands::Init => {
             pgp::generate();
+            core::init();
             Ok(())
-        },
+        }
     };
     match result {
         Ok(_) => (),

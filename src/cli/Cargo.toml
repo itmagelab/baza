@@ -15,6 +15,3 @@ core = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 tracing = { workspace = true }
 sequoia-openpgp = { workspace = true }
-aes = "0.8.4"
-rand = "0.8.5"
-aes-gcm = "0.10.3"
