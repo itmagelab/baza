@@ -37,8 +37,7 @@ pub async fn main() {
         Commands::Password(s) => password::handle(s),
         Commands::Bundle(s) => bundle::handle(s),
         Commands::Init { uuid } => {
-            let _ = pgp::generate();
-            let _ = core::init(uuid);
+            core::init(uuid).unwrap();
             Ok(())
         }
     };

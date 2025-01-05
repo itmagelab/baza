@@ -7,6 +7,8 @@ use sequoia_openpgp::{self as openpgp, armor, serialize::Serialize};
 
 use openpgp::cert::prelude::*;
 
+use crate::BAZA_DIR;
+
 fn keys_exists(name: &str) -> bool {
     ["cert", "key", "only_subkey", "revocation"]
         .iter()
@@ -14,7 +16,7 @@ fn keys_exists(name: &str) -> bool {
 }
 
 pub fn generate() -> openpgp::Result<()> {
-    let dir = env::var("BAZA_HOME").unwrap_or(String::from("/tmp/baza"));
+    let dir = env::var("BAZA_HOME").unwrap_or(String::from(BAZA_DIR));
     let email = env::var("BAZA_EMAIL").unwrap_or(String::from("root@itmage.ru"));
     let name = format!("{}/keyring", dir);
     if keys_exists(&name) {

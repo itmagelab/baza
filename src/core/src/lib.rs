@@ -69,6 +69,7 @@ pub fn init(uuid: Option<String>) -> BazaR<()> {
     fs::create_dir_all(BAZA_DIR)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
+    // pgp::generate().unwrap();
     Ok(())
 }
 
