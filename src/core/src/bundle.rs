@@ -4,12 +4,14 @@ use std::cell::RefCell;
 use std::fs::{self};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::{thread, time};
 use std::{
     env,
     path::PathBuf,
     process::{exit, Command},
 };
 use arboard::Clipboard;
+use colored::Colorize;
 use tempfile::NamedTempFile;
 use tracing::instrument;
 
@@ -76,6 +78,7 @@ impl Bundle {
 
     #[instrument]
     pub(crate) fn copy_to_clipboard(self, path: PathBuf) -> BazaR<Self> {
+        let ttl_seconds = 45;
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
         let file = self.file.path().as_os_str();
@@ -85,6 +88,13 @@ impl Bundle {
         let data = fs::read(file)?;
         let lossy = String::from_utf8_lossy(&data);
         clipboard.set_text(lossy.trim()).map_err(Error::ArboardError)?;
+
+        let ttl_duration = time::Duration::new(ttl_seconds, 0);
+
+        let message = "Copied to clipboard. Will clear in 45 seconds.";
+        println!("{}", message.bright_yellow().bold());
+        thread::sleep(ttl_duration);
+        clipboard.set_text("".to_string()).map_err(Error::ArboardError).unwrap();
 
         Ok(self)
     }
