@@ -16,10 +16,10 @@ use tempfile::NamedTempFile;
 use tracing::instrument;
 
 #[derive(Debug)]
-pub struct Bundle {
-    pub name: Arc<str>,
-    pub file: NamedTempFile,
-    pub parent: Option<Rc<RefCell<r#box::r#Box>>>,
+pub(crate) struct Bundle {
+    pub(crate) name: Arc<str>,
+    pub(crate) file: NamedTempFile,
+    pub(crate) parent: Option<Rc<RefCell<r#box::r#Box>>>,
 }
 
 impl Bundle {
