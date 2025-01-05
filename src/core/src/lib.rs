@@ -2,6 +2,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
+use std::path::PathBuf;
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
 use std::io::Write;
@@ -75,6 +76,14 @@ pub fn init() -> BazaR<()> {
     Ok(())
 }
 
+pub fn encrypt_file(path: &PathBuf) -> BazaR<()> {
+    let data = fs::read(path)?;
+    let mut file = File::create(path)?;
+    let encrypted = encrypt_data(&data, &key()?)?;
+    file.write_all(&encrypted)?;
+    Ok(())
+}
+
 pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let mut nonce = [0u8; 12];
@@ -84,6 +93,14 @@ pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
         .encrypt(nonce, plaintext)
         .map_err(Error::EncriptionError)?;
     Ok([nonce.as_slice(), &ciphertext].concat())
+}
+
+pub fn decrypt_file(path: &PathBuf) -> BazaR<()> {
+    let data = fs::read(path)?;
+    let mut file = File::create(path)?;
+    let encrypted = decrypt_data(&data, &key()?)?;
+    file.write_all(&encrypted)?;
+    Ok(())
 }
 
 pub fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {

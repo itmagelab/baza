@@ -1,4 +1,4 @@
-use crate::{decrypt_data, encrypt_data, key, r#box, BazaR};
+use crate::{decrypt_data, decrypt_file, encrypt_data, encrypt_file, key, r#box, BazaR};
 use std::cell::RefCell;
 use std::fs::{self, File};
 use std::io::Write;
@@ -47,10 +47,8 @@ impl Bundle {
         if !status.success() {
             exit(1);
         }
-        let data = fs::read(temp_file_path)?;
-        let mut file = File::create(temp_file_path)?;
-        let encrypted = encrypt_data(&data, &key()?)?;
-        file.write_all(&encrypted)?;
+
+        encrypt_file(&self.file.path().to_path_buf())?;
 
         Ok(self)
     }
@@ -58,10 +56,7 @@ impl Bundle {
     pub(crate) fn edit(self, path: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
-        let data = fs::read(&path)?;
-        let mut file = File::create(&path)?;
-        let decrypted = decrypt_data(&data, &key()?)?;
-        file.write_all(&decrypted)?;
+        decrypt_file(&path)?;
 
         let file = self.file.path().as_os_str();
 
@@ -71,10 +66,7 @@ impl Bundle {
             exit(1);
         }
 
-        let data = fs::read(file)?;
-        let mut file = File::create(file)?;
-        let encrypted = encrypt_data(&data, &key()?)?;
-        file.write_all(&encrypted)?;
+        encrypt_file(&self.file.path().to_path_buf())?;
 
         Ok(self)
     }
