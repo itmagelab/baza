@@ -29,6 +29,10 @@ Generate a new key for baza
     ./baza bundle search login
     ./baza bundle edit full::path::for::login
 
+### Copy to clipboard
+
+    ./baza bundle copy full::path::for::login
+
 ## How to keep your keys safe
 
     gpg --list-keys
