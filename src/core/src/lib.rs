@@ -3,7 +3,7 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
 use std::path::PathBuf;
-use sha2::{Digest, Sha256};
+use sha2::{Digest};
 use std::fs::{self, File};
 use std::io::Write;
 use std::ops::Not;
@@ -46,7 +46,7 @@ pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool
 }
 
 fn as_hash(str: &str) -> [u8; 32] {
-    let mut hasher = Sha256::new();
+    let mut hasher = sha2::Sha256::new();
     hasher.update(str.as_bytes());
     let result = hasher.finalize();
     result.into()
@@ -66,6 +66,7 @@ pub fn init() -> BazaR<()> {
     println!("{}", "!!! Save this uuid for future use".bright_yellow());
     println!("{} {}", "Baza:".bright_green(), uuid.bright_blue());
     let key = as_hash(&uuid);
+    fs::create_dir_all(BAZA_DIR)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
     Ok(())
