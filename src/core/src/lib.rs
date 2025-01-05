@@ -12,8 +12,8 @@ use uuid::Uuid;
 use error::Error;
 use rand::Rng;
 
-pub mod r#box;
-pub mod bundle;
+pub(crate) mod r#box;
+pub(crate) mod bundle;
 pub mod container;
 pub mod error;
 pub mod pgp;
