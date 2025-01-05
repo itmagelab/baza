@@ -9,6 +9,7 @@ use std::{
     process::{exit, Command},
 };
 use tempfile::NamedTempFile;
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct Bundle {
@@ -52,6 +53,7 @@ impl Bundle {
         Ok(self)
     }
 
+    #[instrument]
     pub(crate) fn edit(self, path: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 

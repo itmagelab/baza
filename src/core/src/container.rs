@@ -6,6 +6,7 @@ use std::{
 };
 
 use bundle::Bundle;
+use tracing::{debug, instrument};
 use walkdir::WalkDir;
 
 use super::*;
@@ -69,10 +70,13 @@ impl ContainerBuilder {
         self
     }
 
+    #[instrument]
     fn add_bundle(&mut self, mut bundle: Bundle) -> &mut Self {
         if let Some(r#box) = self.boxes.last() {
             bundle.parent = Some(Rc::clone(r#box));
             r#box.borrow_mut().bundles.push(bundle);
+        } else {
+            debug!(error = %Error::BoxMoreOne);
         }
         self
     }

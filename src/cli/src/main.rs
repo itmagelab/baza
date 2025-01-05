@@ -9,7 +9,10 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
-    Init,
+    Init {
+        #[arg(short, long)]
+        uuid: Option<String>,
+    },
     Bundle(bundle::Args),
     Password(password::Args),
 }
@@ -33,9 +36,9 @@ pub async fn main() {
     let result = match args.command {
         Commands::Password(s) => password::handle(s),
         Commands::Bundle(s) => bundle::handle(s),
-        Commands::Init => {
+        Commands::Init { uuid } => {
             let _ = pgp::generate();
-            let _ = core::init();
+            let _ = core::init(uuid);
             Ok(())
         }
     };

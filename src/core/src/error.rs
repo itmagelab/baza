@@ -19,6 +19,8 @@ pub enum Error {
     TooFewArguments,
     #[error("Encription error")]
     EncriptionError(aes_gcm::Error),
+    #[error("Must be more what one box; like: `work::login`")]
+    BoxMoreOne,
 
     // From traits
     #[error("IO error: {0}")]

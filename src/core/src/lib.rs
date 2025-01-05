@@ -2,11 +2,11 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
-use std::path::PathBuf;
 use sha2::Digest;
 use std::fs::{self, File};
 use std::io::Write;
 use std::ops::Not;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 use error::Error;
@@ -61,8 +61,8 @@ pub fn key() -> BazaR<Vec<u8>> {
     Ok(data)
 }
 
-pub fn init() -> BazaR<()> {
-    let uuid = Uuid::new_v4().hyphenated().to_string();
+pub fn init(uuid: Option<String>) -> BazaR<()> {
+    let uuid = uuid.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     println!("{}", "!!! Save this uuid for future use".bright_yellow());
     println!("{} {}", "Baza:".bright_green(), uuid.bright_blue());
     let key = as_hash(&uuid);
@@ -93,8 +93,8 @@ pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
 
 pub fn decrypt_file(path: &PathBuf) -> BazaR<()> {
     let data = fs::read(path)?;
-    let mut file = File::create(path)?;
     let encrypted = decrypt_data(&data, &key()?)?;
+    let mut file = File::create(path)?;
     file.write_all(&encrypted)?;
     Ok(())
 }
