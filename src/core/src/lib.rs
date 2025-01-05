@@ -3,7 +3,7 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
 use std::path::PathBuf;
-use sha2::{Digest};
+use sha2::Digest;
 use std::fs::{self, File};
 use std::io::Write;
 use std::ops::Not;

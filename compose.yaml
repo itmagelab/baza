@@ -1,0 +1,7 @@
+---
+services:
+  baza:
+    image: wilful/baza:1.0.0
+    build:
+      context: .
+      target: final
