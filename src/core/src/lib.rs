@@ -74,8 +74,8 @@ pub fn init(uuid: Option<String>) -> BazaR<()> {
 
 pub fn encrypt_file(path: &PathBuf) -> BazaR<()> {
     let data = fs::read(path)?;
-    let mut file = File::create(path)?;
     let encrypted = encrypt_data(&data, &key()?)?;
+    let mut file = File::create(path)?;
     file.write_all(&encrypted)?;
     Ok(())
 }
