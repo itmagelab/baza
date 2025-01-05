@@ -1,8 +1,12 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
-use uuid::Uuid;
+use core::str;
+use sha2::{Digest, Sha256};
+use std::fs::{self, File};
+use std::io::Write;
 use std::ops::Not;
+use uuid::Uuid;
 
 use error::Error;
 use rand::Rng;
@@ -14,6 +18,7 @@ pub mod error;
 pub mod pgp;
 
 const SEP: &str = "::";
+pub const BAZA_DIR: &str = "/var/tmp/baza";
 
 pub type BazaR<T> = Result<T, Error>;
 
@@ -39,12 +44,35 @@ pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool
         .collect())
 }
 
-pub fn init() {
+fn as_hash(str: &str) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(str.as_bytes());
+    let result = hasher.finalize();
+    result.into()
+}
+
+pub fn key_file() -> String {
+    format!("{BAZA_DIR}/key.bin")
+}
+
+pub fn key() -> BazaR<Vec<u8>> {
+    let data = fs::read(key_file())?;
+    Ok(data)
+}
+
+pub fn init() -> BazaR<()> {
     let uuid = Uuid::new_v4().hyphenated().to_string();
-    println!("{} {}", "Generate a new token for Baza:".bright_green(), uuid.bright_blue());
-    let token = uuid.as_bytes();
-    println!("{}", "Enter the password".bright_blue());
-    println!("{} {:?}", "Password".bright_green(), token);
+    println!("{} {}", "Baza:".bright_green(), uuid.bright_blue());
+    let key = as_hash(&uuid);
+    let mut file = File::create(key_file())?;
+    file.write_all(&key)?;
+    // let data = encrypt_data(uuid.as_bytes(), &key).unwrap();
+    // let mut file = File::create("/tmp/secret.file").unwrap();
+    // file.write_all(&data).unwrap();
+    // let data = fs::read("/tmp/secret.file").unwrap();
+    // let decrypted = decrypt_data(&data, &key).unwrap();
+    // println!("{} {:?}", "Decripted".bright_green(), str::from_utf8(&decrypted).unwrap());
+    Ok(())
 }
 
 pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {

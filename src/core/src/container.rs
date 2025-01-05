@@ -38,7 +38,7 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
-        let home = env::var("BAZA_DIR").unwrap_or(String::from("/var/tmp/baza"));
+        let home = env::var("BAZA_DIR").unwrap_or(String::from(BAZA_DIR));
         Self {
             dir: PathBuf::from(home),
             boxes: vec![],

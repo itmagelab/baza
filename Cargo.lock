@@ -399,6 +399,7 @@ dependencies = [
  "colored",
  "rand",
  "sequoia-openpgp",
+ "sha2",
  "tempfile",
  "thiserror 2.0.1",
  "tracing",
@@ -1367,6 +1368,17 @@ checksum = "1f606421e4a6012877e893c399822a4ed4b089164c5969424e1b9d1e66e6964b"
 dependencies = [
  "digest",
  "generic-array",
+]
+
+[[package]]
+name = "sha2"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
 ]
 
 [[package]]
