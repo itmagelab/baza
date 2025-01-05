@@ -16,6 +16,7 @@ pub(crate) mod r#box;
 pub(crate) mod bundle;
 pub mod container;
 pub mod error;
+pub mod git;
 pub mod pgp;
 
 const SEP: &str = "::";

@@ -49,3 +49,8 @@ Save the key in a safe place
 ## Example libs usage
 
 <https://habr.com/ru/companies/otus/articles/833714/>
+
+## TODO
+
+* Sync from a cloud providers
+* TOTP

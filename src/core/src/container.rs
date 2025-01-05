@@ -119,6 +119,19 @@ impl Container {
         Ok(self)
     }
 
+    fn copy_to_clipboard(self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let bundle = r#box
+                .borrow_mut()
+                .bundles
+                .pop()
+                .ok_or(Error::CommonBazaError)?;
+            let path = self.dir.join(bundle.path());
+            bundle.copy_to_clipboard(path)?;
+        }
+        Ok(())
+    }
+
     fn save(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let path = self.dir.join(r#box.borrow().path());
@@ -131,19 +144,7 @@ impl Container {
                 file.persist_noclobber(path)?;
             }
         }
-        Ok(())
-    }
-
-    fn copy_to_clipboard(self) -> BazaR<()> {
-        if let Some(r#box) = self.boxes.last() {
-            let bundle = r#box
-                .borrow_mut()
-                .bundles
-                .pop()
-                .ok_or(Error::CommonBazaError)?;
-            let path = self.dir.join(bundle.path());
-            bundle.copy_to_clipboard(path)?;
-        }
+        git::commit(self.name)?;
         Ok(())
     }
 
@@ -159,6 +160,7 @@ impl Container {
                 file.persist(path)?;
             }
         }
+        git::commit(self.name)?;
         Ok(())
     }
 }

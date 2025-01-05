@@ -23,6 +23,8 @@ pub enum Error {
     EncriptionError(aes_gcm::Error),
     #[error("Must be more what one box; like: `work::login`")]
     BoxMoreOne,
+    #[error("git2 error")]
+    Git2Error(git2::Error),
 
     // From traits
     #[error("IO error: {0}")]

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod bundle;
 mod password;
+mod storage;
 
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -23,6 +24,7 @@ pub(crate) enum Commands {
     },
     Bundle(bundle::Args),
     Password(password::Args),
+    Storage(storage::Args),
 }
 
 #[derive(Parser, Debug)]
@@ -48,6 +50,7 @@ pub async fn main() {
             core::init(uuid).unwrap();
             Ok(())
         }
+        Commands::Storage(s) => storage::handle(s),
     };
     match result {
         Ok(_) => (),
