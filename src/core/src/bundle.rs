@@ -94,7 +94,7 @@ impl Bundle {
         let message = "Copied to clipboard. Will clear in 45 seconds.";
         println!("{}", message.bright_yellow().bold());
         thread::sleep(ttl_duration);
-        clipboard.set_text("".to_string()).map_err(Error::ArboardError).unwrap();
+        clipboard.set_text("".to_string()).map_err(Error::ArboardError)?;
 
         Ok(self)
     }
