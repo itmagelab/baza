@@ -34,8 +34,8 @@ pub async fn main() {
         Commands::Password(s) => password::handle(s),
         Commands::Bundle(s) => bundle::handle(s),
         Commands::Init => {
-            pgp::generate();
-            core::init();
+            let _ = pgp::generate();
+            let _ = core::init();
             Ok(())
         }
     };

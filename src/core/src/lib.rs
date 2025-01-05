@@ -63,16 +63,11 @@ pub fn key() -> BazaR<Vec<u8>> {
 
 pub fn init() -> BazaR<()> {
     let uuid = Uuid::new_v4().hyphenated().to_string();
+    println!("{}", "!!! Save this uuid for future use".bright_yellow());
     println!("{} {}", "Baza:".bright_green(), uuid.bright_blue());
     let key = as_hash(&uuid);
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
-    // let data = encrypt_data(uuid.as_bytes(), &key).unwrap();
-    // let mut file = File::create("/tmp/secret.file").unwrap();
-    // file.write_all(&data).unwrap();
-    // let data = fs::read("/tmp/secret.file").unwrap();
-    // let decrypted = decrypt_data(&data, &key).unwrap();
-    // println!("{} {:?}", "Decripted".bright_green(), str::from_utf8(&decrypted).unwrap());
     Ok(())
 }
 
