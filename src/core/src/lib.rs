@@ -52,11 +52,11 @@ fn as_hash(str: &str) -> [u8; 32] {
     result.into()
 }
 
-pub fn key_file() -> String {
+pub(crate) fn key_file() -> String {
     format!("{BAZA_DIR}/key.bin")
 }
 
-pub fn key() -> BazaR<Vec<u8>> {
+pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = fs::read(key_file())?;
     Ok(data)
 }
@@ -73,7 +73,7 @@ pub fn init(uuid: Option<String>) -> BazaR<()> {
     Ok(())
 }
 
-pub fn encrypt_file(path: &PathBuf) -> BazaR<()> {
+pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
     let data = fs::read(path)?;
     let encrypted = encrypt_data(&data, &key()?)?;
     let mut file = File::create(path)?;
@@ -81,7 +81,7 @@ pub fn encrypt_file(path: &PathBuf) -> BazaR<()> {
     Ok(())
 }
 
-pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
+pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let mut nonce = [0u8; 12];
     rand::thread_rng().fill(&mut nonce);
@@ -92,7 +92,7 @@ pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     Ok([nonce.as_slice(), &ciphertext].concat())
 }
 
-pub fn decrypt_file(path: &PathBuf) -> BazaR<()> {
+pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
     let data = fs::read(path)?;
     let encrypted = decrypt_data(&data, &key()?)?;
     let mut file = File::create(path)?;
@@ -100,7 +100,7 @@ pub fn decrypt_file(path: &PathBuf) -> BazaR<()> {
     Ok(())
 }
 
-pub fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
+pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let ciphertext = &ciphertext[12..];

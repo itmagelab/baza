@@ -33,7 +33,7 @@ impl Bundle {
         })
     }
 
-    pub fn path(&self) -> PathBuf {
+    pub(crate) fn path(&self) -> PathBuf {
         let mut path = self
             .parent
             .as_ref()
