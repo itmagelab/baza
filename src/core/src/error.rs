@@ -17,6 +17,8 @@ pub enum Error {
     MustSpecifyAtLeastOne,
     #[error("Too few arguments")]
     TooFewArguments,
+    #[error("arboard error")]
+    ArboardError(arboard::Error),
     #[error("Encription error")]
     EncriptionError(aes_gcm::Error),
     #[error("Must be more what one box; like: `work::login`")]

@@ -1,5 +1,3 @@
-use core::pgp;
-
 use clap::{Parser, Subcommand};
 
 mod bundle;

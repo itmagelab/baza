@@ -134,6 +134,19 @@ impl Container {
         Ok(())
     }
 
+    fn copy_to_clipboard(self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let bundle = r#box
+                .borrow_mut()
+                .bundles
+                .pop()
+                .ok_or(Error::CommonBazaError)?;
+            let path = self.dir.join(bundle.path());
+            bundle.copy_to_clipboard(path)?;
+        }
+        Ok(())
+    }
+
     fn rewrite(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let path = self.dir.join(r#box.borrow().path());
@@ -177,6 +190,15 @@ pub fn edit(str: String) -> BazaR<()> {
         .build()
         .edit()?
         .rewrite()?;
+    Ok(())
+}
+
+#[tracing::instrument]
+pub fn copy_to_clipboard(str: String) -> BazaR<()> {
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .copy_to_clipboard()?;
     Ok(())
 }
 

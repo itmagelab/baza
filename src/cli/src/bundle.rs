@@ -13,6 +13,7 @@ pub(crate) enum Commands {
     Create { name: String },
     Edit { name: String },
     Search { name: String },
+    Copy { name: String },
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
@@ -25,6 +26,9 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
         }
         Commands::Search { name } => {
             container::search(name)?;
+        }
+        Commands::Copy { name } => {
+            container::copy_to_clipboard(name)?;
         }
     };
     Ok(())
