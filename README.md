@@ -9,6 +9,10 @@ Generate a new key for baza
 > [!WARNING]
 > This is not an idempotent operation
 
+### Re-init your baza
+
+    ./baza init -u daec1759-f713-4cb2-bae6-5817b22c9c6c
+
 ### Generate a new password by baza
 
     ./baza password generate 10
@@ -22,6 +26,7 @@ Generate a new key for baza
 
 ### Edit your bundle
 
+    ./baza bundle search login
     ./baza bundle edit full::path::for::login
 
 ## How to keep your keys safe
