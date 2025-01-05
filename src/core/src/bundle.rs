@@ -1,7 +1,6 @@
-use crate::{decrypt_data, decrypt_file, encrypt_data, encrypt_file, key, r#box, BazaR};
+use crate::{decrypt_file, encrypt_file, r#box, BazaR};
 use std::cell::RefCell;
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs::{self};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{
