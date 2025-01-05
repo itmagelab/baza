@@ -3,10 +3,10 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use crate::bundle::Bundle;
 
 #[derive(Debug, Default)]
-pub struct r#Box {
-    pub name: Arc<str>,
+pub(crate) struct r#Box {
+    pub(crate) name: Arc<str>,
     pub(crate) bundles: Vec<Bundle>,
-    pub parent: Option<Rc<RefCell<r#Box>>>,
+    pub(crate) parent: Option<Rc<RefCell<r#Box>>>,
 }
 
 impl r#Box {
