@@ -46,13 +46,13 @@ impl Bundle {
     pub(crate) fn create(self) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
-        let temp_file_path = self.file.path().as_os_str();
-        let status = Command::new(editor).arg(temp_file_path).status()?;
+        let file = self.file.path().to_path_buf();
+        let status = Command::new(editor).arg(&file).status()?;
         if !status.success() {
             exit(1);
         }
 
-        encrypt_file(&self.file.path().to_path_buf())?;
+        encrypt_file(&file)?;
 
         Ok(self)
     }
@@ -61,17 +61,17 @@ impl Bundle {
     pub(crate) fn edit(self, path: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
-        let file = self.file.path().as_os_str();
-        fs::copy(path, file)?;
+        let file = self.file.path().to_path_buf();
+        fs::copy(path, &file)?;
 
-        decrypt_file(&self.file.path().to_path_buf())?;
+        decrypt_file(&file)?;
 
-        let status = Command::new(editor).arg(file).status()?;
+        let status = Command::new(editor).arg(&file).status()?;
         if !status.success() {
             exit(1);
         }
 
-        encrypt_file(&self.file.path().to_path_buf())?;
+        encrypt_file(&file)?;
 
         Ok(self)
     }
@@ -81,10 +81,10 @@ impl Bundle {
         let ttl_seconds = 45;
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
-        let file = self.file.path().as_os_str();
-        fs::copy(path, file)?;
+        let file = self.file.path().to_path_buf();
+        fs::copy(path, &file)?;
 
-        decrypt_file(&self.file.path().to_path_buf())?;
+        decrypt_file(&file)?;
         let data = fs::read(file)?;
         let lossy = String::from_utf8_lossy(&data);
         clipboard.set_text(lossy.trim()).map_err(Error::ArboardError)?;
