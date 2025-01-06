@@ -16,7 +16,7 @@ pub(crate) enum Commands {
 pub(crate) fn handle(args: Args) -> Result<(), Error> {
     match args.command {
         Commands::Init => {
-            init();
+            let _ = init();
             Ok(())
         }
     }
