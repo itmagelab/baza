@@ -6,6 +6,16 @@ mod password;
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Debug, Subcommand)]
+#[command(
+    about = "Baza: The base password manager",
+    long_about = r#"
+        +-+-+-+-+
+        |B|A|Z|A|
+        +-+-+-+-+
+
+The base password manager
+"#
+)]
 pub(crate) enum Commands {
     Init {
         #[arg(short, long)]
