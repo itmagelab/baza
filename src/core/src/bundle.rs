@@ -58,10 +58,11 @@ impl Bundle {
     }
 
     #[instrument]
-    pub(crate) fn edit(self, path: PathBuf) -> BazaR<Self> {
+    pub(crate) fn edit(self, load_from: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();
+        let path = load_from.join(self.path());
         fs::copy(path, &file)?;
 
         decrypt_file(&file)?;
@@ -77,11 +78,12 @@ impl Bundle {
     }
 
     #[instrument]
-    pub(crate) fn copy_to_clipboard(self, path: PathBuf) -> BazaR<Self> {
+    pub(crate) fn copy_to_clipboard(self, load_from: PathBuf) -> BazaR<Self> {
         let ttl_seconds = 45;
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
         let file = self.file.path().to_path_buf();
+        let path = load_from.join(self.path());
         fs::copy(path, &file)?;
 
         decrypt_file(&file)?;

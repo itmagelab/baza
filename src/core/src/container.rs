@@ -112,8 +112,7 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            let path = self.dir.join(bundle.path());
-            bundle = bundle.edit(path)?;
+            bundle = bundle.edit(self.dir.clone())?;
             r#box.borrow_mut().bundles.push(bundle);
         }
         Ok(self)
@@ -126,8 +125,7 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            let path = self.dir.join(bundle.path());
-            bundle.copy_to_clipboard(path)?;
+            bundle.copy_to_clipboard(self.dir)?;
         }
         Ok(())
     }
