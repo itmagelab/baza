@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::{decrypt_file, encrypt_file, r#box, BazaR};
+use crate::{decrypt_file, encrypt_file, r#box, BazaR, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use std::cell::RefCell;
@@ -79,7 +79,6 @@ impl Bundle {
 
     #[instrument]
     pub(crate) fn copy_to_clipboard(self, load_from: PathBuf) -> BazaR<Self> {
-        let ttl_seconds = 45;
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
         let file = self.file.path().to_path_buf();
@@ -93,9 +92,12 @@ impl Bundle {
             .set_text(lossy.trim())
             .map_err(Error::ArboardError)?;
 
-        let ttl_duration = time::Duration::new(ttl_seconds, 0);
+        let ttl_duration = time::Duration::new(TTL_SECONDS, 0);
 
-        let message = "Copied to clipboard. Will clear in 45 seconds.";
+        let message = format!(
+            "Copied to clipboard. Will clear in {} seconds.",
+            TTL_SECONDS
+        );
         println!("{}", message.bright_yellow().bold());
         thread::sleep(ttl_duration);
         clipboard

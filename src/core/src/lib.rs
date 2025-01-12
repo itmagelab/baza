@@ -23,6 +23,7 @@ const SEP: &str = "::";
 pub const BAZA_DIR: &str = "/var/tmp/baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";
+pub const TTL_SECONDS: u64 = 45;
 
 pub type BazaR<T> = Result<T, Error>;
 
