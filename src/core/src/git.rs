@@ -3,7 +3,7 @@ use std::{fs::File, io::Write};
 use colored::Colorize;
 use git2::{IndexAddOption, Repository, Signature};
 
-use crate::{error::Error, BazaR, BAZA_DIR};
+use crate::{error::Error, BazaR, BAZA_DIR, DEFAULT_AUTHOR, DEFAULT_EMAIL};
 
 pub fn init() -> BazaR<()> {
     let repo = Repository::init(BAZA_DIR).map_err(Error::Git2Error)?;
@@ -24,7 +24,7 @@ pub fn init() -> BazaR<()> {
         Err(_) => None,
     };
     let commit_message = "Initial commit";
-    let signature = Signature::now("iTmagelab", "root@itmage.ru").map_err(Error::Git2Error)?;
+    let signature = Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL).map_err(Error::Git2Error)?;
     match parent_commit {
         Some(_) => {
             let message = "Repository already has commits";
@@ -60,7 +60,7 @@ pub fn commit(msg: String) -> BazaR<()> {
         Ok(head) => Some(head.peel_to_commit().map_err(Error::Git2Error)?),
         Err(_) => None,
     };
-    let signature = Signature::now("iTmagelab", "root@itmage.ru").map_err(Error::Git2Error)?;
+    let signature = Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL).map_err(Error::Git2Error)?;
     match parent_commit {
         Some(parent) => {
             repo.commit(
