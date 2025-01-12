@@ -20,6 +20,8 @@ pub mod pgp;
 
 const SEP: &str = "::";
 pub const BAZA_DIR: &str = "/var/tmp/baza";
+pub const DEFAULT_EMAIL: &str = "root@baza";
+pub const DEFAULT_AUTHOR: &str = "Root Baza";
 
 pub type BazaR<T> = Result<T, Error>;
 
@@ -69,7 +71,9 @@ pub fn init(uuid: Option<String>) -> BazaR<()> {
     fs::create_dir_all(BAZA_DIR)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
-    // pgp::generate().unwrap();
+
+    // Generate default pgp key
+    pgp::generate()?;
     Ok(())
 }
 
