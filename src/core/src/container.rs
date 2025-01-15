@@ -41,7 +41,7 @@ impl ContainerBuilder {
     fn new() -> Self {
         let home = env::var("BAZA_DIR").unwrap_or(String::from(BAZA_DIR));
         Self {
-            dir: PathBuf::from(home),
+            dir: PathBuf::from(format!("{}/data", home)),
             boxes: vec![],
             ..Default::default()
         }
