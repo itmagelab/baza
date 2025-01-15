@@ -7,7 +7,7 @@ use std::{
 
 use bundle::Bundle;
 use tracing::instrument;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use super::*;
 
@@ -202,10 +202,19 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Ok(())
 }
 
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
+}
+
 #[tracing::instrument]
 pub fn search(str: String) -> BazaR<()> {
     let builder = ContainerBuilder::new();
-    for entry in WalkDir::new(&builder.dir) {
+    let walker = WalkDir::new(&builder.dir).into_iter();
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry?;
         let path = entry.path();
 
