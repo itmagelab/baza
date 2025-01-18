@@ -54,7 +54,7 @@ pub fn commit(msg: String) -> BazaR<()> {
     index.write().map_err(Error::Git2Error)?;
     let tree_oid = index.write_tree().map_err(Error::Git2Error)?;
     let tree = repo.find_tree(tree_oid).map_err(Error::Git2Error)?;
-    let commit_message = format!("Added a new bundle {}", msg);
+    let commit_message = format!("Bundle {} was changed", msg);
 
     let parent_commit = match repo.head() {
         Ok(head) => Some(head.peel_to_commit().map_err(Error::Git2Error)?),
