@@ -64,8 +64,7 @@ impl ContainerBuilder {
     }
 
     fn add_box(&mut self, mut r#box: r#box::r#Box) -> &mut Self {
-        let parent = self.boxes.last().map(Rc::clone);
-        r#box.parent = parent;
+        r#box.parent = self.boxes.last().map(Rc::clone);
         self.boxes.push(Rc::new(RefCell::new(r#box)));
         self
     }
