@@ -1,3 +1,5 @@
+use core::container;
+
 use clap::{Parser, Subcommand};
 
 mod bundle;
@@ -30,8 +32,10 @@ pub(crate) enum Commands {
 #[derive(Parser, Debug)]
 #[command(name = "baza")]
 pub struct Cli {
+    #[arg(short, long)]
+    copy: Option<String>,
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[tokio::main]
@@ -43,14 +47,20 @@ pub async fn main() {
         .init();
 
     let args = Cli::parse();
-    let result = match args.command {
-        Commands::Password(s) => password::handle(s),
-        Commands::Bundle(s) => bundle::handle(s),
-        Commands::Init { uuid } => {
-            core::init(uuid).unwrap();
-            Ok(())
+    let result = if let Some(s) = args.copy {
+        container::copy_to_clipboard(s)
+    } else if let Some(command) = args.command {
+        match command {
+            Commands::Password(s) => password::handle(s),
+            Commands::Bundle(s) => bundle::handle(s),
+            Commands::Init { uuid } => {
+                core::init(uuid).unwrap();
+                Ok(())
+            }
+            Commands::Storage(s) => storage::handle(s),
         }
-        Commands::Storage(s) => storage::handle(s),
+    } else {
+        Ok(())
     };
     match result {
         Ok(_) => (),
