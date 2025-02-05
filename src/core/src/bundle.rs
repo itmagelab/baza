@@ -1,7 +1,8 @@
 use crate::error::Error;
-use crate::{decrypt_file, encrypt_file, r#box, BazaR, TTL_SECONDS};
+use crate::{decrypt_file, encrypt_file, r#box, BazaR, BOX_SEP, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
+use core::fmt;
 use std::cell::RefCell;
 use std::fs::{self};
 use std::rc::Rc;
@@ -22,6 +23,12 @@ pub(crate) struct Bundle {
     pub(crate) parent: Option<Rc<RefCell<r#box::r#Box>>>,
 }
 
+impl fmt::Display for Bundle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.pointer().join(BOX_SEP))
+    }
+}
+
 impl Bundle {
     pub(crate) fn new(name: String) -> BazaR<Self> {
         let file = NamedTempFile::new()?;
@@ -33,14 +40,19 @@ impl Bundle {
         })
     }
 
-    pub(crate) fn path(&self) -> PathBuf {
-        let mut path = self
+    pub(crate) fn pointer(&self) -> Vec<String> {
+        let mut pointer = self
             .parent
             .as_ref()
-            .map(|parent| parent.borrow().path())
+            .map(|parent| parent.borrow().pointer())
             .unwrap_or_default();
-        path.push(&*self.name);
-        path
+        pointer.push(self.name.to_string());
+
+        pointer
+    }
+
+    pub(crate) fn path(&self) -> PathBuf {
+        self.pointer().iter().collect()
     }
 
     pub(crate) fn create(self) -> BazaR<Self> {

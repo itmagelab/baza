@@ -19,7 +19,8 @@ pub mod error;
 pub mod git;
 pub mod pgp;
 
-const SEP: &str = "::";
+const BOX_SEP: &str = "::";
+const BUNDLE_SEP: &str = ",";
 pub const BAZA_DIR: &str = "/var/tmp/baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";

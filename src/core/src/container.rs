@@ -14,42 +14,53 @@ use super::*;
 // cover, container, box, bundle
 #[derive(Debug)]
 struct Container {
-    dir: PathBuf,
-    name: String,
+    path: PathBuf,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
 impl fmt::Display for Container {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _boxes: Vec<String> = self
-            .boxes
-            .iter()
-            .map(|b| b.borrow().name.to_string())
-            .collect();
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.name())
     }
 }
 
 #[derive(Debug, Default, Clone)]
 struct ContainerBuilder {
-    dir: PathBuf,
-    name: String,
+    path: PathBuf,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
+
+// impl std::str::FromStr for ContainerBuilder {
+//     type Err = Error;
+//
+//     fn from_str(name: &str) -> Result<Self, Self::Err> {
+//         let mut pack: Vec<&str> = name.trim().split(SEP).collect();
+//         let Some(bundle) = pack.pop() else {
+//             return Err(Error::TooFewArguments);
+//         };
+//         pack.reverse();
+//         while let Some(r#box) = pack.pop() {
+//             let r#box = r#box::r#Box::new(r#box.to_string(), None);
+//             self.add_box(r#box);
+//         }
+//         let bundle = Bundle::new(bundle.to_string())?;
+//         self.add_bundle(bundle);
+//         Ok(self)
+//     }
+// }
 
 impl ContainerBuilder {
     fn new() -> Self {
         let home = env::var("BAZA_DIR").unwrap_or(String::from(BAZA_DIR));
         Self {
-            dir: PathBuf::from(format!("{}/data", home)),
+            path: PathBuf::from(format!("{}/data", home)),
             boxes: vec![],
-            ..Default::default()
         }
     }
 
+    // TODO: Use FromStr instead
     fn create_from_str(mut self, name: String) -> BazaR<Self> {
-        self.name = name.clone();
-        let mut pack: Vec<&str> = name.trim().split(SEP).collect();
+        let mut pack: Vec<&str> = name.trim().split(BOX_SEP).collect();
         let Some(bundle) = pack.pop() else {
             return Err(Error::TooFewArguments);
         };
@@ -81,14 +92,34 @@ impl ContainerBuilder {
     }
 
     fn build(self) -> Container {
-        let Self { dir, name, boxes } = self;
-        Container { dir, name, boxes }
+        let Self { path: dir, boxes } = self;
+        Container { path: dir, boxes }
     }
 }
 
 impl Container {
     fn builder() -> ContainerBuilder {
         ContainerBuilder::new()
+    }
+
+    fn bundles(&self) -> Vec<String> {
+        if let Some(r#box) = self.boxes.last() {
+            let bundles = &r#box.borrow().bundles;
+            if !bundles.is_empty() {
+                return bundles.iter().map(|b| b.name.to_string()).collect();
+            };
+        };
+        vec![]
+    }
+
+    fn name(&self) -> String {
+        let mut name: Vec<String> = self
+            .boxes
+            .iter()
+            .map(|b| b.borrow().name.to_string())
+            .collect();
+        name.push(self.bundles().join(BUNDLE_SEP));
+        name.join(BOX_SEP)
     }
 
     fn create(self) -> BazaR<Self> {
@@ -111,7 +142,7 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            bundle = bundle.edit(self.dir.clone())?;
+            bundle = bundle.edit(self.path.clone())?;
             r#box.borrow_mut().bundles.push(bundle);
         }
         Ok(self)
@@ -124,14 +155,14 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            bundle.copy_to_clipboard(self.dir)?;
+            bundle.copy_to_clipboard(self.path)?;
         }
         Ok(())
     }
 
     fn save(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let path = self.dir.join(r#box.borrow().path());
+            let path = self.path.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
@@ -141,13 +172,13 @@ impl Container {
                 file.persist_noclobber(path)?;
             }
         }
-        git::commit(self.name)?;
+        git::commit(self.name())?;
         Ok(())
     }
 
     fn rewrite(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let path = self.dir.join(r#box.borrow().path());
+            let path = self.path.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
@@ -157,7 +188,7 @@ impl Container {
                 file.persist(path)?;
             }
         }
-        git::commit(self.name)?;
+        git::commit(self.name())?;
         Ok(())
     }
 }
@@ -212,13 +243,13 @@ fn is_hidden(entry: &DirEntry) -> bool {
 #[tracing::instrument]
 pub fn search(str: String) -> BazaR<()> {
     let builder = ContainerBuilder::new();
-    let walker = WalkDir::new(&builder.dir).into_iter();
+    let walker = WalkDir::new(&builder.path).into_iter();
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry?;
         let path = entry.path();
 
         if path.is_file() {
-            let path = path.strip_prefix(&builder.dir)?;
+            let path = path.strip_prefix(&builder.path)?;
             let lossy = path.to_string_lossy().replace(MAIN_SEPARATOR, "::");
 
             if lossy.contains(&str) {

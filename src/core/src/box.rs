@@ -19,13 +19,18 @@ impl r#Box {
         }
     }
 
-    pub(crate) fn path(&self) -> PathBuf {
-        let mut path = PathBuf::new();
-        if let Some(parent) = self.parent.as_ref() {
-            path = parent.borrow().path();
-        };
-        path.push(&*self.name);
+    pub(crate) fn pointer(&self) -> Vec<String> {
+        let mut pointer = self
+            .parent
+            .as_ref()
+            .map(|parent| parent.borrow().pointer())
+            .unwrap_or_default();
+        pointer.push(self.name.to_string());
 
-        path
+        pointer
+    }
+
+    pub(crate) fn path(&self) -> PathBuf {
+        self.pointer().iter().collect()
     }
 }
