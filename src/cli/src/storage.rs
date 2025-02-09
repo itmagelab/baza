@@ -1,4 +1,4 @@
-use core::{error::Error, git::init};
+use core::error::Error;
 
 use clap::{command, Args as ClapArgs, Subcommand};
 
@@ -15,9 +15,6 @@ pub(crate) enum Commands {
 
 pub(crate) fn handle(args: Args) -> Result<(), Error> {
     match args.command {
-        Commands::Init => {
-            let _ = init();
-            Ok(())
-        }
+        Commands::Init => Ok(()),
     }
 }

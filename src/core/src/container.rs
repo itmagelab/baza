@@ -173,7 +173,8 @@ impl Container {
                 file.persist_noclobber(path)?;
             }
         }
-        git::commit(name)?;
+        let msg = format!("Bundle {} was added", name);
+        git::commit(msg)?;
         Ok(())
     }
 
@@ -190,7 +191,8 @@ impl Container {
                 file.persist(path)?;
             }
         }
-        git::commit(name)?;
+        let msg = format!("Bundle {} was changed", name);
+        git::commit(msg)?;
         Ok(())
     }
 }
