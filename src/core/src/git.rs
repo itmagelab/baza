@@ -43,7 +43,7 @@ pub fn commit(msg: String) -> BazaR<()> {
 fn initialize(repo: &Repository) -> Result<(), git2::Error> {
     let mut path = repo.path().to_path_buf();
     path.pop();
-    let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy().to_string());
+    let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
     let mut file = match File::create(gitignore_file) {
         Ok(f) => f,
         Err(e) => panic!("Error creating gitignore file: {}", e),

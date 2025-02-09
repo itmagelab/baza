@@ -195,6 +195,27 @@ impl Container {
         git::commit(msg)?;
         Ok(())
     }
+
+    fn delete(self) -> BazaR<()> {
+        let name = self.name();
+        if let Some(r#box) = self.boxes.last() {
+            let path = self.path.join(r#box.borrow().path());
+            fs::create_dir_all(path.clone())?;
+            let bundles = &mut r#box.borrow_mut().bundles;
+
+            while let Some(bundle) = bundles.pop() {
+                let path = path.join(&*bundle.name);
+                if path.exists() {
+                    fs::remove_file(&path)?;
+                } else {
+                    panic!("Bundle {} does not exist.", name);
+                };
+            }
+        }
+        let msg = format!("Bundle {} was deleted", name);
+        git::commit(msg)?;
+        Ok(())
+    }
 }
 
 /// ```
@@ -214,6 +235,15 @@ pub fn create(str: String) -> BazaR<()> {
         .build()
         .create()?
         .save()?;
+    Ok(())
+}
+
+#[tracing::instrument]
+pub fn delete(str: String) -> BazaR<()> {
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .delete()?;
     Ok(())
 }
 
