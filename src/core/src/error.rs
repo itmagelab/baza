@@ -23,9 +23,8 @@ pub enum Error {
     EncriptionError(aes_gcm::Error),
     #[error("Must be more what one box; like: `work::login`")]
     BoxMoreOne,
-    #[error("git2 error")]
-    Git2Error(git2::Error),
-
+    #[error("Bundle {0} does not exist")]
+    BundleNotExist(String),
     // From traits
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
@@ -37,4 +36,6 @@ pub enum Error {
     PersistErrorError(#[from] PersistError),
     #[error("anyhow::Error: {0}")]
     AnyhowError(#[from] anyhow::Error),
+    #[error("git2::Error: {0}")]
+    GitError(#[from] git2::Error),
 }

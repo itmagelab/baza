@@ -19,11 +19,11 @@ fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
 
 pub fn commit(msg: String) -> BazaR<()> {
     let data = format!("{}/data", BAZA_DIR);
-    let repo = Repository::init(&data).map_err(Error::Git2Error)?;
+    let repo = Repository::init(&data)?;
     if let Ok(head) = repo.head() {
-        let tree = add_to_index(&repo).map_err(Error::Git2Error)?;
-        let signature = signature().map_err(Error::Git2Error)?;
-        let parrent_commit = Some(head.peel_to_commit().map_err(Error::Git2Error)?);
+        let tree = add_to_index(&repo)?;
+        let signature = signature()?;
+        let parrent_commit = Some(head.peel_to_commit()?);
         repo.commit(
             Some("HEAD"),
             &signature,
@@ -31,27 +31,21 @@ pub fn commit(msg: String) -> BazaR<()> {
             &msg,
             &tree,
             &[&parrent_commit.ok_or(Error::CommonBazaError)?],
-        )
-        .map_err(Error::Git2Error)?;
+        )?;
     } else {
-        initialize(&repo).map_err(Error::Git2Error)?;
+        initialize(&repo)?;
         commit(msg)?;
     };
     Ok(())
 }
 
-fn initialize(repo: &Repository) -> Result<(), git2::Error> {
+fn initialize(repo: &Repository) -> BazaR<()> {
     let mut path = repo.path().to_path_buf();
     path.pop();
     let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
-    let mut file = match File::create(gitignore_file) {
-        Ok(f) => f,
-        Err(e) => panic!("Error creating gitignore file: {}", e),
-    };
+    let mut file = File::create(gitignore_file)?;
     let gitignore = r#""#;
-    if let Err(e) = file.write_all(gitignore.trim().as_bytes()) {
-        panic!("Error creating gitignore file: {}", e);
-    };
+    file.write_all(gitignore.trim().as_bytes())?;
     let tree = add_to_index(repo)?;
     let commit_message = "Initial commit";
     let signature = signature()?;

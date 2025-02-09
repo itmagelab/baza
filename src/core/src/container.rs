@@ -70,7 +70,7 @@ impl ContainerBuilder {
             self.add_box(r#box);
         }
         let bundle = Bundle::new(bundle.to_string())?;
-        self.add_bundle(bundle);
+        self.add_bundle(bundle)?;
         Ok(self)
     }
 
@@ -81,14 +81,14 @@ impl ContainerBuilder {
     }
 
     #[instrument]
-    fn add_bundle(&mut self, mut bundle: Bundle) -> &mut Self {
+    fn add_bundle(&mut self, mut bundle: Bundle) -> BazaR<&mut Self> {
         if let Some(r#box) = self.boxes.last() {
             bundle.parent = Some(Rc::clone(r#box));
             r#box.borrow_mut().bundles.push(bundle);
         } else {
-            panic!("{error}", error = Error::BoxMoreOne);
+            return Err(Error::BoxMoreOne);
         }
-        self
+        Ok(self)
     }
 
     fn build(self) -> Container {
@@ -208,7 +208,7 @@ impl Container {
                 if path.exists() {
                     fs::remove_file(&path)?;
                 } else {
-                    panic!("Bundle {} does not exist.", name);
+                    return Err(Error::BundleNotExist(name));
                 };
             }
         }
