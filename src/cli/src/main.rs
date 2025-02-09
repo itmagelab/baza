@@ -1,6 +1,6 @@
-use core::container;
+use core::{container, error::Error};
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 mod bundle;
 mod password;
@@ -57,7 +57,7 @@ pub async fn main() {
             Commands::Storage(s) => storage::handle(s),
         }
     } else {
-        Ok(())
+        Cli::command().print_long_help().map_err(Error::HelpError)
     };
     match result {
         Ok(_) => (),

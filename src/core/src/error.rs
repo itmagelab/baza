@@ -25,6 +25,8 @@ pub enum Error {
     BoxMoreOne,
     #[error("Bundle {0} does not exist")]
     BundleNotExist(String),
+    #[error("Help error: {0}")]
+    HelpError(std::io::Error),
     // From traits
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
