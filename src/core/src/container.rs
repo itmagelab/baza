@@ -161,6 +161,7 @@ impl Container {
     }
 
     fn save(self) -> BazaR<()> {
+        let name = self.name();
         if let Some(r#box) = self.boxes.last() {
             let path = self.path.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
@@ -172,11 +173,12 @@ impl Container {
                 file.persist_noclobber(path)?;
             }
         }
-        git::commit(self.name())?;
+        git::commit(name)?;
         Ok(())
     }
 
     fn rewrite(self) -> BazaR<()> {
+        let name = self.name();
         if let Some(r#box) = self.boxes.last() {
             let path = self.path.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
@@ -188,7 +190,7 @@ impl Container {
                 file.persist(path)?;
             }
         }
-        git::commit(self.name())?;
+        git::commit(name)?;
         Ok(())
     }
 }

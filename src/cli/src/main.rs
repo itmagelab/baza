@@ -53,10 +53,7 @@ pub async fn main() {
         match command {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
-            Commands::Init { uuid } => {
-                core::init(uuid).unwrap();
-                Ok(())
-            }
+            Commands::Init { uuid } => core::init(uuid),
             Commands::Storage(s) => storage::handle(s),
         }
     } else {

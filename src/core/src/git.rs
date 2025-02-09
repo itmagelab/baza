@@ -6,11 +6,11 @@ use git2::{IndexAddOption, Repository, Signature};
 use crate::{error::Error, BazaR, BAZA_DIR, DEFAULT_AUTHOR, DEFAULT_EMAIL};
 
 pub fn init() -> BazaR<()> {
-    let repo = Repository::init(BAZA_DIR).map_err(Error::Git2Error)?;
-    let gitignore_file = format!("{}/.gitignore", BAZA_DIR);
+    let data = format!("{}/data", BAZA_DIR);
+    let repo = Repository::init(&data).map_err(Error::Git2Error)?;
+    let gitignore_file = format!("{}/.gitignore", &data);
     let mut file = File::create(gitignore_file)?;
-    let gitignore = r#"key.bin
-*.pgp"#;
+    let gitignore = r#""#;
     file.write_all(gitignore.trim().as_bytes())?;
     let mut index = repo.index().map_err(Error::Git2Error)?;
     index
@@ -46,7 +46,8 @@ pub fn init() -> BazaR<()> {
 }
 
 pub fn commit(msg: String) -> BazaR<()> {
-    let repo = Repository::init(BAZA_DIR).map_err(Error::Git2Error)?;
+    let data = format!("{}/data", BAZA_DIR);
+    let repo = Repository::init(data).map_err(Error::Git2Error)?;
     let mut index = repo.index().map_err(Error::Git2Error)?;
     index
         .add_all(["*"].iter(), IndexAddOption::DEFAULT, None)
