@@ -66,11 +66,18 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     Ok(data)
 }
 
-pub fn init(uuid: Option<String>) -> BazaR<()> {
-    let uuid = uuid.unwrap_or(Uuid::new_v4().hyphenated().to_string());
-    println!("{}", "!!! Save this uuid for future use".bright_yellow());
-    println!("{} {}", "Baza:".bright_green(), uuid.bright_blue());
-    let key = as_hash(&uuid);
+pub fn init(passphrase: Option<String>) -> BazaR<()> {
+    let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
+    println!(
+        "{}",
+        "!!! Save this password phrase for future use".bright_yellow()
+    );
+    println!(
+        "{} {}",
+        "Password:".bright_green(),
+        passphrase.bright_blue()
+    );
+    let key = as_hash(&passphrase);
     fs::create_dir_all(BAZA_DIR)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;

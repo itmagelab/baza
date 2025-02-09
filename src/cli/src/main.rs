@@ -22,7 +22,7 @@ The base password manager
 pub(crate) enum Commands {
     Init {
         #[arg(short, long)]
-        uuid: Option<String>,
+        passphrase: Option<String>,
     },
     Bundle(bundle::Args),
     Password(password::Args),
@@ -52,7 +52,7 @@ pub async fn main() {
         match command {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
-            Commands::Init { uuid } => core::init(uuid),
+            Commands::Init { passphrase } => core::init(passphrase),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::HelpError)
