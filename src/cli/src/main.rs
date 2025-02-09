@@ -26,7 +26,6 @@ pub(crate) enum Commands {
     },
     Bundle(bundle::Args),
     Password(password::Args),
-    Storage(storage::Args),
 }
 
 #[derive(Parser, Debug)]
@@ -54,7 +53,6 @@ pub async fn main() {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
             Commands::Init { uuid } => core::init(uuid),
-            Commands::Storage(s) => storage::handle(s),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::HelpError)
