@@ -1,5 +1,7 @@
 # baza
 
+![demo](contrib/Baza.gif)
+
 ## Usage
 
 Generate a new key for baza
@@ -51,6 +53,10 @@ Save the key in a safe place
 
     gpg --gen-key
     gpg --export --armor baza > public_key.asc
+
+## Generate VHS articles
+
+    vhs < Baza.tape
 
 ## Example libs usage
 
