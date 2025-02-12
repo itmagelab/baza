@@ -55,14 +55,18 @@ impl Bundle {
         self.pointer().iter().collect()
     }
 
-    pub(crate) fn create(self) -> BazaR<Self> {
+    pub(crate) fn create(self, data: Option<String>) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();
-        let status = Command::new(editor).arg(&file).status()?;
-        if !status.success() {
-            exit(1);
-        }
+        if let Some(data) = data {
+            fs::write(&file, data)?;
+        } else {
+            let status = Command::new(editor).arg(&file).status()?;
+            if !status.success() {
+                exit(1);
+            }
+        };
 
         encrypt_file(&file)?;
 
@@ -90,7 +94,7 @@ impl Bundle {
     }
 
     #[instrument]
-    pub(crate) fn copy_to_clipboard(self, load_from: PathBuf) -> BazaR<Self> {
+    pub(crate) fn copy_to_clipboard(self, load_from: PathBuf, ttl: u64) -> BazaR<Self> {
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
         let file = self.file.path().to_path_buf();
@@ -104,7 +108,7 @@ impl Bundle {
             .set_text(lossy.trim())
             .map_err(Error::ArboardError)?;
 
-        let ttl_duration = time::Duration::new(TTL_SECONDS, 0);
+        let ttl_duration = time::Duration::new(ttl, 0);
 
         let message = format!(
             "Copied to clipboard. Will clear in {} seconds.",

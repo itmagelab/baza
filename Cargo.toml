@@ -9,10 +9,12 @@ edition = "2021"
 authors = ["Andrey Semenov <i@itmage.ru>"]
 
 [workspace.dependencies]
-core = { path = "src/core" }
+baza_core = { path = "src/core" }
 thiserror = "2.0.1"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 walkdir = "2.5.0"
 anyhow = "1.0.94"
 sequoia-openpgp = "1.22.0"
+toml = "0.8.20"
+serde = "1.0.217"

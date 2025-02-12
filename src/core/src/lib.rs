@@ -2,11 +2,12 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::fs::{self, File};
 use std::io::Write;
 use std::ops::Not;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use error::Error;
@@ -21,10 +22,43 @@ pub mod pgp;
 
 const BOX_SEP: &str = "::";
 const BUNDLE_SEP: &str = ",";
-pub const BAZA_DIR: &str = "/var/tmp/baza";
+pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";
 pub const TTL_SECONDS: u64 = 45;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Config {
+    pub main: MainConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MainConfig {
+    pub datadir: String,
+}
+
+impl Config {
+    fn new() -> Config {
+        let home = std::env::var("HOME").unwrap();
+        Config {
+            main: MainConfig {
+                datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
+            },
+        }
+    }
+}
+
+pub fn config() -> Config {
+    let home = std::env::var("HOME").unwrap();
+    let config_path = format!("{}/.Baza.toml", home);
+    if !Path::new(&config_path).exists() {
+        let config = Config::new();
+        let toml = toml::to_string(&config).expect("Failed to serialize struct");
+        fs::write(&config_path, toml).expect("Failed to write config file");
+    };
+    let config_str = fs::read_to_string(config_path).expect("Failed to read config file");
+    toml::from_str(&config_str).expect("Failed to parse TOML")
+}
 
 pub type BazaR<T> = Result<T, Error>;
 
@@ -58,7 +92,8 @@ fn as_hash(str: &str) -> [u8; 32] {
 }
 
 pub(crate) fn key_file() -> String {
-    format!("{BAZA_DIR}/key.bin")
+    let datadir = config().main.datadir;
+    format!("{datadir}/key.bin")
 }
 
 pub(crate) fn key() -> BazaR<Vec<u8>> {
@@ -67,6 +102,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
 }
 
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
+    let datadir = config().main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     println!(
         "{}",
@@ -78,7 +114,7 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
         passphrase.bright_blue()
     );
     let key = as_hash(&passphrase);
-    fs::create_dir_all(BAZA_DIR)?;
+    fs::create_dir_all(&datadir)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
 
@@ -121,4 +157,15 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     cipher
         .decrypt(nonce, ciphertext)
         .map_err(Error::EncriptionError)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let password = super::generate(255, false, false, false).unwrap();
+        // init(Some(password)).unwrap();
+    }
 }

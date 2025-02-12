@@ -1,4 +1,4 @@
-use core::{container, BazaR};
+use baza_core::{container, BazaR};
 
 use clap::{command, Args as ClapArgs, Subcommand};
 

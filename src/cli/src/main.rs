@@ -1,4 +1,4 @@
-use core::{container, error::Error};
+use baza_core::{container, error::Error};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -52,7 +52,7 @@ pub async fn main() {
         match command {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
-            Commands::Init { passphrase } => core::init(passphrase),
+            Commands::Init { passphrase } => baza_core::init(passphrase),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::HelpError)

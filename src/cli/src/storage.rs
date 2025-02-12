@@ -1,4 +1,4 @@
-use core::error::Error;
+use baza_core::error::Error;
 
 use clap::{command, Args as ClapArgs, Subcommand};
 

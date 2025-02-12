@@ -1,4 +1,4 @@
-use core::{error::Error, generate};
+use baza_core::{error::Error, generate};
 use std::io::{self, Write};
 
 use clap::{command, value_parser, Args as ClapArgs, Subcommand};

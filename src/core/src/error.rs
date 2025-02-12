@@ -27,6 +27,8 @@ pub enum Error {
     BundleNotExist(String),
     #[error("Help error: {0}")]
     HelpError(std::io::Error),
+    #[error("The box {box} have not bundles")]
+    BundlesIsEmpty { r#box: String },
     // From traits
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),

@@ -12,7 +12,7 @@ use walkdir::{DirEntry, WalkDir};
 use super::*;
 
 // cover, container, box, bundle
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Container {
     path: PathBuf,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
@@ -51,9 +51,9 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
-        let home = env::var("BAZA_DIR").unwrap_or(String::from(BAZA_DIR));
+        let datadir = config().main.datadir;
         Self {
-            path: PathBuf::from(format!("{}/data", home)),
+            path: PathBuf::from(format!("{}/data", datadir)),
             boxes: vec![],
         }
     }
@@ -122,14 +122,15 @@ impl Container {
         name.join(BOX_SEP)
     }
 
-    fn create(self) -> BazaR<Self> {
+    fn create(self, data: Option<String>) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
+            let box_name = r#box.borrow().name.to_string();
             let mut bundle = r#box
                 .borrow_mut()
                 .bundles
                 .pop()
-                .ok_or(Error::CommonBazaError)?;
-            bundle = bundle.create()?;
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+            bundle = bundle.create(data)?;
             r#box.borrow_mut().bundles.push(bundle);
         }
         Ok(self)
@@ -137,25 +138,26 @@ impl Container {
 
     fn edit(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
+            let box_name = r#box.borrow().name.to_string();
             let mut bundle = r#box
                 .borrow_mut()
                 .bundles
                 .pop()
-                .ok_or(Error::CommonBazaError)?;
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
             bundle = bundle.edit(self.path.clone())?;
             r#box.borrow_mut().bundles.push(bundle);
         }
         Ok(self)
     }
 
-    fn copy_to_clipboard(self) -> BazaR<()> {
+    fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let bundle = r#box
                 .borrow_mut()
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            bundle.copy_to_clipboard(self.path)?;
+            bundle.copy_to_clipboard(self.path, ttl)?;
         }
         Ok(())
     }
@@ -192,6 +194,7 @@ impl Container {
             }
         }
         let msg = format!("Bundle {} was changed", name);
+        tracing::debug!("{msg}");
         git::commit(msg)?;
         Ok(())
     }
@@ -200,40 +203,33 @@ impl Container {
         let name = self.name();
         if let Some(r#box) = self.boxes.last() {
             let path = self.path.join(r#box.borrow().path());
-            fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
             while let Some(bundle) = bundles.pop() {
                 let path = path.join(&*bundle.name);
-                if path.exists() {
+                if path.is_file() {
                     fs::remove_file(&path)?;
+                } else if path.is_dir() {
+                    fs::remove_dir_all(&path)?;
                 } else {
-                    return Err(Error::BundleNotExist(name));
+                    tracing::debug!("Bundle {name} does not exist");
+                    return Ok(());
                 };
             }
         }
         let msg = format!("Bundle {} was deleted", name);
+        tracing::debug!("{msg}");
         git::commit(msg)?;
         Ok(())
     }
 }
 
-/// ```
-/// let container = Container::new()
-/// .builder()
-/// .add_box("work")
-/// .add_bundle("email")
-/// .add_bundle("address")
-/// .add_box("ldap")
-/// .add_bundle("login")
-/// .build();
-/// ```
 #[tracing::instrument]
 pub fn create(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()
-        .create()?
+        .create(None)?
         .save()?;
     Ok(())
 }
@@ -262,7 +258,7 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()
-        .copy_to_clipboard()?;
+        .copy_to_clipboard(TTL_SECONDS)?;
     Ok(())
 }
 
@@ -293,4 +289,42 @@ pub fn search(str: String) -> BazaR<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        env::set_var("BAZA_DIR", "/tmp/baza_tests");
+        let str = "test::my::login".to_string();
+        let password = super::generate(255, false, false, false).unwrap();
+        Container::builder()
+            .create_from_str(str.clone())
+            .unwrap()
+            .build()
+            .delete()
+            .unwrap();
+        Container::builder()
+            .create_from_str(str.clone())
+            .unwrap()
+            .build()
+            .create(Some(password))
+            .unwrap()
+            .save()
+            .unwrap();
+        Container::builder()
+            .create_from_str(str.clone())
+            .unwrap()
+            .build()
+            .copy_to_clipboard(1)
+            .unwrap();
+        Container::builder()
+            .create_from_str(str)
+            .unwrap()
+            .build()
+            .delete()
+            .unwrap();
+    }
 }
