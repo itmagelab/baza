@@ -49,14 +49,18 @@ impl Config {
 }
 
 pub fn config() -> Config {
-    let home = std::env::var("HOME").unwrap();
-    let config_path = format!("{}/.Baza.toml", home);
-    if !Path::new(&config_path).exists() {
-        let config = Config::new();
-        let toml = toml::to_string(&config).expect("Failed to serialize struct");
-        fs::write(&config_path, toml).expect("Failed to write config file");
+    let config_str: String = if Path::new("Baza.toml").exists() {
+        fs::read_to_string("Baza.toml").expect("Failed to read config file")
+    } else {
+        let home = std::env::var("HOME").unwrap();
+        let config_path = format!("{}/.Baza.toml", home);
+        if !Path::new(&config_path).exists() {
+            let config = Config::new();
+            let toml = toml::to_string(&config).expect("Failed to serialize struct");
+            fs::write(&config_path, toml).expect("Failed to write config file");
+        };
+        fs::read_to_string(config_path).expect("Failed to read config file")
     };
-    let config_str = fs::read_to_string(config_path).expect("Failed to read config file");
     toml::from_str(&config_str).expect("Failed to parse TOML")
 }
 
@@ -104,6 +108,10 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
     let datadir = config().main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
+    println!(
+        "{}: {datadir}",
+        "Initializing baza in data directory".bright_green()
+    );
     println!(
         "{}",
         "!!! Save this password phrase for future use".bright_yellow()
