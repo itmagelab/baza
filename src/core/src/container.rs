@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    env, fmt, fs,
+    fmt, fs,
     path::{PathBuf, MAIN_SEPARATOR},
     rc::Rc,
 };
@@ -297,7 +297,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        env::set_var("BAZA_DIR", "/tmp/baza_tests");
         let str = "test::my::login".to_string();
         let password = super::generate(255, false, false, false).unwrap();
         Container::builder()

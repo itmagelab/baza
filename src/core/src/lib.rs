@@ -166,6 +166,6 @@ mod tests {
     #[test]
     fn it_works() {
         let password = super::generate(255, false, false, false).unwrap();
-        // init(Some(password)).unwrap();
+        init(Some(password)).unwrap();
     }
 }

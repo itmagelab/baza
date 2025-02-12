@@ -4,7 +4,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 mod bundle;
 mod password;
-mod storage;
 
 use tracing_subscriber::{fmt, EnvFilter};
 
