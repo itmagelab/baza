@@ -10,10 +10,15 @@ pub(crate) struct Args {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
+    /// Create bundle of passwords
     Create { name: String },
-    Delete { name: String },
+    /// Edit exists bundle of passwords
     Edit { name: String },
+    /// Deleting a bundle
+    Delete { name: String },
+    /// Search bundle by name
     Search { name: String },
+    /// Copy all bundle to clipboard
     Copy { name: String },
 }
 
