@@ -11,7 +11,8 @@ Generate a new key for baza
 
 ### Re-init your baza
 
-    ./baza init -u daec1759-f713-4cb2-bae6-5817b22c9c6c
+    ./baza init -u my_secret_pass_phrase
+    ./baza --help
 
 ### Generate a new password by baza
 
@@ -24,6 +25,10 @@ Generate a new key for baza
     ./baza bundle create work::depart::ldap::username
     ./baza bundle create site::google::username@gmail.com
 
+### Delete your baza bundles
+
+    ./baza bundle delete full::path::for::login
+
 ### Edit your bundle
 
     ./baza bundle search login
@@ -32,6 +37,7 @@ Generate a new key for baza
 ### Copy to clipboard
 
     ./baza bundle copy full::path::for::login
+    ./baza -c full::path::for::login
 
 ## How to keep your keys safe
 
