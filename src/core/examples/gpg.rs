@@ -1,7 +1,6 @@
 use openpgp::cert::Cert;
 use openpgp::serialize::stream::Encryptor2;
 use sequoia_openpgp as openpgp;
-use sequoia_openpgp::crypto::Decryptor;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::stream::{LiteralWriter, Message, Recipient};
@@ -46,7 +45,7 @@ fn encrypt_with_pgp(
 fn decrypt_file(
     input_path: &str,
     output_path: &str,
-    private_key_path: &str,
+    _private_key_path: &str,
 ) -> openpgp::Result<()> {
     use openpgp::crypto::SessionKey;
     use openpgp::parse::{stream::*, Parse};

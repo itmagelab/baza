@@ -50,6 +50,10 @@ impl Config {
 
 pub fn config() -> Config {
     let config_str: String = if Path::new("Baza.toml").exists() {
+        println!(
+            "{}",
+            "Use config in current folder Baza.toml".bright_green()
+        );
         fs::read_to_string("Baza.toml").expect("Failed to read config file")
     } else {
         let home = std::env::var("HOME").unwrap();
