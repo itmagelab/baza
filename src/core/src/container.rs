@@ -6,7 +6,6 @@ use std::{
 };
 
 use bundle::Bundle;
-use tracing::instrument;
 use walkdir::{DirEntry, WalkDir};
 
 use super::*;
@@ -84,7 +83,6 @@ impl ContainerBuilder {
         self
     }
 
-    #[instrument]
     fn add_bundle(&mut self, mut bundle: Bundle) -> BazaR<&mut Self> {
         if let Some(r#box) = self.boxes.last() {
             bundle.parent = Some(Rc::clone(r#box));
@@ -231,7 +229,6 @@ impl Container {
     }
 }
 
-#[tracing::instrument]
 pub fn create(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
@@ -241,7 +238,6 @@ pub fn create(str: String) -> BazaR<()> {
     Ok(())
 }
 
-#[tracing::instrument]
 pub fn delete(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
@@ -250,7 +246,6 @@ pub fn delete(str: String) -> BazaR<()> {
     Ok(())
 }
 
-#[tracing::instrument]
 pub fn edit(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
@@ -260,7 +255,6 @@ pub fn edit(str: String) -> BazaR<()> {
     Ok(())
 }
 
-#[tracing::instrument]
 pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
@@ -277,7 +271,6 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-#[tracing::instrument]
 pub fn search(str: String) -> BazaR<()> {
     let builder = ContainerBuilder::new();
     let walker = WalkDir::new(&builder.path).into_iter();

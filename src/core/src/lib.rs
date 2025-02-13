@@ -66,6 +66,7 @@ impl Config {
             tracing::debug!("Use config in current folder Baza.toml");
             fs::read_to_string("Baza.toml").expect("Failed to read config file")
         } else {
+            tracing::info!("A new configuration file has been created");
             let home = std::env::var("HOME").unwrap();
             let config_path = format!("{}/.Baza.toml", home);
             if !Path::new(&config_path).exists() {
@@ -148,10 +149,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
         Err(e) => {
-            m(
-                "No key found. Try using the command `baza unlock`\n",
-                MessageType::Error,
-            );
+            tracing::error!("No key found. Try using the command `baza unlock`");
             return Err(e.into());
         }
     };
@@ -172,11 +170,8 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     let config = Config::get_or_init();
     let datadir = &config.main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
-    m("Initializing baza in data directory\n", MessageType::Info);
-    m(
-        "!!! Save this password phrase for future use\n",
-        MessageType::Warning,
-    );
+    tracing::info!("Initializing baza in data directory");
+    tracing::warn!("!!! Save this password phrase for future use");
     m("PASSWORD: ", MessageType::Info);
     m(&format!("{}\n", passphrase), MessageType::Data);
     let key = as_hash(&passphrase);

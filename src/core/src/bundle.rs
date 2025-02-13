@@ -14,7 +14,6 @@ use std::{
 };
 use std::{thread, time};
 use tempfile::NamedTempFile;
-use tracing::instrument;
 
 #[derive(Debug)]
 pub(crate) struct Bundle {
@@ -78,7 +77,7 @@ impl Bundle {
         Ok(self)
     }
 
-    #[instrument]
+    #[tracing::instrument(skip_all)]
     pub(crate) fn edit(self, load_from: PathBuf) -> BazaR<Self> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
@@ -98,7 +97,6 @@ impl Bundle {
         Ok(self)
     }
 
-    #[instrument]
     pub(crate) fn copy_to_clipboard(self, load_from: PathBuf, ttl: u64) -> BazaR<Self> {
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 

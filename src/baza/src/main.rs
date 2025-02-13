@@ -59,12 +59,10 @@ pub struct Cli {
 }
 
 #[tokio::main]
-#[tracing::instrument]
 pub async fn main() {
-    fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .compact()
-        .init();
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    fmt().with_env_filter(filter).compact().init();
 
     let args = Cli::parse();
     let result = if let Some(s) = args.copy {
