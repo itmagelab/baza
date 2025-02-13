@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-02-13
+
+### 🚀 Features
+
+- Fn for show messages
+- Arc for configuration
+- Added animation
+- Use in folder config
+- Added first tests
+
+### 🐛 Bug Fixes
+
+- GitHub actions fixes
+- Cleanup folder
+- Cleanup folder
+- Cleanup from storage module
+
+### 📚 Documentation
+
+- Added short description for commands
+- Added more description
+
 ## [1.0.0] - 2025-02-09
 
 ### 🚀 Features
@@ -44,6 +66,7 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Release
 - Rename uuid to passphrase
 - Clean up fn for box
 - Cleanup from print macros
