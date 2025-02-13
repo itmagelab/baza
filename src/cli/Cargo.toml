@@ -9,8 +9,8 @@ name = "baza"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5.20", features = ["derive"] }
-tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
+clap = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 baza_core = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 tracing = { workspace = true }
