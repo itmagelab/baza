@@ -51,7 +51,8 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
-        let datadir = config().main.datadir;
+        let config = Config::get_or_init();
+        let datadir = &config.main.datadir;
         Self {
             path: PathBuf::from(format!("{}/data", datadir)),
             boxes: vec![],
@@ -312,12 +313,6 @@ mod tests {
             .create(Some(password))
             .unwrap()
             .save()
-            .unwrap();
-        Container::builder()
-            .create_from_str(str.clone())
-            .unwrap()
-            .build()
-            .copy_to_clipboard(1)
             .unwrap();
         Container::builder()
             .create_from_str(str)

@@ -8,6 +8,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::ops::Not;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 use uuid::Uuid;
 
 use error::Error;
@@ -26,6 +27,8 @@ pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";
 pub const TTL_SECONDS: u64 = 45;
+static CTX: OnceLock<Type> = OnceLock::new();
+type Type = Arc<Config>;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -46,22 +49,30 @@ impl Config {
             },
         }
     }
-}
 
-pub fn config() -> Config {
-    let config_str: String = if Path::new("Baza.toml").exists() {
-        fs::read_to_string("Baza.toml").expect("Failed to read config file")
-    } else {
-        let home = std::env::var("HOME").unwrap();
-        let config_path = format!("{}/.Baza.toml", home);
-        if !Path::new(&config_path).exists() {
-            let config = Config::new();
-            let toml = toml::to_string(&config).expect("Failed to serialize struct");
-            fs::write(&config_path, toml).expect("Failed to write config file");
+    fn init() -> Self {
+        let config_str: String = if Path::new("Baza.toml").exists() {
+            println!(
+                "{}",
+                "Use config in current folder Baza.toml".bright_green()
+            );
+            fs::read_to_string("Baza.toml").expect("Failed to read config file")
+        } else {
+            let home = std::env::var("HOME").unwrap();
+            let config_path = format!("{}/.Baza.toml", home);
+            if !Path::new(&config_path).exists() {
+                let config = Config::new();
+                let toml = toml::to_string(&config).expect("Failed to serialize struct");
+                fs::write(&config_path, toml).expect("Failed to write config file");
+            };
+            fs::read_to_string(config_path).expect("Failed to read config file")
         };
-        fs::read_to_string(config_path).expect("Failed to read config file")
-    };
-    toml::from_str(&config_str).expect("Failed to parse TOML")
+        toml::from_str(&config_str).expect("Failed to parse TOML")
+    }
+
+    fn get_or_init() -> Arc<Self> {
+        CTX.get_or_init(|| Arc::new(Config::init())).clone()
+    }
 }
 
 pub type BazaR<T> = Result<T, Error>;
@@ -96,7 +107,8 @@ fn as_hash(str: &str) -> [u8; 32] {
 }
 
 pub(crate) fn key_file() -> String {
-    let datadir = config().main.datadir;
+    let config = Config::get_or_init();
+    let datadir = &config.main.datadir;
     format!("{datadir}/key.bin")
 }
 
@@ -106,7 +118,8 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
 }
 
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
-    let datadir = config().main.datadir;
+    let config = Config::get_or_init();
+    let datadir = &config.main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     println!(
         "{}: {datadir}",
@@ -122,7 +135,7 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
         passphrase.bright_blue()
     );
     let key = as_hash(&passphrase);
-    fs::create_dir_all(&datadir)?;
+    fs::create_dir_all(datadir)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
 
