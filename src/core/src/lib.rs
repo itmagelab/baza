@@ -27,8 +27,14 @@ pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";
 pub const TTL_SECONDS: u64 = 45;
-static CTX: OnceLock<Type> = OnceLock::new();
-type Type = Arc<Config>;
+static CTX: OnceLock<Arc<Config>> = OnceLock::new();
+
+pub enum MessageType {
+    Data,
+    Info,
+    Warning,
+    Error,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -52,10 +58,7 @@ impl Config {
 
     fn init() -> Self {
         let config_str: String = if Path::new("Baza.toml").exists() {
-            println!(
-                "{}",
-                "Use config in current folder Baza.toml".bright_green()
-            );
+            tracing::debug!("Use config in current folder Baza.toml");
             fs::read_to_string("Baza.toml").expect("Failed to read config file")
         } else {
             let home = std::env::var("HOME").unwrap();
@@ -117,23 +120,27 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     Ok(data)
 }
 
+pub fn m(msg: &str, r#type: MessageType) {
+    let msg = match r#type {
+        MessageType::Data => format!("{}", msg.bright_blue()),
+        MessageType::Info => format!("{}", msg.bright_green()),
+        MessageType::Warning => format!("{}", msg.bright_yellow()),
+        MessageType::Error => format!("{}", msg.bright_red()),
+    };
+    print!("{}", msg);
+}
+
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
     let config = Config::get_or_init();
     let datadir = &config.main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
-    println!(
-        "{}: {datadir}",
-        "Initializing baza in data directory".bright_green()
+    m("Initializing baza in data directory\n", MessageType::Info);
+    m(
+        "!!! Save this password phrase for future use\n",
+        MessageType::Warning,
     );
-    println!(
-        "{}",
-        "!!! Save this password phrase for future use".bright_yellow()
-    );
-    println!(
-        "{} {}",
-        "Password:".bright_green(),
-        passphrase.bright_blue()
-    );
+    m("PASSWORD: ", MessageType::Info);
+    m(&format!("{}\n", passphrase), MessageType::Data);
     let key = as_hash(&passphrase);
     fs::create_dir_all(datadir)?;
     let mut file = File::create(key_file())?;
