@@ -13,7 +13,7 @@ Generate a new key for baza
 
 ### Re-init your baza
 
-    ./baza init -u my_secret_pass_phrase
+    ./baza init -p my_secret_pass_phrase
     ./baza --help
 
 ### Generate a new password by baza
