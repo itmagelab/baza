@@ -2,6 +2,10 @@
 
 ![demo](contrib/Baza.gif)
 
+## Installation
+
+    cargo install baza
+
 ## Usage
 
 Generate a new key for baza
