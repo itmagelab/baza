@@ -61,7 +61,10 @@ impl ContainerBuilder {
 
     // TODO: Use FromStr instead
     fn create_from_str(mut self, name: String) -> BazaR<Self> {
-        let mut pack: Vec<&str> = name.trim().split(BOX_SEP).collect();
+        let mut pack: Vec<&str> = name
+            .trim()
+            .split(&Config::get_or_init().main.box_delimiter)
+            .collect();
         let Some(bundle) = pack.pop() else {
             return Err(Error::TooFewArguments);
         };
@@ -119,8 +122,11 @@ impl Container {
             .iter()
             .map(|b| b.borrow().name.to_string())
             .collect();
-        name.push(self.bundles().join(BUNDLE_SEP));
-        name.join(BOX_SEP)
+        name.push(
+            self.bundles()
+                .join(&Config::get_or_init().main.bundle_delimiter),
+        );
+        name.join(&Config::get_or_init().main.box_delimiter)
     }
 
     fn create(self, data: Option<String>) -> BazaR<Self> {

@@ -2,6 +2,10 @@
 
 ![demo](contrib/Baza.gif)
 
+## Description
+
+This project is created as an alternative to password-store, but written in a low-level language with additional features
+
 ## Installation
 
     cargo install baza

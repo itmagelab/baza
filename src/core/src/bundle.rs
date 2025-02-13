@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::{decrypt_file, encrypt_file, r#box, BazaR, BOX_SEP, TTL_SECONDS};
+use crate::{decrypt_file, encrypt_file, r#box, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
@@ -25,7 +25,12 @@ pub(crate) struct Bundle {
 
 impl fmt::Display for Bundle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.pointer().join(BOX_SEP))
+        write!(
+            f,
+            "{}",
+            self.pointer()
+                .join(&Config::get_or_init().main.box_delimiter)
+        )
     }
 }
 

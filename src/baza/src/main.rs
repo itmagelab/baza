@@ -1,3 +1,5 @@
+//! This project is created as an alternative to password-store,
+//! but written in a low-level language with additional features
 use baza_core::{container, error::Error};
 
 use clap::{CommandFactory, Parser, Subcommand};

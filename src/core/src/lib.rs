@@ -1,3 +1,4 @@
+//! The core library for crate Baza crate
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
@@ -21,8 +22,8 @@ pub mod error;
 pub mod git;
 pub mod pgp;
 
-const BOX_SEP: &str = "::";
-const BUNDLE_SEP: &str = ",";
+const BOX_DELIMITER: &str = "::";
+const BUNDLE_DELIMITER: &str = ",";
 pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
 pub const DEFAULT_AUTHOR: &str = "Root Baza";
@@ -44,6 +45,8 @@ pub struct Config {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MainConfig {
     pub datadir: String,
+    pub box_delimiter: String,
+    pub bundle_delimiter: String,
 }
 
 impl Config {
@@ -51,6 +54,8 @@ impl Config {
         let home = std::env::var("HOME").unwrap();
         Config {
             main: MainConfig {
+                box_delimiter: String::from(BOX_DELIMITER),
+                bundle_delimiter: String::from(BUNDLE_DELIMITER),
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
         }
