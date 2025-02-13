@@ -3,6 +3,8 @@ name = "baza_core"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
+license = { workspace = true }
+description = { workspace = true }
 
 [lib]
 path = "src/lib.rs"
