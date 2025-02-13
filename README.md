@@ -10,45 +10,45 @@
 
 Generate a new key for baza
 
-    ./baza init
+    baza init
 
 > [!WARNING]
 > This is not an idempotent operation
 
 ### Re-init your baza
 
-    ./baza init -p my_secret_pass_phrase
-    ./baza --help
+    baza init -p my_secret_pass_phrase
+    baza --help
 
 ### Generate a new password by baza
 
-    ./baza password generate 10
-    ./baza password generate 30 --no-latters --no-symbols
+    baza password generate 10
+    baza password generate 30 --no-latters --no-symbols
 
 ### Create your baza bundles
 
-    ./baza bundle create full::path::for::login
-    ./baza bundle create work::depart::ldap::username
-    ./baza bundle create site::google::username@gmail.com
+    baza bundle create full::path::for::login
+    baza bundle create work::depart::ldap::username
+    baza bundle create site::google::username@gmail.com
 
 ### Delete your baza bundles
 
-    ./baza bundle delete full::path::for::login
+    baza bundle delete full::path::for::login
 
 ### Edit your bundle
 
-    ./baza bundle search login
-    ./baza bundle edit full::path::for::login
+    baza bundle search login
+    baza bundle edit full::path::for::login
 
 ### Lock and Unlock your database (or bundles) with password phrase
 
-    ./baza lock
-    ./baza unlock
+    baza lock
+    baza unlock
 
 ### Copy to clipboard
 
-    ./baza bundle copy full::path::for::login
-    ./baza --copy full::path::for::login
+    baza bundle copy full::path::for::login
+    baza --copy full::path::for::login
 
 ## How to keep your keys safe
 
