@@ -36,6 +36,11 @@ Generate a new key for baza
     ./baza bundle search login
     ./baza bundle edit full::path::for::login
 
+### Lock and Unlock your database (or bundles) with password phrase
+
+    ./baza lock
+    ./baza unlock
+
 ### Copy to clipboard
 
     ./baza bundle copy full::path::for::login
