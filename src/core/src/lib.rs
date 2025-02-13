@@ -120,11 +120,17 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
-pub fn unlock() -> BazaR<()> {
-    let mut passphrase = String::new();
-    m("Enter your password: ", MessageType::Warning);
-    io::stdout().flush()?;
-    io::stdin().read_line(&mut passphrase)?;
+pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
+    let passphrase = if let Some(passphrase) = passphrase {
+        passphrase
+    } else {
+        let mut passphrase = String::new();
+        m("Enter your password: ", MessageType::Warning);
+        io::stdout().flush()?;
+        io::stdin().read_line(&mut passphrase)?;
+
+        passphrase
+    };
     let datadir = &Config::get_or_init().main.datadir;
     let key = as_hash(passphrase.trim());
     fs::create_dir_all(datadir)?;
@@ -137,7 +143,10 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
         Err(e) => {
-            m("No key found. Try using the command `baza unlock`\n", MessageType::Error);
+            m(
+                "No key found. Try using the command `baza unlock`\n",
+                MessageType::Error,
+            );
             return Err(e.into());
         }
     };
@@ -218,6 +227,7 @@ mod tests {
     #[test]
     fn it_works() {
         let password = super::generate(255, false, false, false).unwrap();
-        init(Some(password)).unwrap();
+        lock().unwrap();
+        unlock(Some(password)).unwrap();
     }
 }

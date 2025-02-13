@@ -80,7 +80,7 @@ pub async fn main() {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
             Commands::Init { passphrase } => baza_core::init(passphrase),
-            Commands::Unlock => baza_core::unlock(),
+            Commands::Unlock => baza_core::unlock(None),
             Commands::Lock => baza_core::lock(),
         }
     } else {
