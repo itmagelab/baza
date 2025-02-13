@@ -27,8 +27,7 @@ impl fmt::Display for Bundle {
         write!(
             f,
             "{}",
-            self.pointer()
-                .join(&Config::get_or_init().main.box_delimiter)
+            self.pointer().join(&Config::get().main.box_delimiter)
         )
     }
 }

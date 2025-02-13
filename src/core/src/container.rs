@@ -50,7 +50,7 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
-        let config = Config::get_or_init();
+        let config = Config::get();
         let datadir = &config.main.datadir;
         Self {
             path: PathBuf::from(format!("{}/data", datadir)),
@@ -62,7 +62,7 @@ impl ContainerBuilder {
     fn create_from_str(mut self, name: String) -> BazaR<Self> {
         let mut pack: Vec<&str> = name
             .trim()
-            .split(&Config::get_or_init().main.box_delimiter)
+            .split(&Config::get().main.box_delimiter)
             .collect();
         let Some(bundle) = pack.pop() else {
             return Err(Error::TooFewArguments);
@@ -120,11 +120,8 @@ impl Container {
             .iter()
             .map(|b| b.borrow().name.to_string())
             .collect();
-        name.push(
-            self.bundles()
-                .join(&Config::get_or_init().main.bundle_delimiter),
-        );
-        name.join(&Config::get_or_init().main.box_delimiter)
+        name.push(self.bundles().join(&Config::get().main.bundle_delimiter));
+        name.join(&Config::get().main.box_delimiter)
     }
 
     fn create(self, data: Option<String>) -> BazaR<Self> {

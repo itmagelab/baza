@@ -16,7 +16,7 @@ fn keys_exists(name: &str) -> bool {
 }
 
 pub fn generate() -> openpgp::Result<()> {
-    let config = Config::get_or_init();
+    let config = Config::get();
     let dir = &config.main.datadir;
     let email = env::var("BAZA_EMAIL").unwrap_or(String::from(DEFAULT_EMAIL));
     let name = format!("{}/key", dir);

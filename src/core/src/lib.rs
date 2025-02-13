@@ -66,10 +66,10 @@ impl Config {
             tracing::debug!("Use config in current folder Baza.toml");
             fs::read_to_string("Baza.toml").expect("Failed to read config file")
         } else {
-            tracing::info!("A new configuration file has been created");
             let home = std::env::var("HOME").unwrap();
             let config_path = format!("{}/.Baza.toml", home);
             if !Path::new(&config_path).exists() {
+                tracing::info!("A new configuration file has been created");
                 let config = Config::new();
                 let toml = toml::to_string(&config).expect("Failed to serialize struct");
                 fs::write(&config_path, toml).expect("Failed to write config file");
@@ -79,7 +79,7 @@ impl Config {
         toml::from_str(&config_str).expect("Failed to parse TOML")
     }
 
-    fn get_or_init() -> Arc<Self> {
+    fn get() -> Arc<Self> {
         CTX.get_or_init(|| Arc::new(Config::init())).clone()
     }
 }
@@ -116,7 +116,7 @@ fn as_hash(str: &str) -> [u8; 32] {
 }
 
 pub(crate) fn key_file() -> String {
-    let config = Config::get_or_init();
+    let config = Config::get();
     let datadir = &config.main.datadir;
     format!("{datadir}/key.bin")
 }
@@ -137,7 +137,7 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
 
         passphrase
     };
-    let datadir = &Config::get_or_init().main.datadir;
+    let datadir = &Config::get().main.datadir;
     let key = as_hash(passphrase.trim());
     fs::create_dir_all(datadir)?;
     let mut file = File::create(key_file())?;
@@ -167,7 +167,7 @@ pub fn m(msg: &str, r#type: MessageType) {
 }
 
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
-    let config = Config::get_or_init();
+    let config = Config::get();
     let datadir = &config.main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     tracing::info!("Initializing baza in data directory");
