@@ -137,7 +137,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
         Err(e) => {
-            m("No key found. Try to use unlock command\n", MessageType::Error);
+            m("No key found. Try using the command `baza unlock`\n", MessageType::Error);
             return Err(e.into());
         }
     };
