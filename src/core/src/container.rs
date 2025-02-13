@@ -301,6 +301,7 @@ mod tests {
         let str = "test::my::login".to_string();
         let password = super::generate(255, false, false, false).unwrap();
         init(Some(password.clone())).unwrap();
+        unlock(Some(password.clone())).unwrap();
         Container::builder()
             .create_from_str(str.clone())
             .unwrap()
@@ -321,5 +322,6 @@ mod tests {
             .build()
             .delete()
             .unwrap();
+        lock().unwrap();
     }
 }

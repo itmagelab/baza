@@ -219,15 +219,3 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
         .decrypt(nonce, ciphertext)
         .map_err(Error::EncriptionError)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let password = super::generate(255, false, false, false).unwrap();
-        lock().unwrap();
-        unlock(Some(password)).unwrap();
-    }
-}
