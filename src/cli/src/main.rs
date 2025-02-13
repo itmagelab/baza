@@ -19,6 +19,10 @@ The base password manager
 "#
 )]
 pub(crate) enum Commands {
+    /// Unlock database
+    Unlock,
+    /// Lock database
+    Lock,
     /// Initializing the database
     Init {
         #[arg(short, long)]
@@ -76,6 +80,8 @@ pub async fn main() {
             Commands::Password(s) => password::handle(s),
             Commands::Bundle(s) => bundle::handle(s),
             Commands::Init { passphrase } => baza_core::init(passphrase),
+            Commands::Unlock => baza_core::unlock(),
+            Commands::Lock => baza_core::lock(),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::HelpError)

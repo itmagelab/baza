@@ -5,7 +5,7 @@ use core::str;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{self, Write};
 use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -115,8 +115,32 @@ pub(crate) fn key_file() -> String {
     format!("{datadir}/key.bin")
 }
 
+pub fn lock() -> BazaR<()> {
+    fs::remove_file(key_file())?;
+    Ok(())
+}
+
+pub fn unlock() -> BazaR<()> {
+    let mut passphrase = String::new();
+    m("Enter your password: ", MessageType::Warning);
+    io::stdout().flush()?;
+    io::stdin().read_line(&mut passphrase)?;
+    let datadir = &Config::get_or_init().main.datadir;
+    let key = as_hash(&passphrase);
+    fs::create_dir_all(datadir)?;
+    let mut file = File::create(key_file())?;
+    file.write_all(&key)?;
+    Ok(())
+}
+
 pub(crate) fn key() -> BazaR<Vec<u8>> {
-    let data = fs::read(key_file())?;
+    let data = match fs::read(key_file()) {
+        Ok(data) => data,
+        Err(e) => {
+            m("No key found. Try to use unlock command\n", MessageType::Error);
+            return Err(e.into());
+        }
+    };
     Ok(data)
 }
 
