@@ -1,17 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["src/cli", "src/core"]
-default-members = ["src/cli"]
+members = ["src/baza", "src/core"]
+default-members = ["src/baza"]
 
 [workspace.package]
-version = "1.1.1"
+version = "2.0.0"
 edition = "2021"
 authors = ["Andrey Semenov <i@itmage.ru>"]
 license = "MIT OR Apache-2.0"
 description = "The base password manager"
 
 [workspace.dependencies]
-baza_core = { path = "src/core", version = "1.1.0" }
+baza_core = { path = "src/core", version = "2.0.0" }
 thiserror = "2.0.1"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"

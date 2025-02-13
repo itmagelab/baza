@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2025-02-13
+## [2.0.0] - 2025-02-13
 
 ### 🚀 Features
 
+- [**breaking**] Rename baza crate for bunary
 - Lock/unlock command was added
 - Fn for show messages
 - Arc for configuration

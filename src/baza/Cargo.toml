@@ -1,5 +1,5 @@
 [package]
-name = "baza_cli"
+name = "baza"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
