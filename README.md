@@ -44,7 +44,7 @@ Generate a new key for baza
 ### Copy to clipboard
 
     ./baza bundle copy full::path::for::login
-    ./baza -c full::path::for::login
+    ./baza --copy full::path::for::login
 
 ## How to keep your keys safe
 
