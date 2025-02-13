@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Lock/unlock command was added
 - Fn for show messages
 - Arc for configuration
 - Added animation
@@ -14,6 +15,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fixed cargo configuration
+- Added trim for asked passphrase
 - GitHub actions fixes
 - Cleanup folder
 - Cleanup folder
@@ -21,8 +24,22 @@ All notable changes to this project will be documented in this file.
 
 ### 📚 Documentation
 
+- Updated documentation and added new feature
+- Update demo file
+- Clarified the error description
 - Added short description for commands
 - Added more description
+
+### ⚙️ Miscellaneous Tasks
+
+- Added description and license
+- Move version of crates to base config
+- Rename cli crate
+- Fixing wrong argument in readme
+- Fixing wrong argument in readme
+- Move all test
+- Added tests for lock func
+- Release
 
 ## [1.0.0] - 2025-02-09
 
