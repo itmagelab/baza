@@ -126,7 +126,7 @@ pub fn unlock() -> BazaR<()> {
     io::stdout().flush()?;
     io::stdin().read_line(&mut passphrase)?;
     let datadir = &Config::get_or_init().main.datadir;
-    let key = as_hash(&passphrase);
+    let key = as_hash(passphrase.trim());
     fs::create_dir_all(datadir)?;
     let mut file = File::create(key_file())?;
     file.write_all(&key)?;
