@@ -1,2 +1,4 @@
 .baza/
+contrib/*.mp4
+contrib/*.webm
 /target

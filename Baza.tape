@@ -68,7 +68,7 @@ Set TypingSpeed 100ms
 Sleep 3s
 Type "baza" Sleep 1000ms Enter
 Sleep 3s
-Type "baza init" Sleep 1000ms Enter
+Type "baza init -p MyPasswordPhrase" Sleep 1000ms Enter
 Sleep 3s
 Type "baza password generate --help" Sleep 1000ms Enter
 Sleep 3s
@@ -79,6 +79,13 @@ Sleep 3s
 Insert Type "My$ecreTPa$$w0rd" Sleep 1000ms Escape Type ":wq" Sleep 1000ms Enter
 Sleep 3s
 Type "baza bundle search new" Sleep 1000ms Enter
+Sleep 3s
+Type "baza lock" Sleep 1000ms Enter
+Sleep 3s
+Type "baza bundle edit work::new::login" Sleep 1000ms Enter
+Sleep 3s
+Type "baza unlock" Sleep 1000ms Enter
+Type "MyPasswordPhrase" Sleep 1000ms Enter
 Sleep 3s
 Type "baza bundle copy work::new::login" Sleep 1000ms Enter
 Sleep 3s
