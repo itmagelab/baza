@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG RUST_VERSION=1.82.0
-ARG DATABASE_HOST=db
+ARG RUST_VERSION=1.83.0
 
 # BUILD
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION} AS build
@@ -24,14 +23,13 @@ RUN --mount=type=bind,source=src,target=src \
 FROM debian:stable AS final
 RUN apt-get update \
   && apt-get install --no-install-recommends -y libssl3=3.0.* ca-certificates=20230311 \
+  vim=* \
   && rm -rf /var/lib/apt/lists/*
-ARG DATABASE_HOST
-ENV DATABASE_HOST=${DATABASE_HOST}
 ARG UID=10001
 RUN adduser \
   --disabled-password \
   --gecos "" \
-  --home "/nonexistent" \
+  --home "/usr/share/baza" \
   --shell "/sbin/nologin" \
   --no-create-home \
   --uid "${UID}" \

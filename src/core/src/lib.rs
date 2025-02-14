@@ -171,6 +171,8 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     let datadir = &config.main.datadir;
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     tracing::info!("Initializing baza in data directory");
+    fs::create_dir_all(format!("{}/tmp", datadir))?;
+    fs::create_dir_all(format!("{}/data", datadir))?;
     m(
         "!!! Save this password phrase for future use\n",
         MessageType::Warning,

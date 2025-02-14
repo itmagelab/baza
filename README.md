@@ -8,10 +8,16 @@ This project is created as an alternative to password-store, but written in a lo
 
 ## Installation
 
+### Docker ([ghcr.io](ghcr.io/itmagelab/baza:release-v2.0.0))
+
+    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza password generate 12
+    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza --help
+    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza -c asd::asd::asd
+
 ### Cargo ([crates.io](https://crates.io/crates/baza))
 
 > [!WARNING]
-> Minimum Supported Rust Version: 1.81
+> Minimum Supported Rust Version: 1.83
 
     cargo install baza
 

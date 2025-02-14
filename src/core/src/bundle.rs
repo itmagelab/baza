@@ -35,7 +35,8 @@ impl fmt::Display for Bundle {
 
 impl Bundle {
     pub(crate) fn new(name: String) -> BazaR<Self> {
-        let file = NamedTempFile::new()?;
+        let file =
+            tempfile::Builder::new().tempfile_in(format!("{}/tmp", Config::get().main.datadir))?;
         let name = Arc::from(name);
         Ok(Self {
             name,
@@ -83,6 +84,7 @@ impl Bundle {
 
         let file = self.file.path().to_path_buf();
         let path = load_from.join(self.path());
+
         fs::copy(path, &file)?;
 
         decrypt_file(&file)?;
