@@ -56,6 +56,7 @@
 #   Show                            Show the subsequent commands in the output
 
 Output contrib/Baza.gif
+Output contrib/Baza.mp4
 
 Require baza
 
@@ -76,7 +77,11 @@ Type "baza password generate 12 --no-symbols" Sleep 1000ms Enter
 Sleep 3s
 Type "baza -c work::new::login" Sleep 1000ms Enter
 Sleep 3s
-Insert Type "My$ecreTPa$$w0rd" Sleep 1000ms Escape Type ":wq" Sleep 1000ms Enter
+Insert Type "My$ecreTPa$$w0rd" Sleep 1000ms
+Enter
+Enter Type "This is example of description" Sleep 1000ms
+Enter Type "site: https://domain.ltd" Sleep 1000ms
+Escape Type ":wq" Sleep 1000ms Enter
 Sleep 3s
 Type "baza bundle search new" Sleep 1000ms Enter
 Sleep 3s

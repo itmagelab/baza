@@ -49,7 +49,7 @@ Generate a new key for baza
     baza lock
     baza unlock
 
-### Copy to clipboard
+### Copy password to clipboard (first line from bundle)
 
     baza bundle copy full::path::for::login
     baza --copy full::path::for::login
