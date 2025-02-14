@@ -10,9 +10,7 @@ This project is created as an alternative to password-store, but written in a lo
 
 ### Docker ([ghcr.io](ghcr.io/itmagelab/baza:release-v2.0.0))
 
-    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza password generate 12
     docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza --help
-    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.0.0 baza -c asd::asd::asd
 
 ### Cargo ([crates.io](https://crates.io/crates/baza))
 
