@@ -80,10 +80,6 @@ Save the key in a safe place
 
     vhs < Baza.tape
 
-## Example libs usage
-
-<https://habr.com/ru/companies/otus/articles/833714/>
-
 ## TODO
 
 * Sync from a cloud providers
