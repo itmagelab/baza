@@ -1,5 +1,5 @@
 ---
-name: Rust
+name: Build and test a package
 
 on:
   push:
