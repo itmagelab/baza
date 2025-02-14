@@ -8,6 +8,8 @@ This project is created as an alternative to password-store, but written in a lo
 
 ## Installation
 
+### Cargo ([crates.io](https://crates.io/crates/baza))
+
     cargo install baza
 
 ## Usage
