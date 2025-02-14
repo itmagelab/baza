@@ -5,6 +5,7 @@ use colored::Colorize;
 use core::fmt;
 use std::cell::RefCell;
 use std::fs::{self};
+use std::io::BufRead;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{
@@ -99,13 +100,18 @@ impl Bundle {
     pub(crate) fn copy_to_clipboard(self, load_from: PathBuf, ttl: u64) -> BazaR<Self> {
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
-        let file = self.file.path().to_path_buf();
+        let filename = self.file.path().to_path_buf();
         let path = load_from.join(self.path());
-        fs::copy(path, &file)?;
+        fs::copy(path, &filename)?;
 
-        decrypt_file(&file)?;
-        let data = fs::read(file)?;
-        let lossy = String::from_utf8_lossy(&data);
+        decrypt_file(&filename)?;
+
+        let file = std::fs::File::open(filename)?;
+        let mut buffer = std::io::BufReader::new(file);
+        let mut first_line = String::new();
+        buffer.read_line(&mut first_line)?;
+
+        let lossy = first_line.trim();
         clipboard
             .set_text(lossy.trim())
             .map_err(Error::ArboardError)?;

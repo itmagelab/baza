@@ -88,7 +88,7 @@ pub type BazaR<T> = Result<T, Error>;
 
 pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool) -> BazaR<String> {
     let latters = "abcdefghijklmnopqrstuvwxyz\
-                  ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                         ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let numbers = "0123456789";
     let symbols = "!@#$%^&*()_-+=<>?";
 
