@@ -11,7 +11,7 @@ This project is created as an alternative to password-store, but written in a lo
 ### Cargo ([crates.io](https://crates.io/crates/baza))
 
 > [!WARNING]
-> Minimum Supported Rust Version: 1.81
+> Minimum Supported Rust Version: 1.83
 
     cargo install baza
 
