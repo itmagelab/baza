@@ -2,3 +2,5 @@
 datadir = "/tmp/.baza"
 box_delimiter = "::"
 bundle_delimiter = ","
+
+[git]

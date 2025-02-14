@@ -2,7 +2,7 @@ use std::{fs::File, io::Write};
 
 use git2::{IndexAddOption, Repository, Signature, Tree};
 
-use crate::{error::Error, BazaR, BAZA_DIR, DEFAULT_AUTHOR, DEFAULT_EMAIL};
+use crate::{error::Error, BazaR, Config, DEFAULT_AUTHOR, DEFAULT_EMAIL};
 
 fn signature() -> Result<Signature<'static>, git2::Error> {
     Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
@@ -18,8 +18,15 @@ fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
 }
 
 pub fn commit(msg: String) -> BazaR<()> {
-    let data = format!("{}/data", BAZA_DIR);
+    let data = format!("{}/data", &Config::get().main.datadir);
     let repo = Repository::init(&data)?;
+
+    if let Some(url) = &Config::get().git.url {
+        if repo.find_remote("origin").is_err() {
+            repo.remote("origin", url)?;
+        }
+    };
+
     if let Ok(head) = repo.head() {
         let tree = add_to_index(&repo)?;
         let signature = signature()?;

@@ -40,6 +40,7 @@ pub enum MessageType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub main: MainConfig,
+    pub git: GitConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -47,6 +48,11 @@ pub struct MainConfig {
     pub datadir: String,
     pub box_delimiter: String,
     pub bundle_delimiter: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GitConfig {
+    pub url: Option<String>,
 }
 
 impl Config {
@@ -58,6 +64,7 @@ impl Config {
                 bundle_delimiter: String::from(BUNDLE_DELIMITER),
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
+            git: GitConfig { url: None },
         }
     }
 
