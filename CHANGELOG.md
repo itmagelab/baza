@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-02-15
+
+### 🚀 Features
+
+- Added load command
+- Added docker prebuild images
+- Copy only first line to clipboard
+- Rename config function
+- Use info debug level
+- Added description and new opts
+
+### 🐛 Bug Fixes
+
+- Fixing initializing git repo
+
+### 📚 Documentation
+
+- Added msrv
+- Added link to crate package
+- Update readme information
+- Cleanup readme docs
+- Added installation section
+
+### ⚙️ Miscellaneous Tasks
+
+- Release
+- Added deafult scheme of abstraction
+- Fixing doc
+- Cleanup persanal data
+
 ## [2.0.0] - 2025-02-13
 
 ### 🚀 Features
