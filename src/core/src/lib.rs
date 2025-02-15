@@ -53,6 +53,8 @@ pub struct MainConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GitConfig {
     pub url: Option<String>,
+    pub privatekey: Option<String>,
+    pub passphrase: Option<String>,
 }
 
 impl Config {
@@ -64,7 +66,11 @@ impl Config {
                 bundle_delimiter: String::from(BUNDLE_DELIMITER),
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
-            git: GitConfig { url: None },
+            git: GitConfig {
+                url: None,
+                privatekey: None,
+                passphrase: None,
+            },
         }
     }
 

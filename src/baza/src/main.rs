@@ -1,6 +1,6 @@
 //! This project is created as an alternative to password-store,
 //! but written in a low-level language with additional features
-use baza_core::{container, error::Error};
+use baza_core::{container, error::Error, git};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -30,6 +30,8 @@ pub(crate) enum Commands {
         #[arg(short, long)]
         passphrase: Option<String>,
     },
+    /// Load database
+    Load,
     /// Work this passwords (bundles)
     Bundle(bundle::Args),
     /// Generating a password
@@ -82,6 +84,7 @@ pub async fn main() {
             Commands::Init { passphrase } => baza_core::init(passphrase),
             Commands::Unlock => baza_core::unlock(None),
             Commands::Lock => baza_core::lock(),
+            Commands::Load => git::push(),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::HelpError)

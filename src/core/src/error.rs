@@ -42,4 +42,6 @@ pub enum Error {
     AnyhowError(#[from] anyhow::Error),
     #[error("git2::Error: {0}")]
     GitError(#[from] git2::Error),
+    #[error("env::Error: {0}")]
+    EnvError(#[from] std::env::VarError),
 }

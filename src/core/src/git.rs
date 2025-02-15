@@ -17,15 +17,49 @@ fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
     repo.find_tree(tree_oid)
 }
 
+pub fn push() -> BazaR<()> {
+    let data = format!("{}/data", &Config::get().main.datadir);
+    let repo = Repository::open(&data)?;
+
+    let privatekey = if let Some(key) = &Config::get().git.privatekey {
+        key.clone()
+    } else {
+        format!("{}/.ssh/id_ed25519", std::env::var("HOME")?)
+    };
+    let passphrase = &Config::get().git.passphrase;
+    if let Some(url) = &Config::get().git.url {
+        let remote_name = "origin";
+        if repo.find_remote(remote_name).is_err() {
+            repo.remote(remote_name, url)?;
+        }
+
+        let mut remote = repo.find_remote(remote_name)?;
+
+        let mut callbacks = git2::RemoteCallbacks::new();
+        callbacks.credentials(|_, username_from_url, _| {
+            git2::Cred::ssh_key(
+                username_from_url.unwrap_or("git"),
+                None,
+                std::path::Path::new(privatekey.as_str()),
+                passphrase.as_deref(),
+            )
+        });
+
+        let mut push_options = git2::PushOptions::new();
+        push_options.remote_callbacks(callbacks);
+
+        remote.push(
+            &[&format!("refs/heads/{}", "master")],
+            Some(&mut push_options),
+        )?;
+    };
+
+    Ok(())
+}
+
 pub fn commit(msg: String) -> BazaR<()> {
     let data = format!("{}/data", &Config::get().main.datadir);
     let repo = Repository::init(&data)?;
-
-    if let Some(url) = &Config::get().git.url {
-        if repo.find_remote("origin").is_err() {
-            repo.remote("origin", url)?;
-        }
-    };
 
     if let Ok(head) = repo.head() {
         let tree = add_to_index(&repo)?;
@@ -43,6 +77,7 @@ pub fn commit(msg: String) -> BazaR<()> {
         initialize(&repo)?;
         commit(msg)?;
     };
+
     Ok(())
 }
 
