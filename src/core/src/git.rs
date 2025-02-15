@@ -52,6 +52,8 @@ pub fn push() -> BazaR<()> {
             &[&format!("refs/heads/{}", "master")],
             Some(&mut push_options),
         )?;
+
+        tracing::info!("Pushed successfully");
     };
 
     Ok(())

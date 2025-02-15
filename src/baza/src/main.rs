@@ -56,6 +56,9 @@ pub struct Cli {
     /// Copy all bundle to clipboard
     #[arg(long)]
     copy: Option<String>,
+    /// Show Version
+    #[arg(short, long)]
+    version: bool,
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -77,6 +80,9 @@ pub async fn main() {
         container::search(s)
     } else if let Some(s) = args.create {
         container::create(s)
+    } else if args.version {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        Ok(())
     } else if let Some(command) = args.command {
         match command {
             Commands::Password(s) => password::handle(s),
