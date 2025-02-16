@@ -20,6 +20,8 @@ pub(crate) enum Commands {
     Search { name: String },
     /// Copy all bundle to clipboard
     Copy { name: String },
+    /// Show content of bundle
+    Show { name: String },
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
@@ -32,6 +34,9 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
         }
         Commands::Edit { name } => {
             container::edit(name)?;
+        }
+        Commands::Show { name } => {
+            container::show(name)?;
         }
         Commands::Search { name } => {
             container::search(name)?;
