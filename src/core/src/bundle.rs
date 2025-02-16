@@ -60,7 +60,7 @@ impl Bundle {
         self.pointer().iter().collect()
     }
 
-    pub(crate) fn create(self, data: Option<String>) -> BazaR<Self> {
+    pub(crate) fn create(&self, data: Option<String>) -> BazaR<()> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();
@@ -75,11 +75,11 @@ impl Bundle {
 
         encrypt_file(&file)?;
 
-        Ok(self)
+        Ok(())
     }
 
     #[tracing::instrument(skip_all)]
-    pub(crate) fn edit(self, load_from: PathBuf) -> BazaR<Self> {
+    pub(crate) fn edit(&self, load_from: PathBuf) -> BazaR<()> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();
@@ -96,11 +96,11 @@ impl Bundle {
 
         encrypt_file(&file)?;
 
-        Ok(self)
+        Ok(())
     }
 
     #[tracing::instrument(skip_all)]
-    pub(crate) fn show(self, load_from: PathBuf) -> BazaR<()> {
+    pub(crate) fn show(&self, load_from: PathBuf) -> BazaR<()> {
         let filename = self.file.path().to_path_buf();
         let path = load_from.join(self.path());
         fs::copy(path, &filename)?;
@@ -116,7 +116,7 @@ impl Bundle {
         Ok(())
     }
 
-    pub(crate) fn copy_to_clipboard(self, load_from: PathBuf, ttl: u64) -> BazaR<Self> {
+    pub(crate) fn copy_to_clipboard(&self, load_from: PathBuf, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
 
         let filename = self.file.path().to_path_buf();
@@ -147,6 +147,6 @@ impl Bundle {
             .set_text("".to_string())
             .map_err(Error::ArboardError)?;
 
-        Ok(self)
+        Ok(())
     }
 }
