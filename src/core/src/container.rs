@@ -133,13 +133,12 @@ impl Container {
     fn create(self, data: Option<String>) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
-            let mut bundle = r#box
-                .borrow_mut()
+            let mut r#box = r#box.borrow_mut();
+            let bundle = r#box
                 .bundles
-                .pop()
+                .get_mut(0)
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle = bundle.create(data)?;
-            r#box.borrow_mut().bundles.push(bundle);
+            bundle.create(data)?;
         }
         Ok(self)
     }
@@ -147,13 +146,12 @@ impl Container {
     fn edit(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
-            let mut bundle = r#box
-                .borrow_mut()
+            let mut r#box = r#box.borrow_mut();
+            let bundle = r#box
                 .bundles
-                .pop()
+                .get_mut(0)
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle = bundle.edit(self.datadir.clone())?;
-            r#box.borrow_mut().bundles.push(bundle);
+            bundle.edit(self.datadir.clone())?;
         }
         Ok(self)
     }
@@ -161,10 +159,10 @@ impl Container {
     fn show(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
+            let r#box = r#box.borrow();
             let bundle = r#box
-                .borrow_mut()
                 .bundles
-                .pop()
+                .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
             bundle.show(self.datadir)?;
         }
@@ -173,11 +171,8 @@ impl Container {
 
     fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let bundle = r#box
-                .borrow_mut()
-                .bundles
-                .pop()
-                .ok_or(Error::CommonBazaError)?;
+            let r#box = r#box.borrow();
+            let bundle = r#box.bundles.first().ok_or(Error::CommonBazaError)?;
             bundle.copy_to_clipboard(self.datadir, ttl)?;
         }
         Ok(())
