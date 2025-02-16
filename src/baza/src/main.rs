@@ -61,6 +61,9 @@ pub struct Cli {
     version: bool,
     #[command(subcommand)]
     command: Option<Commands>,
+    /// Show content of bundle
+    #[arg(long)]
+    show: Option<String>,
 }
 
 #[tokio::main]
@@ -72,6 +75,8 @@ pub async fn main() {
     let args = Cli::parse();
     let result = if let Some(s) = args.copy {
         container::copy_to_clipboard(s)
+    } else if let Some(s) = args.show {
+        container::show(s)
     } else if let Some(s) = args.edit {
         container::edit(s)
     } else if let Some(s) = args.delete {

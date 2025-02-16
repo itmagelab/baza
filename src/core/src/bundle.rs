@@ -4,8 +4,8 @@ use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
 use std::cell::RefCell;
-use std::fs::{self};
-use std::io::BufRead;
+use std::fs::{self, File};
+use std::io::{BufRead, Read};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{
@@ -97,6 +97,23 @@ impl Bundle {
         encrypt_file(&file)?;
 
         Ok(self)
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub(crate) fn show(self, load_from: PathBuf) -> BazaR<()> {
+        let filename = self.file.path().to_path_buf();
+        let path = load_from.join(self.path());
+        fs::copy(path, &filename)?;
+
+        decrypt_file(&filename)?;
+
+        let mut file = File::open(filename)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        println!("{}", contents.trim());
+
+        Ok(())
     }
 
     pub(crate) fn copy_to_clipboard(self, load_from: PathBuf, ttl: u64) -> BazaR<Self> {

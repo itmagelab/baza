@@ -13,7 +13,7 @@ use super::*;
 // cover, container, box, bundle
 #[derive(Debug, Clone)]
 struct Container {
-    path: PathBuf,
+    datadir: PathBuf,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
@@ -25,7 +25,7 @@ impl fmt::Display for Container {
 
 #[derive(Debug, Default, Clone)]
 struct ContainerBuilder {
-    path: PathBuf,
+    datadir: PathBuf,
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
@@ -53,7 +53,7 @@ impl ContainerBuilder {
         let config = Config::get();
         let datadir = &config.main.datadir;
         Self {
-            path: PathBuf::from(format!("{}/data", datadir)),
+            datadir: PathBuf::from(format!("{}/data", datadir)),
             boxes: vec![],
         }
     }
@@ -94,8 +94,14 @@ impl ContainerBuilder {
     }
 
     fn build(self) -> Container {
-        let Self { path: dir, boxes } = self;
-        Container { path: dir, boxes }
+        let Self {
+            datadir: dir,
+            boxes,
+        } = self;
+        Container {
+            datadir: dir,
+            boxes,
+        }
     }
 }
 
@@ -146,10 +152,23 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle = bundle.edit(self.path.clone())?;
+            bundle = bundle.edit(self.datadir.clone())?;
             r#box.borrow_mut().bundles.push(bundle);
         }
         Ok(self)
+    }
+
+    fn show(self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let box_name = r#box.borrow().name.to_string();
+            let bundle = r#box
+                .borrow_mut()
+                .bundles
+                .pop()
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+            bundle.show(self.datadir)?;
+        }
+        Ok(())
     }
 
     fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
@@ -159,7 +178,7 @@ impl Container {
                 .bundles
                 .pop()
                 .ok_or(Error::CommonBazaError)?;
-            bundle.copy_to_clipboard(self.path, ttl)?;
+            bundle.copy_to_clipboard(self.datadir, ttl)?;
         }
         Ok(())
     }
@@ -167,7 +186,7 @@ impl Container {
     fn save(self) -> BazaR<()> {
         let name = self.name();
         if let Some(r#box) = self.boxes.last() {
-            let path = self.path.join(r#box.borrow().path());
+            let path = self.datadir.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
@@ -185,7 +204,7 @@ impl Container {
     fn rewrite(self) -> BazaR<()> {
         let name = self.name();
         if let Some(r#box) = self.boxes.last() {
-            let path = self.path.join(r#box.borrow().path());
+            let path = self.datadir.join(r#box.borrow().path());
             fs::create_dir_all(path.clone())?;
             let bundles = &mut r#box.borrow_mut().bundles;
 
@@ -204,7 +223,7 @@ impl Container {
     fn delete(self) -> BazaR<()> {
         let name = self.name();
         if let Some(r#box) = self.boxes.last() {
-            let path = self.path.join(r#box.borrow().path());
+            let path = self.datadir.join(r#box.borrow().path());
             let bundles = &mut r#box.borrow_mut().bundles;
 
             while let Some(bundle) = bundles.pop() {
@@ -260,6 +279,11 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Ok(())
 }
 
+pub fn show(str: String) -> BazaR<()> {
+    Container::builder().create_from_str(str)?.build().show()?;
+    Ok(())
+}
+
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
@@ -270,13 +294,13 @@ fn is_hidden(entry: &DirEntry) -> bool {
 
 pub fn search(str: String) -> BazaR<()> {
     let builder = ContainerBuilder::new();
-    let walker = WalkDir::new(&builder.path).into_iter();
+    let walker = WalkDir::new(&builder.datadir).into_iter();
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry?;
         let path = entry.path();
 
         if path.is_file() {
-            let path = path.strip_prefix(&builder.path)?;
+            let path = path.strip_prefix(&builder.datadir)?;
             let lossy = path.to_string_lossy().replace(MAIN_SEPARATOR, "::");
 
             if lossy.contains(&str) {
