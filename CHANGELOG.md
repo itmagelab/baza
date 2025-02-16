@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2025-02-16
+
+### 🚀 Features
+
+- List all containers command
+- Simplified work with box vectors
+- Added show command
+
+### ⚙️ Miscellaneous Tasks
+
+- Added test for `show`
+- Added version command
+
 ## [2.1.0] - 2025-02-15
 
 ### 🚀 Features

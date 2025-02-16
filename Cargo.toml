@@ -4,7 +4,7 @@ members = ["src/baza", "src/core"]
 default-members = ["src/baza"]
 
 [workspace.package]
-version = "2.1.0"
+version = "2.2.0"
 edition = "2021"
 authors = ["Andrey Semenov <i@itmage.ru>"]
 license = "MIT OR Apache-2.0"

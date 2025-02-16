@@ -22,7 +22,7 @@ pub mod error;
 pub mod git;
 pub mod pgp;
 
-pub const BOX_DELIMITER: &str = "::";
+const BOX_DELIMITER: &str = "::";
 const BUNDLE_DELIMITER: &str = ",";
 pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
@@ -92,7 +92,7 @@ impl Config {
         toml::from_str(&config_str).expect("Failed to parse TOML")
     }
 
-    fn get() -> Arc<Self> {
+    pub fn get() -> Arc<Self> {
         CTX.get_or_init(|| Arc::new(Config::init())).clone()
     }
 }
