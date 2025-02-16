@@ -1,6 +1,6 @@
 //! This project is created as an alternative to password-store,
 //! but written in a low-level language with additional features
-use baza_core::{container, error::Error, git, BOX_DELIMITER};
+use baza_core::{container, error::Error, git, Config};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -89,7 +89,7 @@ pub async fn main() {
     } else if let Some(s) = args.create {
         container::create(s)
     } else if args.list {
-        container::search(String::from(BOX_DELIMITER))
+        container::search(String::from(&Config::get().main.box_delimiter))
     } else if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
         Ok(())
