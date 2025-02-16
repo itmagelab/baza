@@ -337,6 +337,12 @@ mod tests {
             .save()
             .unwrap();
         Container::builder()
+            .create_from_str(str.clone())
+            .unwrap()
+            .build()
+            .show()
+            .unwrap();
+        Container::builder()
             .create_from_str(str)
             .unwrap()
             .build()
