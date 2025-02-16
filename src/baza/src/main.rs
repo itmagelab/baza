@@ -1,6 +1,6 @@
 //! This project is created as an alternative to password-store,
 //! but written in a low-level language with additional features
-use baza_core::{container, error::Error, git};
+use baza_core::{container, error::Error, git, BOX_DELIMITER};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -64,6 +64,9 @@ pub struct Cli {
     /// Show content of bundle
     #[arg(long)]
     show: Option<String>,
+    /// List all containers
+    #[arg(short, long)]
+    list: bool,
 }
 
 #[tokio::main]
@@ -85,6 +88,8 @@ pub async fn main() {
         container::search(s)
     } else if let Some(s) = args.create {
         container::create(s)
+    } else if args.list {
+        container::search(String::from(BOX_DELIMITER))
     } else if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
         Ok(())

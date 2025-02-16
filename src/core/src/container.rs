@@ -133,10 +133,10 @@ impl Container {
     fn create(self, data: Option<String>) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
-            let mut r#box = r#box.borrow_mut();
+            let r#box = r#box.borrow();
             let bundle = r#box
                 .bundles
-                .get_mut(0)
+                .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
             bundle.create(data)?;
         }
@@ -146,10 +146,10 @@ impl Container {
     fn edit(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
-            let mut r#box = r#box.borrow_mut();
+            let r#box = r#box.borrow();
             let bundle = r#box
                 .bundles
-                .get_mut(0)
+                .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
             bundle.edit(self.datadir.clone())?;
         }

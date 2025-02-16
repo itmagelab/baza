@@ -22,7 +22,7 @@ pub mod error;
 pub mod git;
 pub mod pgp;
 
-const BOX_DELIMITER: &str = "::";
+pub const BOX_DELIMITER: &str = "::";
 const BUNDLE_DELIMITER: &str = ",";
 pub const BAZA_DIR: &str = ".baza";
 pub const DEFAULT_EMAIL: &str = "root@baza";
