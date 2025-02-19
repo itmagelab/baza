@@ -1,0 +1,151 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the release version from the tag
+        if: env.VERSION == ''
+        run: |
+          echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "VERSION=v2.6.1" >> $GITHUB_ENV
+      - name: Show the version
+        run: |
+          echo "version is: $VERSION"
+      - name: Check that tag version and Cargo.toml version are the same
+        shell: bash
+        run: |
+          if ! grep -q "version = \"${VERSION:1}\"" Cargo.toml; then
+            echo "version does not match Cargo.toml" >&2
+            exit 1
+          fi
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create $VERSION --draft --verify-tag --title $VERSION
+    outputs:
+      version: ${{ env.VERSION }}
+
+  build:
+    env:
+      CARGO: cargo
+      TARGET_FLAGS:
+      TARGET_DIR: ./target
+      CROSS_VERSION: v0.2.5
+      CROSS_INSTALL_METHOD: curl
+    name: build-release
+    needs: ["create-release"]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-musl
+            strip: x86_64-linux-musl-strip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install packages (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          contrib/ci/ubuntu-install-packages
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+
+      - name: Use Cross
+        if: matrix.os == 'ubuntu-latest' && matrix.target != '' && env.CROSS_INSTALL_METHOD == 'cargo'
+        shell: bash
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          echo "CARGO=cross" >> $GITHUB_ENV
+
+      - name: Use Cross
+        if: matrix.os == 'ubuntu-latest' && matrix.target != '' && env.CROSS_INSTALL_METHOD == 'curl'
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/cross-download"
+          mkdir "$dir"
+          echo "$dir" >> $GITHUB_PATH
+          cd "$dir"
+          curl -LO "https://github.com/cross-rs/cross/releases/download/$CROSS_VERSION/cross-x86_64-unknown-linux-musl.tar.gz"
+          tar xf cross-x86_64-unknown-linux-musl.tar.gz
+          echo "CARGO=cross" >> $GITHUB_ENV
+
+      - name: Set target variables
+        shell: bash
+        run: |
+          echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+          echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+      - name: Show command used for Cargo
+        shell: bash
+        run: |
+          echo "cargo command is: ${{ env.CARGO }}"
+          echo "target flag is: ${{ env.TARGET_FLAGS }}"
+          echo "target dir is: ${{ env.TARGET_DIR }}"
+
+      - name: Build release binary
+        shell: bash
+        run: |
+          ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+          bin="target/${{ matrix.target }}/release/baza"
+          echo "BIN=$bin" >> $GITHUB_ENV
+
+      - name: Strip release binary (macos)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: strip "$BIN"
+
+      - name: Strip release binary (cross)
+        if: env.CARGO == 'cross'
+        shell: bash
+        run: |
+          docker run --rm -v \
+            "$PWD/target:/target:Z" \
+            "ghcr.io/cross-rs/${{ matrix.target }}:main" \
+            "${{ matrix.strip }}" \
+            "/$BIN"
+
+      - name: Determine archive name
+        shell: bash
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          echo "ARCHIVE=baza-$version-${{ matrix.target }}" >> $GITHUB_ENV
+
+      - name: Build archive (Unix)
+        shell: bash
+        if: matrix.os != 'windows-latest'
+        run: |
+          tar czf "$ARCHIVE.tar.gz" "$BIN"
+          shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
+          echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
+          echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
+
+      - name: Upload release archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          gh release upload "$version" ${{ env.ASSET }} ${{ env.ASSET_SUM }}
