@@ -10,6 +10,7 @@ use std::io::{self, Write};
 use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
+use tracing::instrument;
 use uuid::Uuid;
 
 use error::Error;
@@ -31,6 +32,7 @@ pub const TTL_SECONDS: u64 = 45;
 static CTX: OnceLock<Arc<Config>> = OnceLock::new();
 
 pub enum MessageType {
+    Clean,
     Data,
     Info,
     Warning,
@@ -158,12 +160,12 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
-        Err(e) => {
-            tracing::error!("No key found. Try using the command `baza unlock`");
-            return Err(e.into());
+        Err(_) => {
+            return Err(Error::KeyNotFound);
         }
     };
     Ok(data)
@@ -171,33 +173,44 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
 
 pub fn m(msg: &str, r#type: MessageType) {
     let msg = match r#type {
-        MessageType::Data => format!("{}", msg.bright_blue()),
-        MessageType::Info => format!("{}", msg.bright_green()),
-        MessageType::Warning => format!("{}", msg.bright_yellow()),
-        MessageType::Error => format!("{}", msg.bright_red()),
+        MessageType::Clean => msg,
+        MessageType::Data => &format!("{}", msg.bright_blue()),
+        MessageType::Info => &format!("{}", msg.bright_green()),
+        MessageType::Warning => &format!("{}", msg.bright_yellow()),
+        MessageType::Error => &format!("{}", msg.bright_red()),
     };
     print!("{}", msg);
 }
 
+// TODO: Make with NamedTmpFolder
+/// Cleanup temporary files
+pub fn cleanup_tmp_folder() -> BazaR<()> {
+    let datadir = &Config::get().main.datadir;
+    let tmpdir = format!("{}/tmp", datadir);
+    std::fs::remove_dir_all(&tmpdir).map_err(Error::CleanupTmpFolder)?;
+    std::fs::create_dir_all(format!("{}/tmp", datadir)).map_err(Error::CleanupTmpFolder)?;
+    Ok(())
+}
+
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
-    let config = Config::get();
-    let datadir = &config.main.datadir;
+    // Create common folders
+    let datadir = &Config::get().main.datadir;
+    fs::create_dir_all(format!("{}/data", datadir))?;
+
+    // Initialize the default key
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     tracing::info!("Initializing baza in data directory");
-    fs::create_dir_all(format!("{}/tmp", datadir))?;
-    fs::create_dir_all(format!("{}/data", datadir))?;
     m(
         "!!! Save this password phrase for future use\n",
         MessageType::Warning,
     );
     m("PASSWORD: ", MessageType::Info);
     m(&format!("{}\n", passphrase), MessageType::Data);
-    let key = as_hash(&passphrase);
-    fs::create_dir_all(datadir)?;
-    let mut file = File::create(key_file())?;
-    file.write_all(&key)?;
+
+    unlock(Some(passphrase))?;
 
     // Generate default pgp key
+    // This is doesn't using now
     pgp::generate()?;
     Ok(())
 }
@@ -217,7 +230,7 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let nonce = Nonce::from_slice(&nonce);
     let ciphertext = cipher
         .encrypt(nonce, plaintext)
-        .map_err(Error::EncriptionError)?;
+        .map_err(Error::Encription)?;
     Ok([nonce.as_slice(), &ciphertext].concat())
 }
 
@@ -229,11 +242,10 @@ pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let ciphertext = &ciphertext[12..];
-    cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(Error::EncriptionError)
+    cipher.decrypt(nonce, ciphertext).map_err(Error::Decription)
 }

@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::{decrypt_file, encrypt_file, r#box, BazaR, Config, TTL_SECONDS};
+use crate::{decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
@@ -111,7 +111,7 @@ impl Bundle {
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
 
-        println!("{}", contents.trim());
+        m(&contents, crate::MessageType::Clean);
 
         Ok(())
     }
@@ -142,6 +142,8 @@ impl Bundle {
             TTL_SECONDS
         );
         println!("{}", message.bright_yellow().bold());
+        // TODO: This is start after sleep
+        // m(&message, crate::MessageType::Data);
         thread::sleep(ttl_duration);
         clipboard
             .set_text("".to_string())

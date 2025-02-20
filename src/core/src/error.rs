@@ -29,6 +29,10 @@ pub enum Error {
     HelpError(std::io::Error),
     #[error("The box {box} have not bundles")]
     BundlesIsEmpty { r#box: String },
+    #[error("No key found. Try using the command `baza unlock` or `baza init`")]
+    KeyNotFound,
+    #[error("Can't cleanup tmp folder, must be a writable: {0}")]
+    CleanupTmpFolder(std::io::Error),
     // From traits
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
@@ -44,4 +48,8 @@ pub enum Error {
     GitError(#[from] git2::Error),
     #[error("env::Error: {0}")]
     EnvError(#[from] std::env::VarError),
+    #[error("Decription error: {0}")]
+    Decription(aes_gcm::Error),
+    #[error("Encription error: {0}")]
+    Encription(aes_gcm::Error),
 }

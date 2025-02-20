@@ -50,8 +50,7 @@ struct ContainerBuilder {
 
 impl ContainerBuilder {
     fn new() -> Self {
-        let config = Config::get();
-        let datadir = &config.main.datadir;
+        let datadir = &Config::get().main.datadir;
         Self {
             datadir: PathBuf::from(format!("{}/data", datadir)),
             boxes: vec![],
@@ -241,6 +240,7 @@ impl Container {
 }
 
 pub fn create(str: String) -> BazaR<()> {
+    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -258,6 +258,7 @@ pub fn delete(str: String) -> BazaR<()> {
 }
 
 pub fn edit(str: String) -> BazaR<()> {
+    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -267,6 +268,7 @@ pub fn edit(str: String) -> BazaR<()> {
 }
 
 pub fn copy_to_clipboard(str: String) -> BazaR<()> {
+    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -275,6 +277,7 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
 }
 
 pub fn show(str: String) -> BazaR<()> {
+    cleanup_tmp_folder()?;
     Container::builder().create_from_str(str)?.build().show()?;
     Ok(())
 }
@@ -300,7 +303,7 @@ pub fn search(str: String) -> BazaR<()> {
 
             if lossy.contains(&str) {
                 let container = builder.clone().create_from_str(lossy)?.build();
-                println!("{}", container);
+                m(&format!("{}\n", container), MessageType::Clean);
             }
         }
     }
