@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.2.0] - 2025-02-16
+## [2.3.0] - 2025-02-21
+
+### 🚀 Features
+
+- Train fixes again
+
+## [2.2.0] - 2025-02-18
 
 ### 🚀 Features
 
@@ -12,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Release
 - Added test for `show`
 - Added version command
 
