@@ -187,7 +187,12 @@ pub fn m(msg: &str, r#type: MessageType) {
 pub fn cleanup_tmp_folder() -> BazaR<()> {
     let datadir = &Config::get().main.datadir;
     let tmpdir = format!("{}/tmp", datadir);
-    std::fs::remove_dir_all(&tmpdir).map_err(Error::CleanupTmpFolder)?;
+    if std::fs::remove_dir_all(&tmpdir)
+        .map_err(Error::CleanupTmpFolder)
+        .is_err()
+    {
+        tracing::debug!("Tmp folder already cleaned");
+    };
     std::fs::create_dir_all(format!("{}/tmp", datadir)).map_err(Error::CleanupTmpFolder)?;
     Ok(())
 }

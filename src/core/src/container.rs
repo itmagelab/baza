@@ -29,25 +29,6 @@ struct ContainerBuilder {
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
-// impl std::str::FromStr for ContainerBuilder {
-//     type Err = Error;
-//
-//     fn from_str(name: &str) -> Result<Self, Self::Err> {
-//         let mut pack: Vec<&str> = name.trim().split(SEP).collect();
-//         let Some(bundle) = pack.pop() else {
-//             return Err(Error::TooFewArguments);
-//         };
-//         pack.reverse();
-//         while let Some(r#box) = pack.pop() {
-//             let r#box = r#box::r#Box::new(r#box.to_string(), None);
-//             self.add_box(r#box);
-//         }
-//         let bundle = Bundle::new(bundle.to_string())?;
-//         self.add_bundle(bundle);
-//         Ok(self)
-//     }
-// }
-
 impl ContainerBuilder {
     fn new() -> Self {
         let datadir = &Config::get().main.datadir;
@@ -57,7 +38,6 @@ impl ContainerBuilder {
         }
     }
 
-    // TODO: Use FromStr instead
     fn create_from_str(mut self, name: String) -> BazaR<Self> {
         let mut pack: Vec<&str> = name
             .trim()
@@ -320,6 +300,7 @@ mod tests {
         let password = super::generate(255, false, false, false).unwrap();
         init(Some(password.clone())).unwrap();
         unlock(Some(password.clone())).unwrap();
+        cleanup_tmp_folder().unwrap();
         Container::builder()
             .create_from_str(str.clone())
             .unwrap()
