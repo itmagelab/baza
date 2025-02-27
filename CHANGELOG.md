@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2025-02-27
+
+### 🚀 Features
+
+- Use stdin for bundle creation
+
+### 🐛 Bug Fixes
+
+- No case sensitive
+- Read all input for stdin
+- Ignore if tmp cant remove
+
+### 📚 Documentation
+
+- Added discription for migration from pass
+
+### ⚙️ Miscellaneous Tasks
+
+- Added a docs header
+- Use transparent display error
+
 ## [2.3.0] - 2025-02-21
 
 ### 🚀 Features
