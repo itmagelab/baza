@@ -80,6 +80,10 @@ Save the key in a safe place
 
     vhs < Baza.tape
 
+## Migration from pass
+
+    for i in $(ls -1 .password-store/); do pass "${i%%.gpg}" | baza --stdin "${i%%.gpg}"; done
+
 ## TODO
 
 * Sync from a cloud providers
