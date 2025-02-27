@@ -295,7 +295,8 @@ pub fn search(str: String) -> BazaR<()> {
             let path = path.strip_prefix(&builder.datadir)?;
             let lossy = path.to_string_lossy().replace(MAIN_SEPARATOR, "::");
 
-            if lossy.to_lowercase().contains(&str.to_lowercase()) {
+            let re = regex::Regex::new(&str)?;
+            if re.is_match(&lossy) {
                 let container = builder.clone().create_from_str(lossy)?.build();
                 m(&format!("{}\n", container), MessageType::Clean);
             }

@@ -50,4 +50,6 @@ pub enum Error {
     Git2(#[from] git2::Error),
     #[error(transparent)]
     EnvVar(#[from] std::env::VarError),
+    #[error(transparent)]
+    Regex(#[from] regex::Error),
 }

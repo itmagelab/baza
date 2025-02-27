@@ -31,3 +31,4 @@ arboard = "3.4.1"
 git2 = "0.20.0"
 clap = { version = "4.5.20" }
 tokio = { version = "1.41.1" }
+regex = "1.11.1"
