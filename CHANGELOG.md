@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2025-02-27
+
+### 🚀 Features
+
+- Use regex for searching
+
+### 🐛 Bug Fixes
+
+- Fixed help messages
+
+### 📚 Documentation
+
+- Added budges
+- Added new feature to docs
+- Added new docker release
+
 ## [2.4.0] - 2025-02-27
 
 ### 🚀 Features
