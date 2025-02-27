@@ -78,6 +78,8 @@ pub async fn main() {
 
     fmt().with_env_filter(filter).compact().init();
 
+    tracing::debug!(datadir = &Config::get().main.datadir, "Use datadir");
+
     let args = Cli::parse();
     let result = if let Some(s) = args.copy {
         container::copy_to_clipboard(s)
