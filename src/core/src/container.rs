@@ -229,6 +229,17 @@ pub fn create(str: String) -> BazaR<()> {
     Ok(())
 }
 
+pub fn from_stdin(str: String) -> BazaR<()> {
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .create(Some(input))?
+        .save()?;
+    Ok(())
+}
+
 pub fn delete(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?

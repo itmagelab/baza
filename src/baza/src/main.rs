@@ -44,6 +44,9 @@ pub struct Cli {
     /// Create bundle of passwords
     #[arg(short, long)]
     create: Option<String>,
+    /// Create bundle from STDIN
+    #[arg(long)]
+    stdin: Option<String>,
     /// Edit exists bundle of passwords
     #[arg(short, long)]
     edit: Option<String>,
@@ -88,6 +91,8 @@ pub async fn main() {
         container::search(s)
     } else if let Some(s) = args.create {
         container::create(s)
+    } else if let Some(s) = args.stdin {
+        container::from_stdin(s)
     } else if args.list {
         container::search(String::from(&Config::get().main.box_delimiter))
     } else if args.version {
