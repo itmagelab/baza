@@ -63,6 +63,10 @@ Generate a new key for baza
     baza bundle copy full::path::for::login
     baza --copy full::path::for::login
 
+### Create bundle password from stdin
+
+    echo '$ecRet' | baza --stdin full::path::for::login
+
 ## How to keep your keys safe
 
     gpg --list-keys
