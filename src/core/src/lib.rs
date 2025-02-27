@@ -1,4 +1,8 @@
+//! # Baza
+//!
 //! The core library for crate Baza crate
+//!
+
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
