@@ -6,6 +6,7 @@ use std::{
 };
 
 use bundle::Bundle;
+use io::Read;
 use walkdir::{DirEntry, WalkDir};
 
 use super::*;
@@ -230,8 +231,10 @@ pub fn create(str: String) -> BazaR<()> {
 }
 
 pub fn from_stdin(str: String) -> BazaR<()> {
+    cleanup_tmp_folder()?;
+
     let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+    io::stdin().read_to_string(&mut input)?;
     Container::builder()
         .create_from_str(str)?
         .build()
