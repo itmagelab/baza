@@ -1,5 +1,8 @@
 # baza
 
+![RUST](https://github.com/itmagelab/baza/actions/workflows/rust.yml/badge.svg)
+![DOCKER](https://github.com/itmagelab/baza/actions/workflows/docker.yml/badge.svg)
+
 ![demo](contrib/Baza.gif)
 
 ## Description
