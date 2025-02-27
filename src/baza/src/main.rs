@@ -32,7 +32,7 @@ pub(crate) enum Commands {
     },
     /// Load database
     Load,
-    /// Work this passwords (bundles)
+    /// Work with passwords (bundles)
     Bundle(bundle::Args),
     /// Generating a password
     Password(password::Args),
@@ -42,22 +42,22 @@ pub(crate) enum Commands {
 #[command(name = "baza")]
 pub struct Cli {
     /// Create bundle of passwords
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "BUNDLE")]
     create: Option<String>,
     /// Create bundle from STDIN
-    #[arg(long)]
+    #[arg(long, value_name = "BUNDLE")]
     stdin: Option<String>,
     /// Edit exists bundle of passwords
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "BUNDLE")]
     edit: Option<String>,
     /// Deleting a bundle
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "BUNDLE")]
     delete: Option<String>,
     /// Search bundle by name
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "REGEX")]
     search: Option<String>,
     /// Copy all bundle to clipboard
-    #[arg(long)]
+    #[arg(long, value_name = "BUNDLE")]
     copy: Option<String>,
     /// Show Version
     #[arg(short, long)]
@@ -65,7 +65,7 @@ pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
     /// Show content of bundle
-    #[arg(long)]
+    #[arg(long, value_name = "BUNDLE")]
     show: Option<String>,
     /// List all containers
     #[arg(short, long)]
