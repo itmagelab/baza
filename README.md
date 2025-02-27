@@ -11,7 +11,7 @@ This project is created as an alternative to password-store, but written in a lo
 
 ## Installation
 
-### Docker ([ghcr.io](ghcr.io/itmagelab/baza:release-v2.0.0))
+### Docker ([ghcr.io](https://github.com/itmagelab/baza/pkgs/container/baza))
 
     docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.4.0 baza --help
 
