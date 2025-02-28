@@ -87,6 +87,8 @@ Type "baza bundle search new" Sleep 1000ms Enter
 Sleep 3s
 Type "baza --show work::new::login" Sleep 1000ms Enter
 Sleep 3s
+Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1000ms Enter
+Sleep 3s
 Type "baza lock" Sleep 1000ms Enter
 Sleep 3s
 Type "baza bundle edit work::new::login" Sleep 1000ms Enter
