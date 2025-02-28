@@ -31,7 +31,7 @@ pub(crate) enum Commands {
         passphrase: Option<String>,
     },
     /// Load database
-    Load,
+    Sync,
     /// Work with passwords (bundles)
     Bundle(bundle::Args),
     /// Generating a password
@@ -107,7 +107,7 @@ pub async fn main() {
             Commands::Init { passphrase } => baza_core::init(passphrase),
             Commands::Unlock => baza_core::unlock(None),
             Commands::Lock => baza_core::lock(),
-            Commands::Load => git::push(),
+            Commands::Sync => git::push(),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::IO)

@@ -89,7 +89,8 @@ Save the key in a safe place
 
 ## Migration from pass
 
-    for i in $(ls -1 .password-store/); do pass "${i%%.gpg}" | baza --stdin "${i%%.gpg}"; done
+    cd $HOME/.password-store
+    for i in $(git ls-tree -r master --name-only | grep -vE '^\.(git|gpg)'); do name="${i%%.gpg}"; name=${name//\//::}; pass ${name} | baza --stdin "${name}"; done
 
 ## TODO
 
