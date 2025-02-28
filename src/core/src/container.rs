@@ -276,7 +276,7 @@ pub fn search(str: String) -> BazaR<()> {
         let path = entry.path();
 
         if path.is_file() {
-            let path = path.strip_prefix(&builder.datadir)?;
+            let path = path.strip_prefix(&builder.datadir)?.with_extension("");
             let lossy = path
                 .to_string_lossy()
                 .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);

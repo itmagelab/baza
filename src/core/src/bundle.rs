@@ -55,10 +55,6 @@ impl Bundle {
         pointer
     }
 
-    pub(crate) fn path(&self) -> PathBuf {
-        self.pointer().iter().collect()
-    }
-
     pub(crate) fn create(&self, data: Option<String>) -> BazaR<()> {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
