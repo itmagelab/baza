@@ -159,7 +159,11 @@ impl Container {
     }
 
     fn ptr(&self, r#box: &r#box::r#Box, bundle: &Bundle) -> BazaR<PathBuf> {
-        Ok(self.datadir.join(r#box.path()).join(&*bundle.name))
+        Ok(self
+            .datadir
+            .join(r#box.path())
+            .join(&*bundle.name)
+            .with_extension("baza"))
     }
 
     fn save(&mut self, rw: bool) -> BazaR<()> {
