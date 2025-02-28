@@ -1,4 +1,3 @@
-use crate::error::Error;
 use crate::{decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
@@ -117,7 +116,7 @@ impl Bundle {
     }
 
     pub(crate) fn copy_to_clipboard(&self, load_from: PathBuf, ttl: u64) -> BazaR<()> {
-        let mut clipboard = Clipboard::new().map_err(Error::ArboardError)?;
+        let mut clipboard = Clipboard::new()?;
 
         let filename = self.file.path().to_path_buf();
         let path = load_from.join(self.path());
@@ -131,9 +130,7 @@ impl Bundle {
         buffer.read_line(&mut first_line)?;
 
         let lossy = first_line.trim();
-        clipboard
-            .set_text(lossy.trim())
-            .map_err(Error::ArboardError)?;
+        clipboard.set_text(lossy.trim())?;
 
         let ttl_duration = time::Duration::new(ttl, 0);
 
@@ -145,9 +142,7 @@ impl Bundle {
         // TODO: This is start after sleep
         // m(&message, crate::MessageType::Data);
         thread::sleep(ttl_duration);
-        clipboard
-            .set_text("".to_string())
-            .map_err(Error::ArboardError)?;
+        clipboard.set_text("".to_string())?;
 
         Ok(())
     }
