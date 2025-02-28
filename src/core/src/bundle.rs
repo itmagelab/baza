@@ -82,9 +82,8 @@ impl Bundle {
         let editor = env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();
-        let path = load_from.join(self.path());
 
-        fs::copy(path, &file)?;
+        fs::copy(load_from, &file)?;
 
         decrypt_file(&file)?;
 
@@ -101,8 +100,7 @@ impl Bundle {
     #[tracing::instrument(skip_all)]
     pub(crate) fn show(&self, load_from: PathBuf) -> BazaR<()> {
         let filename = self.file.path().to_path_buf();
-        let path = load_from.join(self.path());
-        fs::copy(path, &filename)?;
+        fs::copy(load_from, &filename)?;
 
         decrypt_file(&filename)?;
 
