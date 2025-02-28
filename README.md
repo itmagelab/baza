@@ -95,3 +95,5 @@ Save the key in a safe place
 
 * Sync from a cloud providers
 * TOTP
+
+![LOGO](https://cdn-ru.bitrix24.ru/b21763262/landing/189/1894d6c1c7ce75fed711df492921cfaf/3_1x.png)
