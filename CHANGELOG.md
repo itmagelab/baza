@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.0] - 2025-02-28
+
+### 🚀 Features
+
+- Added extention for files
+- Reworked save fn for containers
+- Rename for upload command
+
+### 🐛 Bug Fixes
+
+- Now can use names with dots
+- For delete and edit fn
+- For delete and edit fn
+- Search separator
+- Rename pipeline name
+
+### 📚 Documentation
+
+- Added script for migration
+- Fixes packages list
+
+### ⚙️ Miscellaneous Tasks
+
+- Use Apache
+- Added logo
+- Decommision for Arboard
+
 ## [2.5.0] - 2025-02-27
 
 ### 🚀 Features
