@@ -4,14 +4,14 @@ members = ["src/baza", "src/core"]
 default-members = ["src/baza"]
 
 [workspace.package]
-version = "2.6.0"
+version = "2.6.1"
 edition = "2021"
 authors = ["Andrey Semenov <i@itmage.ru>"]
 license = "Apache-2.0"
 description = "The base password manager"
 
 [workspace.dependencies]
-baza_core = { path = "src/core", version = "2.6.0" }
+baza_core = { path = "src/core", version = "2.6.1" }
 thiserror = "2.0.1"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"

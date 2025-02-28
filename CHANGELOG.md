@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.1] - 2025-02-28
+
+### 🐛 Bug Fixes
+
+- Added readme for a crate
+- Hotfix depends
+
 ## [2.6.0] - 2025-02-28
 
 ### 🚀 Features
