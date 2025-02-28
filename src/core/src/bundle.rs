@@ -115,12 +115,20 @@ impl Bundle {
         Ok(())
     }
 
+    pub(crate) fn save(self, path: PathBuf, rw: bool) -> BazaR<()> {
+        if rw {
+            self.file.persist(&path)?;
+        } else {
+            self.file.persist_noclobber(&path)?;
+        };
+        Ok(())
+    }
+
     pub(crate) fn copy_to_clipboard(&self, load_from: PathBuf, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()?;
 
         let filename = self.file.path().to_path_buf();
-        let path = load_from.join(self.path());
-        fs::copy(path, &filename)?;
+        fs::copy(load_from, &filename)?;
 
         decrypt_file(&filename)?;
 

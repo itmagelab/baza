@@ -153,44 +153,25 @@ impl Container {
         if let Some(r#box) = self.boxes.last() {
             let r#box = r#box.borrow();
             let bundle = r#box.bundles.first().ok_or(Error::CommonBazaError)?;
-            bundle.copy_to_clipboard(self.datadir, ttl)?;
+            bundle.copy_to_clipboard(self.ptr(&r#box, bundle)?, ttl)?;
         }
         Ok(())
     }
 
-    fn save(self) -> BazaR<()> {
-        let name = self.name();
-        if let Some(r#box) = self.boxes.last() {
-            let path = self.datadir.join(r#box.borrow().path());
-            fs::create_dir_all(path.clone())?;
-            let bundles = &mut r#box.borrow_mut().bundles;
-
-            while let Some(bundle) = bundles.pop() {
-                let path = path.join(&*bundle.name);
-                let file = bundle.file;
-                file.persist_noclobber(path)?;
-            }
-        }
-        let msg = format!("Bundle {} was added", name);
-        git::commit(msg)?;
-        Ok(())
+    fn ptr(&self, r#box: &r#box::r#Box, bundle: &Bundle) -> BazaR<PathBuf> {
+        Ok(self.datadir.join(r#box.path()).join(&*bundle.name))
     }
 
-    fn rewrite(self) -> BazaR<()> {
-        let name = self.name();
-        if let Some(r#box) = self.boxes.last() {
-            let path = self.datadir.join(r#box.borrow().path());
-            fs::create_dir_all(path.clone())?;
-            let bundles = &mut r#box.borrow_mut().bundles;
-
-            while let Some(bundle) = bundles.pop() {
-                let path = path.join(&*bundle.name);
-                let file = bundle.file;
-                file.persist(path)?;
+    fn save(&mut self, rw: bool) -> BazaR<()> {
+        while let Some(r#box) = self.boxes.pop() {
+            let mut r#box = r#box.borrow_mut();
+            fs::create_dir_all(self.datadir.join(r#box.path()))?;
+            while let Some(bundle) = r#box.bundles.pop() {
+                let path = self.ptr(&r#box, &bundle)?;
+                bundle.save(path, rw)?;
             }
         }
-        let msg = format!("Bundle {} was changed", name);
-        tracing::debug!("{msg}");
+        let msg = format!("Bundle {} was added", self.name());
         git::commit(msg)?;
         Ok(())
     }
@@ -226,7 +207,7 @@ pub fn create(str: String) -> BazaR<()> {
         .create_from_str(str)?
         .build()
         .create(None)?
-        .save()?;
+        .save(false)?;
     Ok(())
 }
 
@@ -239,7 +220,7 @@ pub fn from_stdin(str: String) -> BazaR<()> {
         .create_from_str(str)?
         .build()
         .create(Some(input))?
-        .save()?;
+        .save(false)?;
     Ok(())
 }
 
@@ -257,7 +238,7 @@ pub fn edit(str: String) -> BazaR<()> {
         .create_from_str(str)?
         .build()
         .edit()?
-        .rewrite()?;
+        .save(true)?;
     Ok(())
 }
 
@@ -330,7 +311,7 @@ mod tests {
             .build()
             .create(Some(password))
             .unwrap()
-            .save()
+            .save(false)
             .unwrap();
         Container::builder()
             .create_from_str(str.clone())
