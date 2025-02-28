@@ -131,7 +131,7 @@ impl Container {
                 .bundles
                 .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle.edit(self.datadir.clone())?;
+            bundle.edit(self.ptr(&r#box, bundle)?)?;
         }
         Ok(self)
     }
@@ -144,7 +144,7 @@ impl Container {
                 .bundles
                 .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle.show(self.datadir)?;
+            bundle.show(self.ptr(&r#box, bundle)?)?;
         }
         Ok(())
     }
@@ -167,6 +167,7 @@ impl Container {
     }
 
     fn save(&mut self, rw: bool) -> BazaR<()> {
+        let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
             let mut r#box = r#box.borrow_mut();
             fs::create_dir_all(self.datadir.join(r#box.path()))?;
@@ -175,19 +176,17 @@ impl Container {
                 bundle.save(path, rw)?;
             }
         }
-        let msg = format!("Bundle {} was added", self.name());
+        let msg = format!("Bundle {name} was added or changed");
         git::commit(msg)?;
         Ok(())
     }
 
-    fn delete(self) -> BazaR<()> {
+    fn delete(&mut self) -> BazaR<()> {
         let name = self.name();
-        if let Some(r#box) = self.boxes.last() {
-            let path = self.datadir.join(r#box.borrow().path());
-            let bundles = &mut r#box.borrow_mut().bundles;
-
-            while let Some(bundle) = bundles.pop() {
-                let path = path.join(&*bundle.name);
+        while let Some(r#box) = self.boxes.pop() {
+            let mut r#box = r#box.borrow_mut();
+            while let Some(bundle) = r#box.bundles.pop() {
+                let path = self.ptr(&r#box, &bundle)?;
                 if path.is_file() {
                     fs::remove_file(&path)?;
                 } else if path.is_dir() {
