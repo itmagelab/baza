@@ -293,7 +293,9 @@ pub fn search(str: String) -> BazaR<()> {
 
         if path.is_file() {
             let path = path.strip_prefix(&builder.datadir)?;
-            let lossy = path.to_string_lossy().replace(MAIN_SEPARATOR, "::");
+            let lossy = path
+                .to_string_lossy()
+                .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
 
             let re = regex::Regex::new(&str)?;
             if re.is_match(&lossy) {
