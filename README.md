@@ -9,18 +9,32 @@
 
 This project is created as an alternative to password-store, but written in a low-level language with additional features
 
+## Why should I use baza?
+
+* Because it's very blazzing fast
+
 ## Installation
 
-### Docker ([ghcr.io](https://github.com/itmagelab/baza/pkgs/container/baza))
+#### Docker ([ghcr.io](https://github.com/itmagelab/baza/pkgs/container/baza))
 
-    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.4.0 baza --help
+    docker run -ti -v "${HOME}/.baza:/usr/share/baza/.baza:rw" ghcr.io/itmagelab/baza:release-v2.6.1 baza --help
 
-### Cargo ([crates.io](https://crates.io/crates/baza))
+#### Cargo ([crates.io](https://crates.io/crates/baza))
 
 > [!WARNING]
 > Minimum Supported Rust Version: 1.83
 
     cargo install baza
+
+#### Building
+
+Baza compiles with Rust 1.83.0 (stable) or newer.
+
+    git clone https://github.com/itmagelab/baza
+    cd baza
+    cargo build --release
+    ./target/release/baza --version
+    cp ./target/release/baza ~/.cargo/bin/
 
 ## Usage
 
@@ -28,45 +42,49 @@ Generate a new key for baza
 
     baza init
 
-> [!WARNING]
-> This is not an idempotent operation
+This command will generate a password phrase automatically, can be used for automations and CIs
 
-### Re-init your baza
+> [!WARNING]
+> !!! This is not an idempotent operation !!!
+>
+> When you create a new key, the old one is deleted without warning and the data cannot be recovered if you forget the password phrase
+
+#### Re-init your baza
 
     baza init -p my_secret_pass_phrase
     baza --help
 
-### Generate a new password by baza
+#### Generate a new password by baza
 
     baza password generate 10
     baza password generate 30 --no-latters --no-symbols
 
-### Create your baza bundles
+#### Create your baza bundles
 
     baza bundle create full::path::for::login
     baza bundle create work::depart::ldap::username
     baza bundle create site::google::username@gmail.com
 
-### Delete your baza bundles
+#### Delete your baza bundles
 
     baza bundle delete full::path::for::login
 
-### Edit your bundle
+#### Edit your bundle
 
     baza bundle search login
     baza bundle edit full::path::for::login
 
-### Lock and Unlock your database (or bundles) with password phrase
+#### Lock and Unlock your database (or bundles) with password phrase
 
     baza lock
     baza unlock
 
-### Copy password to clipboard (first line from bundle)
+#### Copy password to clipboard (first line from bundle)
 
     baza bundle copy full::path::for::login
     baza --copy full::path::for::login
 
-### Create bundle password from stdin
+#### Create bundle password from stdin
 
     echo '$ecRet' | baza --stdin full::path::for::login
 
