@@ -7,7 +7,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 mod bundle;
 mod password;
 
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 #[derive(Debug, Subcommand)]
 #[command(
@@ -76,7 +76,13 @@ pub struct Cli {
 pub async fn main() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    fmt().with_env_filter(filter).compact().init();
+    let fmt = fmt::layer()
+        .with_target(false)
+        .without_time()
+        .compact()
+        .json()
+        .with_filter(filter);
+    tracing_subscriber::registry().with(fmt).init();
 
     tracing::debug!(datadir = &Config::get().main.datadir, "Use datadir");
 
