@@ -209,12 +209,7 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     // Initialize the default key
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
     tracing::info!("Initializing baza in data directory");
-    m(
-        "!!! Save this password phrase for future use\n",
-        MessageType::Warning,
-    );
-    m("PASSWORD: ", MessageType::Info);
-    m(&format!("{}\n", passphrase), MessageType::Data);
+    tracing::warn!(passphrase, "!!! Save this password phrase for future use");
 
     unlock(Some(passphrase))?;
 
