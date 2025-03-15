@@ -248,8 +248,8 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
 }
 
 pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
-    let data = fs::read(path)?;
-    let encrypted = decrypt_data(&data, &key()?)?;
+    let ciphertext = fs::read(path)?;
+    let encrypted = decrypt_data(&ciphertext, &key()?)?;
     let mut file = File::create(path)?;
     file.write_all(&encrypted)?;
     Ok(())
