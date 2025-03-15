@@ -1,4 +1,4 @@
-use crate::{cleanup_tmp_folder, decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
+use crate::{decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
@@ -34,7 +34,6 @@ impl fmt::Display for Bundle {
 
 impl Bundle {
     pub(crate) fn new(name: String) -> BazaR<Self> {
-        cleanup_tmp_folder()?;
         let file =
             tempfile::Builder::new().tempfile_in(format!("{}/tmp", Config::get().main.datadir))?;
         let name = Arc::from(name);

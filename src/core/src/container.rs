@@ -203,7 +203,6 @@ impl Container {
 }
 
 pub fn add(str: String) -> BazaR<()> {
-    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -213,8 +212,6 @@ pub fn add(str: String) -> BazaR<()> {
 }
 
 pub fn from_stdin(str: String) -> BazaR<()> {
-    cleanup_tmp_folder()?;
-
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
     Container::builder()
@@ -234,7 +231,6 @@ pub fn delete(str: String) -> BazaR<()> {
 }
 
 pub fn edit(str: String) -> BazaR<()> {
-    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -244,7 +240,6 @@ pub fn edit(str: String) -> BazaR<()> {
 }
 
 pub fn copy_to_clipboard(str: String) -> BazaR<()> {
-    cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -253,7 +248,6 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
 }
 
 pub fn show(str: String) -> BazaR<()> {
-    cleanup_tmp_folder()?;
     Container::builder().create_from_str(str)?.build().show()?;
     Ok(())
 }
