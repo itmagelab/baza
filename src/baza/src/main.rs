@@ -65,7 +65,7 @@ pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
     /// Show content of bundle
-    #[arg(long, value_name = "BUNDLE")]
+    #[arg(short = 'p', long, value_name = "BUNDLE")]
     show: Option<String>,
     /// List all containers
     #[arg(short, long)]
