@@ -98,7 +98,7 @@ pub async fn main() {
     } else if let Some(s) = args.search {
         container::search(s)
     } else if let Some(s) = args.add {
-        container::create(s)
+        container::add(s)
     } else if let Some(s) = args.stdin {
         container::from_stdin(s)
     } else if args.list {

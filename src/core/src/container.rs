@@ -202,7 +202,7 @@ impl Container {
     }
 }
 
-pub fn create(str: String) -> BazaR<()> {
+pub fn add(str: String) -> BazaR<()> {
     cleanup_tmp_folder()?;
     Container::builder()
         .create_from_str(str)?
