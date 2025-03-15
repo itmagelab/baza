@@ -2,11 +2,9 @@ use crate::{decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
-use std::cell::RefCell;
 use std::fs::{self, File};
 use std::io::{BufRead, Read};
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{
     env,
     path::PathBuf,
@@ -19,7 +17,7 @@ use tempfile::NamedTempFile;
 pub(crate) struct Bundle {
     pub(crate) name: Arc<str>,
     pub(crate) file: NamedTempFile,
-    pub(crate) parent: Option<Rc<RefCell<r#box::r#Box>>>,
+    pub(crate) parent: Option<Arc<Mutex<r#box::r#Box>>>,
 }
 
 impl fmt::Display for Bundle {
@@ -48,7 +46,7 @@ impl Bundle {
         let mut pointer = self
             .parent
             .as_ref()
-            .map(|parent| parent.borrow().pointer())
+            .map(|parent| parent.lock().unwrap().pointer())
             .unwrap_or_default();
         pointer.push(self.name.to_string());
 

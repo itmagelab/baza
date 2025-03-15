@@ -1,4 +1,7 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use crate::bundle::Bundle;
 
@@ -6,11 +9,11 @@ use crate::bundle::Bundle;
 pub(crate) struct r#Box {
     pub(crate) name: Arc<str>,
     pub(crate) bundles: Vec<Bundle>,
-    pub(crate) parent: Option<Rc<RefCell<r#Box>>>,
+    pub(crate) parent: Option<Arc<Mutex<r#Box>>>,
 }
 
 impl r#Box {
-    pub(crate) fn new(name: String, parent: Option<Rc<RefCell<r#Box>>>) -> Self {
+    pub(crate) fn new(name: String, parent: Option<Arc<Mutex<r#Box>>>) -> Self {
         let name = Arc::from(name);
         Self {
             name,
@@ -23,7 +26,7 @@ impl r#Box {
         let mut pointer = self
             .parent
             .as_ref()
-            .map(|parent| parent.borrow().pointer())
+            .map(|parent| parent.lock().unwrap().pointer())
             .unwrap_or_default();
         pointer.push(self.name.to_string());
 

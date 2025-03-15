@@ -1,8 +1,7 @@
 use std::{
-    cell::RefCell,
     fmt, fs,
     path::{PathBuf, MAIN_SEPARATOR},
-    rc::Rc,
+    sync::Mutex,
 };
 
 use bundle::Bundle;
@@ -15,7 +14,7 @@ use super::*;
 #[derive(Debug, Clone)]
 struct Container {
     datadir: PathBuf,
-    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+    boxes: Vec<Arc<Mutex<r#box::r#Box>>>,
 }
 
 impl fmt::Display for Container {
@@ -27,7 +26,7 @@ impl fmt::Display for Container {
 #[derive(Debug, Default, Clone)]
 struct ContainerBuilder {
     datadir: PathBuf,
-    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+    boxes: Vec<Arc<Mutex<r#box::r#Box>>>,
 }
 
 impl ContainerBuilder {
@@ -58,15 +57,15 @@ impl ContainerBuilder {
     }
 
     fn add_box(&mut self, mut r#box: r#box::r#Box) -> &mut Self {
-        r#box.parent = self.boxes.last().map(Rc::clone);
-        self.boxes.push(Rc::new(RefCell::new(r#box)));
+        r#box.parent = self.boxes.last().map(Arc::clone);
+        self.boxes.push(Arc::new(Mutex::new(r#box)));
         self
     }
 
     fn add_bundle(&mut self, mut bundle: Bundle) -> BazaR<&mut Self> {
         if let Some(r#box) = self.boxes.last() {
-            bundle.parent = Some(Rc::clone(r#box));
-            r#box.borrow_mut().bundles.push(bundle);
+            bundle.parent = Some(Arc::clone(r#box));
+            r#box.lock().unwrap().bundles.push(bundle);
         } else {
             return Err(Error::BoxMoreOne);
         }
@@ -92,7 +91,7 @@ impl Container {
 
     fn bundles(&self) -> Vec<String> {
         if let Some(r#box) = self.boxes.last() {
-            let bundles = &r#box.borrow().bundles;
+            let bundles = &r#box.lock().unwrap().bundles;
             if !bundles.is_empty() {
                 return bundles.iter().map(|b| b.name.to_string()).collect();
             };
@@ -104,7 +103,7 @@ impl Container {
         let mut name: Vec<String> = self
             .boxes
             .iter()
-            .map(|b| b.borrow().name.to_string())
+            .map(|b| b.lock().unwrap().name.to_string())
             .collect();
         name.push(self.bundles().join(&Config::get().main.bundle_delimiter));
         name.join(&Config::get().main.box_delimiter)
@@ -112,8 +111,8 @@ impl Container {
 
     fn create(self, data: Option<String>) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
-            let r#box = r#box.borrow();
+            let box_name = r#box.lock().unwrap().name.to_string();
+            let r#box = r#box.lock().unwrap();
             let bundle = r#box
                 .bundles
                 .first()
@@ -125,8 +124,8 @@ impl Container {
 
     fn edit(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
-            let r#box = r#box.borrow();
+            let box_name = r#box.lock().unwrap().name.to_string();
+            let r#box = r#box.lock().unwrap();
             let bundle = r#box
                 .bundles
                 .first()
@@ -138,8 +137,8 @@ impl Container {
 
     fn show(self) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
-            let r#box = r#box.borrow();
+            let box_name = r#box.lock().unwrap().name.to_string();
+            let r#box = r#box.lock().unwrap();
             let bundle = r#box
                 .bundles
                 .first()
@@ -151,7 +150,7 @@ impl Container {
 
     fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let r#box = r#box.borrow();
+            let r#box = r#box.lock().unwrap();
             let bundle = r#box.bundles.first().ok_or(Error::CommonBazaError)?;
             bundle.copy_to_clipboard(self.ptr(&r#box, bundle)?, ttl)?;
         }
@@ -167,7 +166,7 @@ impl Container {
     fn save(&mut self, replace: bool) -> BazaR<()> {
         let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
-            let mut r#box = r#box.borrow_mut();
+            let mut r#box = r#box.lock().unwrap();
             fs::create_dir_all(self.datadir.join(r#box.path()))?;
             while let Some(bundle) = r#box.bundles.pop() {
                 let path = self.ptr(&r#box, &bundle)?;
@@ -182,7 +181,7 @@ impl Container {
     fn delete(&mut self) -> BazaR<()> {
         let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
-            let mut r#box = r#box.borrow_mut();
+            let mut r#box = r#box.lock().unwrap();
             while let Some(bundle) = r#box.bundles.pop() {
                 let path = self.ptr(&r#box, &bundle)?;
                 if path.is_file() {
