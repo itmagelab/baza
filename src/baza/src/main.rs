@@ -43,7 +43,7 @@ pub(crate) enum Commands {
 pub struct Cli {
     /// Create bundle of passwords
     #[arg(short, long, value_name = "BUNDLE")]
-    create: Option<String>,
+    add: Option<String>,
     /// Create bundle from STDIN
     #[arg(long, value_name = "BUNDLE")]
     stdin: Option<String>,
@@ -57,7 +57,7 @@ pub struct Cli {
     #[arg(short, long, value_name = "REGEX")]
     search: Option<String>,
     /// Copy all bundle to clipboard
-    #[arg(short = 'b', long, value_name = "BUNDLE")]
+    #[arg(short, long, value_name = "BUNDLE")]
     copy: Option<String>,
     /// Show Version
     #[arg(short, long)]
@@ -97,7 +97,7 @@ pub async fn main() {
         container::delete(s)
     } else if let Some(s) = args.search {
         container::search(s)
-    } else if let Some(s) = args.create {
+    } else if let Some(s) = args.add {
         container::create(s)
     } else if let Some(s) = args.stdin {
         container::from_stdin(s)
