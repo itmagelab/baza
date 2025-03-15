@@ -109,8 +109,8 @@ impl Bundle {
         Ok(())
     }
 
-    pub(crate) fn save(self, path: PathBuf, rw: bool) -> BazaR<()> {
-        if rw {
+    pub(crate) fn save(self, path: PathBuf, replace: bool) -> BazaR<()> {
+        if replace {
             self.file.persist(&path)?;
         } else {
             self.file.persist_noclobber(&path)?;

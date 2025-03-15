@@ -164,14 +164,14 @@ impl Container {
         Ok(path)
     }
 
-    fn save(&mut self, rw: bool) -> BazaR<()> {
+    fn save(&mut self, replace: bool) -> BazaR<()> {
         let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
             let mut r#box = r#box.borrow_mut();
             fs::create_dir_all(self.datadir.join(r#box.path()))?;
             while let Some(bundle) = r#box.bundles.pop() {
                 let path = self.ptr(&r#box, &bundle)?;
-                bundle.save(path, rw)?;
+                bundle.save(path, replace)?;
             }
         }
         let msg = format!("Bundle {name} was added or changed");
