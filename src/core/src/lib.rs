@@ -145,6 +145,15 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
+pub fn sync() -> BazaR<()> {
+    if let Some(_url) = &Config::get().git.url {
+        git::push()?;
+    } else {
+        tracing::info!("Please set url for git remote");
+    }
+    Ok(())
+}
+
 pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
     let passphrase = if let Some(passphrase) = passphrase {
         passphrase

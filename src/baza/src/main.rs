@@ -1,6 +1,6 @@
 //! This project is created as an alternative to password-store,
 //! but written in a low-level language with additional features
-use baza_core::{cleanup_tmp_folder, container, error::Error, git, Config};
+use baza_core::{cleanup_tmp_folder, container, error::Error, sync, Config};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -124,7 +124,7 @@ pub async fn main() {
             Commands::Init { passphrase } => baza_core::init(passphrase),
             Commands::Unlock => baza_core::unlock(None),
             Commands::Lock => baza_core::lock(),
-            Commands::Sync => git::push(),
+            Commands::Sync => sync(),
         }
     } else {
         Cli::command().print_long_help().map_err(Error::IO)
