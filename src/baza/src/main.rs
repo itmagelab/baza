@@ -12,6 +12,13 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 #[derive(Debug, Subcommand)]
 #[command(
     about = "Baza: The base password manager",
+    override_usage = r#"baza [-a <bundle> | --add <bundle>] [-d <bundle> | --delete <bundle>]
+            [-e <bundle> | --edit <bundle>] [-c <bundle> | --copy <bundle>]
+            [-s <bundle> | --search <bundle>] [-p <bundle> | --show <bundle>]
+            [-v | --version] [-h | --help] [-l | --list]
+            [<command>] [<args>]
+
+    "#,
     long_about = r#"
         +-+-+-+-+
         |B|A|Z|A|
@@ -41,7 +48,9 @@ pub(crate) enum Commands {
 #[derive(Parser, Debug)]
 #[command(name = "baza")]
 pub struct Cli {
-    /// Create bundle of passwords
+    /// Adding bundle of passwords
+    ///
+    /// baza [--add my::secret::login | -a my::secret::login]
     #[arg(short, long, value_name = "BUNDLE")]
     add: Option<String>,
     /// Create bundle from STDIN
