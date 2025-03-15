@@ -57,7 +57,7 @@ pub struct Cli {
     #[arg(short, long, value_name = "REGEX")]
     search: Option<String>,
     /// Copy all bundle to clipboard
-    #[arg(long, value_name = "BUNDLE")]
+    #[arg(short = 'b', long, value_name = "BUNDLE")]
     copy: Option<String>,
     /// Show Version
     #[arg(short, long)]
