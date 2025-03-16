@@ -62,8 +62,8 @@ Require baza
 
 Set Shell "bash"
 Set FontSize 16
-Set Width 1200
-Set Height 800
+Set Width 1920
+Set Height 1080
 Set TypingSpeed 100ms
 
 Sleep 3s
@@ -75,7 +75,7 @@ Type "baza password generate --help" Sleep 1000ms Enter
 Sleep 3s
 Type "baza password generate 12 --no-symbols" Sleep 1000ms Enter
 Sleep 3s
-Type "baza -c work::new::login" Sleep 1000ms Enter
+Type "baza -a work::new::login" Sleep 1000ms Enter
 Sleep 3s
 Insert Type "My$ecreTPa$$w0rd" Enter
 Sleep 1000ms
