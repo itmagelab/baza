@@ -62,6 +62,7 @@ Require baza
 
 Set Shell "bash"
 Set WindowBar Colorful
+Set Theme "Batman"
 Set FontSize 20
 Set Width 1024
 Set Height 768
@@ -78,7 +79,7 @@ Enter Type "site: https://domain.ltd" Sleep 1s
 Escape Type ":wq" Sleep 1s Enter
 Type "baza bundle search new" Sleep 1s Enter Sleep 2s
 Type "baza --show work::new::login" Sleep 1s Enter Sleep 2s
-Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1s Enter Sleep 2s
+Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1s Enter Sleep 2s Ctrl+l
 Type "# You can lock your Baza for display and editing" Sleep 1s Enter Sleep 1s
 Type "baza lock" Sleep 1s Enter Sleep 3s
 Type "baza bundle edit work::new::login" Sleep 1s Enter Sleep 3s
