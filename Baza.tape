@@ -61,46 +61,31 @@ Output contrib/Baza.mp4
 Require baza
 
 Set Shell "bash"
-Set FontSize 16
-Set Width 1920
-Set Height 1080
+Set WindowBar Colorful
+Set FontSize 20
+Set Width 1024
+Set Height 768
 Set TypingSpeed 100ms
 
-Sleep 3s
-Type "baza" Sleep 1000ms Enter
-Sleep 3s
-Type "baza init -p MyPasswordPhrase" Sleep 1000ms Enter
-Sleep 3s
-Type "baza password generate --help" Sleep 1000ms Enter
-Sleep 3s
-Type "baza password generate 12 --no-symbols" Sleep 1000ms Enter
-Sleep 3s
-Type "baza -a work::new::login" Sleep 1000ms Enter
-Sleep 3s
-Insert Type "My$ecreTPa$$w0rd" Enter
-Sleep 1000ms
-Enter Type "This is example of description" Sleep 1000ms
-Enter Type "site: https://domain.ltd" Sleep 1000ms
-Escape Type ":wq" Sleep 1000ms Enter
-Sleep 3s
-Type "baza bundle search new" Sleep 1000ms Enter
-Sleep 3s
-Type "baza --show work::new::login" Sleep 1000ms Enter
-Sleep 3s
-Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1000ms Enter
-Sleep 3s
-Type "baza lock" Sleep 1000ms Enter
-Sleep 3s
-Type "baza bundle edit work::new::login" Sleep 1000ms Enter
-Sleep 3s
-Type "baza unlock" Sleep 1000ms Enter
-Type "MyPasswordPhrase" Sleep 1000ms Enter
-Sleep 3s
-Type "baza bundle copy work::new::login" Sleep 1000ms Enter
-Sleep 3s
-Ctrl+C
-Sleep 1000ms Enter
-Type "baza bundle delete work::new::login" Sleep 1000ms Enter
-Sleep 3s
-Type "baza bundle search new" Sleep 1000ms Enter
-Sleep 7s
+Type "# Get started with Baza!" Enter Sleep 1s Ctrl+l
+Type "# Initialize your new storage..." Enter Sleep 1s Ctrl+l
+Type "baza init -p MyPasswordPhrase" Sleep 1s Enter Sleep 3s
+Type "# Adding a new password bundle" Sleep 1s Enter Sleep 1s
+Type "baza -a work::new::login" Sleep 1s Enter Sleep 2s
+Insert Type "My$ecreTPa$$w0rd" Enter Sleep 1s
+Enter Type "This is example of description" Sleep 1s
+Enter Type "site: https://domain.ltd" Sleep 1s
+Escape Type ":wq" Sleep 1s Enter
+Type "baza bundle search new" Sleep 1s Enter Sleep 2s
+Type "baza --show work::new::login" Sleep 1s Enter Sleep 2s
+Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1s Enter Sleep 2s
+Type "# You can lock your Baza for display and editing" Sleep 1s Enter Sleep 1s
+Type "baza lock" Sleep 1s Enter Sleep 3s
+Type "baza bundle edit work::new::login" Sleep 1s Enter Sleep 3s
+Type "baza unlock" Sleep 1s Enter Sleep 3s
+Type "MyPasswordPhrase" Sleep 1s Enter Sleep 3s
+Type "baza bundle copy work::new::login" Sleep 1s Enter Sleep 2s Ctrl+C Enter
+Type "baza bundle delete work::new::login" Sleep 1s Enter Sleep 2s
+Type "baza bundle search new" Sleep 1s Enter
+Type "baza password generate --help" Sleep 1s Enter Sleep 2s
+Type "baza password generate 12 --no-symbols" Sleep 1s Enter Sleep 2s
