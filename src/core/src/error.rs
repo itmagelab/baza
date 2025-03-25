@@ -52,4 +52,14 @@ pub enum Error {
     Regex(#[from] regex::Error),
     #[error(transparent)]
     Arboard(#[from] arboard::Error),
+    #[error(transparent)]
+    GixCommit(#[from] gix::commit::Error),
+    #[error(transparent)]
+    GixObject(#[from] gix::object::write::Error),
+    #[error(transparent)]
+    GixConfig(Box<gix::config::Error>),
+    #[error(transparent)]
+    GixConfigFile(#[from] gix::config::file::set_raw_value::Error),
+    #[error(transparent)]
+    GixInit(Box<gix::init::Error>),
 }

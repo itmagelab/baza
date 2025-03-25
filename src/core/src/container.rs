@@ -175,7 +175,7 @@ impl Container {
             }
         }
         let msg = format!("Bundle {name} was added or changed");
-        git::commit(msg)?;
+        storage::commit(msg)?;
         Ok(())
     }
 
@@ -197,7 +197,7 @@ impl Container {
         }
         let msg = format!("Bundle {} was deleted", name);
         tracing::debug!("{msg}");
-        git::commit(msg)?;
+        storage::commit(msg)?;
         Ok(())
     }
 }

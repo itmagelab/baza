@@ -24,8 +24,8 @@ pub(crate) mod r#box;
 pub(crate) mod bundle;
 pub mod container;
 pub mod error;
-pub mod git;
 pub mod pgp;
+pub mod storage;
 
 const BOX_DELIMITER: &str = "::";
 const BUNDLE_DELIMITER: &str = ",";
@@ -58,6 +58,7 @@ pub struct MainConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GitConfig {
+    pub enable: Option<bool>,
     pub url: Option<String>,
     pub privatekey: Option<String>,
     pub passphrase: Option<String>,
@@ -73,6 +74,7 @@ impl Config {
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
             git: GitConfig {
+                enable: None,
                 url: None,
                 privatekey: None,
                 passphrase: None,
@@ -147,7 +149,7 @@ pub fn lock() -> BazaR<()> {
 
 pub fn sync() -> BazaR<()> {
     if let Some(_url) = &Config::get().git.url {
-        git::push()?;
+        storage::push()?;
     } else {
         tracing::info!("Please set url for git remote");
     }

@@ -32,3 +32,4 @@ git2 = "0.20.0"
 clap = { version = "4.5.20" }
 tokio = { version = "1.41.1" }
 regex = "1.11.1"
+gix = "0.70.0"

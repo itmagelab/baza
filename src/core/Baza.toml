@@ -4,3 +4,4 @@ box_delimiter = "::"
 bundle_delimiter = ","
 
 [git]
+enable = true

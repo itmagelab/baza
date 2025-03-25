@@ -1,4 +1,4 @@
-use crate::{decrypt_file, encrypt_file, m, r#box, BazaR, Config, TTL_SECONDS};
+use crate::{decrypt_file, encrypt_file, m, r#box, storage, BazaR, Config, TTL_SECONDS};
 use arboard::Clipboard;
 use colored::Colorize;
 use core::fmt;
@@ -110,11 +110,7 @@ impl Bundle {
     }
 
     pub(crate) fn save(self, path: PathBuf, replace: bool) -> BazaR<()> {
-        if replace {
-            self.file.persist(&path)?;
-        } else {
-            self.file.persist_noclobber(&path)?;
-        };
+        storage::add(self.file, path, replace)?;
         Ok(())
     }
 
