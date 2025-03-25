@@ -1,20 +1,13 @@
-use std::{
-    cell::RefCell,
-    fmt, fs,
-    path::{PathBuf, MAIN_SEPARATOR},
-    rc::Rc,
-};
+use std::{cell::RefCell, fmt, path::PathBuf, rc::Rc};
 
 use bundle::Bundle;
 use io::Read;
-use walkdir::{DirEntry, WalkDir};
 
 use super::*;
 
 // cover, container, box, bundle
 #[derive(Debug, Clone)]
-struct Container {
-    datadir: PathBuf,
+pub struct Container {
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
@@ -25,21 +18,16 @@ impl fmt::Display for Container {
 }
 
 #[derive(Debug, Default, Clone)]
-struct ContainerBuilder {
-    datadir: PathBuf,
+pub struct ContainerBuilder {
     boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
 }
 
 impl ContainerBuilder {
-    fn new() -> Self {
-        let datadir = &Config::get().main.datadir;
-        Self {
-            datadir: PathBuf::from(format!("{}/data", datadir)),
-            boxes: vec![],
-        }
+    pub fn new() -> Self {
+        Self { boxes: vec![] }
     }
 
-    fn create_from_str(mut self, name: String) -> BazaR<Self> {
+    pub fn create_from_str(mut self, name: String) -> BazaR<Self> {
         let mut pack: Vec<&str> = name
             .trim()
             .split(&Config::get().main.box_delimiter)
@@ -73,15 +61,9 @@ impl ContainerBuilder {
         Ok(self)
     }
 
-    fn build(self) -> Container {
-        let Self {
-            datadir: dir,
-            boxes,
-        } = self;
-        Container {
-            datadir: dir,
-            boxes,
-        }
+    pub fn build(self) -> Container {
+        let Self { boxes } = self;
+        Container { boxes }
     }
 }
 
@@ -112,8 +94,8 @@ impl Container {
 
     fn create(self, data: Option<String>) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
             let r#box = r#box.borrow();
+            let box_name = r#box.name.to_string();
             let bundle = r#box
                 .bundles
                 .first()
@@ -123,15 +105,30 @@ impl Container {
         Ok(self)
     }
 
+    fn save(&mut self, replace: bool) -> BazaR<()> {
+        let name = self.name();
+        while let Some(r#box) = self.boxes.pop() {
+            let mut r#box = r#box.borrow_mut();
+            while let Some(bundle) = r#box.bundles.pop() {
+                let path = self.ptr(&r#box, &bundle)?;
+                bundle.save(path, replace)?;
+            }
+        }
+        let msg = format!("Bundle {name} was added or changed");
+        storage::commit(msg)?;
+        Ok(())
+    }
+
     fn edit(self) -> BazaR<Self> {
         if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
             let r#box = r#box.borrow();
+            let box_name = r#box.name.to_string();
             let bundle = r#box
                 .bundles
                 .first()
                 .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle.edit(self.ptr(&r#box, bundle)?)?;
+            let load_from = self.ptr(&r#box, bundle)?;
+            bundle.edit(load_from)?;
         }
         Ok(self)
     }
@@ -160,23 +157,8 @@ impl Container {
 
     fn ptr(&self, r#box: &r#box::r#Box, bundle: &Bundle) -> BazaR<PathBuf> {
         let filename = format!("{}.{}", &*bundle.name, "baza");
-        let path = self.datadir.join(r#box.path()).join(filename);
+        let path = r#box.path().join(filename);
         Ok(path)
-    }
-
-    fn save(&mut self, replace: bool) -> BazaR<()> {
-        let name = self.name();
-        while let Some(r#box) = self.boxes.pop() {
-            let mut r#box = r#box.borrow_mut();
-            fs::create_dir_all(self.datadir.join(r#box.path()))?;
-            while let Some(bundle) = r#box.bundles.pop() {
-                let path = self.ptr(&r#box, &bundle)?;
-                bundle.save(path, replace)?;
-            }
-        }
-        let msg = format!("Bundle {name} was added or changed");
-        storage::commit(msg)?;
-        Ok(())
     }
 
     fn delete(&mut self) -> BazaR<()> {
@@ -185,14 +167,7 @@ impl Container {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let path = self.ptr(&r#box, &bundle)?;
-                if path.is_file() {
-                    fs::remove_file(&path)?;
-                } else if path.is_dir() {
-                    fs::remove_dir_all(&path)?;
-                } else {
-                    tracing::debug!("Bundle {name} does not exist");
-                    return Ok(());
-                };
+                storage::delete(path)?;
             }
         }
         let msg = format!("Bundle {} was deleted", name);
@@ -252,34 +227,8 @@ pub fn show(str: String) -> BazaR<()> {
     Ok(())
 }
 
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
-}
-
 pub fn search(str: String) -> BazaR<()> {
-    let builder = ContainerBuilder::new();
-    let walker = WalkDir::new(&builder.datadir).into_iter();
-    for entry in walker.filter_entry(|e| !is_hidden(e)) {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() {
-            let path = path.strip_prefix(&builder.datadir)?.with_extension("");
-            let lossy = path
-                .to_string_lossy()
-                .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
-
-            let re = regex::Regex::new(&str)?;
-            if re.is_match(&lossy) {
-                let container = builder.clone().create_from_str(lossy)?.build();
-                m(&format!("{}\n", container), MessageType::Clean);
-            }
-        }
-    }
+    storage::search(str)?;
     Ok(())
 }
 

@@ -46,7 +46,7 @@ pub enum MessageType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub main: MainConfig,
-    pub git: GitConfig,
+    pub gitfs: GitConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -73,8 +73,8 @@ impl Config {
                 bundle_delimiter: String::from(BUNDLE_DELIMITER),
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
-            git: GitConfig {
-                enable: None,
+            gitfs: GitConfig {
+                enable: Some(true),
                 url: None,
                 privatekey: None,
                 passphrase: None,
@@ -148,8 +148,8 @@ pub fn lock() -> BazaR<()> {
 }
 
 pub fn sync() -> BazaR<()> {
-    if let Some(_url) = &Config::get().git.url {
-        storage::push()?;
+    if let Some(_url) = &Config::get().gitfs.url {
+        storage::sync()?;
     } else {
         tracing::info!("Please set url for git remote");
     }
