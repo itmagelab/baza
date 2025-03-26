@@ -2,6 +2,7 @@ use std::{cell::RefCell, fmt, path::PathBuf, rc::Rc};
 
 use bundle::Bundle;
 use io::Read;
+use storage::Ctx;
 
 use super::*;
 
@@ -54,6 +55,7 @@ impl ContainerBuilder {
     fn add_bundle(&mut self, mut bundle: Bundle) -> BazaR<&mut Self> {
         if let Some(r#box) = self.boxes.last() {
             bundle.parent = Some(Rc::clone(r#box));
+            bundle.ptr = Some(r#box.borrow().ptr());
             r#box.borrow_mut().bundles.push(bundle);
         } else {
             return Err(Error::BoxMoreOne);
@@ -106,7 +108,6 @@ impl Container {
     }
 
     fn save(&mut self, replace: bool) -> BazaR<()> {
-        let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
@@ -114,8 +115,6 @@ impl Container {
                 bundle.save(path, replace)?;
             }
         }
-        let msg = format!("Bundle {name} was added or changed");
-        storage::commit(msg)?;
         Ok(())
     }
 
@@ -162,17 +161,21 @@ impl Container {
     }
 
     fn delete(&mut self) -> BazaR<()> {
-        let name = self.name();
         while let Some(r#box) = self.boxes.pop() {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let path = self.ptr(&r#box, &bundle)?;
-                storage::delete(path)?;
+                let ctx = if let Some(ptr) = bundle.ptr {
+                    let mut fullname = ptr;
+                    fullname.push(bundle.name.to_string());
+                    let name = fullname.join(&Config::get().main.box_delimiter);
+                    Some(Ctx { name })
+                } else {
+                    None
+                };
+                storage::delete(path, ctx)?;
             }
         }
-        let msg = format!("Bundle {} was deleted", name);
-        tracing::debug!("{msg}");
-        storage::commit(msg)?;
         Ok(())
     }
 }
