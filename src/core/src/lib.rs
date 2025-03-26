@@ -47,6 +47,7 @@ pub enum MessageType {
 pub struct Config {
     pub main: MainConfig,
     pub gitfs: GitConfig,
+    pub gix: GixConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -64,6 +65,11 @@ pub struct GitConfig {
     pub passphrase: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GixConfig {
+    pub enable: Option<bool>,
+}
+
 impl Config {
     fn new() -> Config {
         let home = std::env::var("HOME").unwrap();
@@ -78,6 +84,9 @@ impl Config {
                 url: None,
                 privatekey: None,
                 passphrase: None,
+            },
+            gix: GixConfig {
+                enable: Some(true),
             },
         }
     }
@@ -216,6 +225,7 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     // Create common folders
     let datadir = &Config::get().main.datadir;
     fs::create_dir_all(format!("{}/data", datadir))?;
+    storage::initialize()?;
 
     // Initialize the default key
     let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());

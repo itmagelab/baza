@@ -8,14 +8,14 @@ use std::{
 use arboard::Clipboard;
 use colored::Colorize;
 use git2::{IndexAddOption, Repository, Signature, Tree};
-use tempfile::NamedTempFile;
-use tracing::instrument;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
     container::ContainerBuilder, decrypt_file, encrypt_file, error::Error, m, storage::Storage,
     BazaR, Config, MessageType, DEFAULT_AUTHOR, DEFAULT_EMAIL, TTL_SECONDS,
 };
+
+use super::Ctx;
 
 const DIR: &str = "gitfs";
 
@@ -41,6 +41,30 @@ impl GitFs {
             .map(|s| s.starts_with("."))
             .unwrap_or(false)
     }
+
+    fn commit(msg: String) -> BazaR<()> {
+        let data = format!("{}/data/{}", &Config::get().main.datadir, DIR);
+        if let Ok(repo) = Repository::discover(&data) {
+            if let Ok(head) = repo.head() {
+                let tree = Self::add_to_index(&repo)?;
+                let signature = Self::signature()?;
+                let parrent_commit = Some(head.peel_to_commit()?);
+                repo.commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    &msg,
+                    &tree,
+                    &[&parrent_commit.ok_or(Error::CommonBazaError)?],
+                )?;
+            };
+        } else {
+            Self::initialize()?;
+            Self::commit(msg)?;
+        };
+
+        Ok(())
+    }
 }
 
 impl Storage for GitFs {
@@ -64,31 +88,6 @@ impl Storage for GitFs {
             &tree,
             &[],
         )?;
-        Ok(())
-    }
-
-    #[instrument]
-    fn commit(msg: String) -> BazaR<()> {
-        let data = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        if let Ok(repo) = Repository::discover(&data) {
-            if let Ok(head) = repo.head() {
-                let tree = Self::add_to_index(&repo)?;
-                let signature = Self::signature()?;
-                let parrent_commit = Some(head.peel_to_commit()?);
-                repo.commit(
-                    Some("HEAD"),
-                    &signature,
-                    &signature,
-                    &msg,
-                    &tree,
-                    &[&parrent_commit.ok_or(Error::CommonBazaError)?],
-                )?;
-            };
-        } else {
-            Self::initialize()?;
-            Self::commit(msg)?;
-        };
-
         Ok(())
     }
 
@@ -158,39 +157,6 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn delete(path: PathBuf) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let delete_path = datadir.join(path);
-
-        if delete_path.is_file() {
-            std::fs::remove_file(&delete_path)?;
-        } else if delete_path.is_dir() {
-            std::fs::remove_dir_all(&delete_path)?;
-        } else {
-            return Ok(());
-        };
-        Ok(())
-    }
-
-    fn update(file: PathBuf, load_from: PathBuf) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let load_from = datadir.join(load_from);
-
-        let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
-
-        std::fs::copy(load_from, &file)?;
-
-        decrypt_file(&file)?;
-
-        let status = Command::new(editor).arg(&file).status()?;
-        if !status.success() {
-            exit(1);
-        }
-
-        encrypt_file(&file)?;
-        Ok(())
-    }
-
     fn read(file: PathBuf, load_from: PathBuf) -> BazaR<()> {
         let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
         let load_from = datadir.join(load_from);
@@ -207,19 +173,48 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn create(file: PathBuf, str: Option<String>) -> BazaR<()> {
+    fn update(file: PathBuf, load_from: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
+        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
+        let load_from = datadir.join(load_from);
+
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
 
-        if let Some(str) = str {
-            std::fs::write(&file, str)?;
-        } else {
-            let status = Command::new(editor).arg(&file).status()?;
-            if !status.success() {
-                exit(1);
-            }
-        };
+        std::fs::copy(load_from, &file)?;
+
+        decrypt_file(&file)?;
+
+        let status = Command::new(editor).arg(&file).status()?;
+        if !status.success() {
+            exit(1);
+        }
 
         encrypt_file(&file)?;
+
+        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
+
+        let msg = format!("Bundle {name} was updated");
+        Self::commit(msg)?;
+
+        Ok(())
+    }
+
+    fn delete(path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
+        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
+        let delete_path = datadir.join(path);
+
+        if delete_path.is_file() {
+            std::fs::remove_file(&delete_path)?;
+        } else if delete_path.is_dir() {
+            std::fs::remove_dir_all(&delete_path)?;
+        } else {
+            return Ok(());
+        };
+
+        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
+
+        let msg = format!("Bundle {name} was deleted");
+        Self::commit(msg)?;
+
         Ok(())
     }
 
@@ -254,17 +249,20 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn save(file: NamedTempFile, path: PathBuf, replace: bool) -> BazaR<()> {
+    fn create(blob: &[u8], path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
         let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
         let new_path = datadir.join(path);
         if let Some(parent) = new_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        if replace {
-            file.persist(new_path)?;
-        } else {
-            file.persist_noclobber(new_path)?;
-        };
+        let mut file = File::create(new_path)?;
+        file.write_all(blob)?;
+
+        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
+
+        let msg = format!("Bundle {name} was added");
+        Self::commit(msg)?;
+
         Ok(())
     }
 }

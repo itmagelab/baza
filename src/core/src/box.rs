@@ -19,11 +19,11 @@ impl r#Box {
         }
     }
 
-    pub(crate) fn pointer(&self) -> Vec<String> {
+    pub(crate) fn ptr(&self) -> Vec<String> {
         let mut pointer = self
             .parent
             .as_ref()
-            .map(|parent| parent.borrow().pointer())
+            .map(|parent| parent.borrow().ptr())
             .unwrap_or_default();
         pointer.push(self.name.to_string());
 
@@ -31,6 +31,6 @@ impl r#Box {
     }
 
     pub(crate) fn path(&self) -> PathBuf {
-        self.pointer().iter().collect()
+        self.ptr().iter().collect()
     }
 }

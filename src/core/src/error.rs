@@ -5,6 +5,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("No name found for save")]
+    NoName,
     #[error("This is a common error")]
     CommonBazaError,
     #[error("Error opening editor")]
@@ -62,4 +64,10 @@ pub enum Error {
     GixConfigFile(#[from] gix::config::file::set_raw_value::Error),
     #[error(transparent)]
     GixInit(Box<gix::init::Error>),
+    #[error(transparent)]
+    GixDiscover(Box<gix::discover::Error>),
+    #[error(transparent)]
+    GixRefFind(#[from] gix::reference::find::existing::Error),
+    #[error(transparent)]
+    GixRefHeadTree(#[from] gix::reference::head_tree::Error),
 }
