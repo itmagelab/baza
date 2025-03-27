@@ -15,13 +15,17 @@ use crate::{
     BazaR, Config, MessageType, DEFAULT_AUTHOR, DEFAULT_EMAIL, TTL_SECONDS,
 };
 
-use super::Ctx;
+use super::Bundle;
 
 const DIR: &str = "gitfs";
 
 pub struct GitFs;
 
 impl GitFs {
+    fn dir() -> PathBuf {
+        PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
+    }
+
     fn signature() -> Result<Signature<'static>, git2::Error> {
         Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
     }
@@ -43,8 +47,7 @@ impl GitFs {
     }
 
     fn commit(msg: String) -> BazaR<()> {
-        let data = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        if let Ok(repo) = Repository::discover(&data) {
+        if let Ok(repo) = Repository::discover(Self::dir()) {
             if let Ok(head) = repo.head() {
                 let tree = Self::add_to_index(&repo)?;
                 let signature = Self::signature()?;
@@ -69,8 +72,7 @@ impl GitFs {
 
 impl Storage for GitFs {
     fn initialize() -> BazaR<()> {
-        let data = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        let repo = Repository::init(&data)?;
+        let repo = Repository::init(Self::dir())?;
         let mut path = repo.path().to_path_buf();
         path.pop();
         let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
@@ -91,9 +93,88 @@ impl Storage for GitFs {
         Ok(())
     }
 
+    fn create(bundle: Bundle, _replace: bool) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let name = ptr.join(&Config::get().main.box_delimiter);
+        let path = Self::dir().join(path).with_extension("baza");
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        bundle.file.persist_noclobber(path)?;
+        let msg = format!("Bundle {name} was added");
+        Self::commit(msg)?;
+        Ok(())
+    }
+
+    fn read(bundle: Bundle) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let path = Self::dir().join(path).with_extension("baza");
+        let file = bundle.file.path().to_path_buf();
+
+        std::fs::copy(path, &file)?;
+
+        decrypt_file(&file)?;
+
+        let mut file = File::open(file)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        m(&contents, crate::MessageType::Clean);
+        Ok(())
+    }
+
+    fn update(bundle: Bundle) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let name = ptr.join(&Config::get().main.box_delimiter);
+        let path = Self::dir().join(path).with_extension("baza");
+        let file = bundle.file.path().to_path_buf();
+
+        let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
+
+        std::fs::copy(path.clone(), &file)?;
+
+        decrypt_file(&file)?;
+
+        let status = Command::new(editor).arg(&file).status()?;
+        if !status.success() {
+            exit(1);
+        }
+
+        encrypt_file(&file)?;
+
+        bundle.file.persist(path)?;
+
+        let msg = format!("Bundle {name} was updated");
+        Self::commit(msg)?;
+
+        Ok(())
+    }
+
+    fn delete(bundle: Bundle) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let name = ptr.join(&Config::get().main.box_delimiter);
+        let path = Self::dir().join(path).with_extension("baza");
+
+        if path.is_file() {
+            std::fs::remove_file(&path)?;
+        } else if path.is_dir() {
+            std::fs::remove_dir_all(&path)?;
+        } else {
+            return Ok(());
+        };
+
+        let msg = format!("Bundle {name} was deleted");
+        Self::commit(msg)?;
+
+        Ok(())
+    }
+
     fn sync() -> BazaR<()> {
-        let data = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        let repo = Repository::open(&data)?;
+        let repo = Repository::open(Self::dir())?;
 
         let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
             key.clone()
@@ -134,15 +215,14 @@ impl Storage for GitFs {
     }
 
     fn search(str: String) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
         let builder = ContainerBuilder::new();
-        let walker = WalkDir::new(&datadir).into_iter();
+        let walker = WalkDir::new(Self::dir()).into_iter();
         for entry in walker.filter_entry(|e| !Self::is_hidden(e)) {
             let entry = entry?;
             let path = entry.path();
 
             if path.is_file() {
-                let path = path.strip_prefix(&datadir)?.with_extension("");
+                let path = path.strip_prefix(Self::dir())?.with_extension("");
                 let lossy = path
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
@@ -157,73 +237,14 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn read(file: PathBuf, load_from: PathBuf) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let load_from = datadir.join(load_from);
-
-        std::fs::copy(load_from, &file)?;
-
-        decrypt_file(&file)?;
-
-        let mut file = File::open(file)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-
-        m(&contents, crate::MessageType::Clean);
-        Ok(())
-    }
-
-    fn update(file: PathBuf, load_from: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let load_from = datadir.join(load_from);
-
-        let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
-
-        std::fs::copy(load_from, &file)?;
-
-        decrypt_file(&file)?;
-
-        let status = Command::new(editor).arg(&file).status()?;
-        if !status.success() {
-            exit(1);
-        }
-
-        encrypt_file(&file)?;
-
-        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
-
-        let msg = format!("Bundle {name} was updated");
-        Self::commit(msg)?;
-
-        Ok(())
-    }
-
-    fn delete(path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let delete_path = datadir.join(path);
-
-        if delete_path.is_file() {
-            std::fs::remove_file(&delete_path)?;
-        } else if delete_path.is_dir() {
-            std::fs::remove_dir_all(&delete_path)?;
-        } else {
-            return Ok(());
-        };
-
-        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
-
-        let msg = format!("Bundle {name} was deleted");
-        Self::commit(msg)?;
-
-        Ok(())
-    }
-
-    fn copy_to_clipboard(file: PathBuf, load_from: PathBuf, ttl: u64) -> BazaR<()> {
+    fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()?;
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let load_path = datadir.join(load_from);
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let path = Self::dir().join(path).with_extension("baza");
+        let file = bundle.file.path().to_path_buf();
 
-        std::fs::copy(load_path, &file)?;
+        std::fs::copy(path, &file)?;
 
         decrypt_file(&file)?;
 
@@ -246,23 +267,6 @@ impl Storage for GitFs {
         // m(&message, crate::MessageType::Data);
         std::thread::sleep(ttl_duration);
         clipboard.set_text("".to_string())?;
-        Ok(())
-    }
-
-    fn create(blob: &[u8], path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
-        let datadir = PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
-        let new_path = datadir.join(path);
-        if let Some(parent) = new_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut file = File::create(new_path)?;
-        file.write_all(blob)?;
-
-        let name = ctx.as_ref().map(|c| &c.name).ok_or(Error::NoName)?;
-
-        let msg = format!("Bundle {name} was added");
-        Self::commit(msg)?;
-
         Ok(())
     }
 }
