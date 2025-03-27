@@ -1,11 +1,11 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use crate::bundle::Bundle;
 
 #[derive(Debug, Default)]
 pub(crate) struct r#Box {
     pub(crate) name: Arc<str>,
-    pub(crate) bundles: Vec<Bundle>,
+    pub(crate) bundles: Vec<Rc<RefCell<Bundle>>>,
     pub(crate) parent: Option<Rc<RefCell<r#Box>>>,
 }
 
@@ -28,9 +28,5 @@ impl r#Box {
         pointer.push(self.name.to_string());
 
         pointer
-    }
-
-    pub(crate) fn path(&self) -> PathBuf {
-        self.ptr().iter().collect()
     }
 }

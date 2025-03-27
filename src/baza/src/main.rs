@@ -101,15 +101,15 @@ pub async fn main() {
     let result = if let Some(s) = args.copy {
         container::copy_to_clipboard(s)
     } else if let Some(s) = args.show {
-        container::show(s)
+        container::read(s)
     } else if let Some(s) = args.edit {
-        container::edit(s)
+        container::update(s)
     } else if let Some(s) = args.delete {
         container::delete(s)
     } else if let Some(s) = args.search {
         container::search(s)
     } else if let Some(s) = args.add {
-        container::add(s)
+        container::create(s)
     } else if let Some(s) = args.stdin {
         container::from_stdin(s)
     } else if args.list {

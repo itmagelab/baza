@@ -1,30 +1,29 @@
 pub mod gitfs;
 // pub mod gix;
 
-use std::path::PathBuf;
-
-use crate::{BazaR, Config};
+use crate::{bundle::Bundle, BazaR, Config};
 
 pub struct Ctx {
     pub name: String,
 }
 
 trait Storage {
-    fn create(blob: &[u8], path: PathBuf, ctx: Option<Ctx>) -> BazaR<()>;
-    fn read(file: PathBuf, load_from: PathBuf) -> BazaR<()>;
-    fn update(file: PathBuf, load_from: PathBuf, ctx: Option<Ctx>) -> BazaR<()>;
-    fn delete(path: PathBuf, ctx: Option<Ctx>) -> BazaR<()>;
-
-    fn search(str: String) -> BazaR<()>;
-    fn copy_to_clipboard(file: PathBuf, load_from: PathBuf, ttl: u64) -> BazaR<()>;
     fn initialize() -> BazaR<()> {
         tracing::warn!("initialize is not implemented");
         Ok(())
     }
+
+    fn create(bundle: Bundle, replace: bool) -> BazaR<()>;
+    fn read(bundle: Bundle) -> BazaR<()>;
+    fn update(bundle: Bundle) -> BazaR<()>;
+    fn delete(bundle: Bundle) -> BazaR<()>;
+
     fn sync() -> BazaR<()> {
         tracing::warn!("syncing is not implemented");
         Ok(())
     }
+    fn search(str: String) -> BazaR<()>;
+    fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()>;
 }
 
 pub fn initialize() -> BazaR<()> {
@@ -34,9 +33,30 @@ pub fn initialize() -> BazaR<()> {
     Ok(())
 }
 
-pub fn create(blob: &[u8], path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
+pub(crate) fn create(bundle: Bundle) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::create(blob, path, ctx)?;
+        gitfs::GitFs::create(bundle, true)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn read(bundle: Bundle) -> BazaR<()> {
+    if Config::get().gitfs.enable.unwrap_or(false) {
+        gitfs::GitFs::read(bundle)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn update(bundle: Bundle) -> BazaR<()> {
+    if Config::get().gitfs.enable.unwrap_or(false) {
+        gitfs::GitFs::update(bundle)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn delete(bundle: Bundle) -> BazaR<()> {
+    if Config::get().gitfs.enable.unwrap_or(false) {
+        gitfs::GitFs::delete(bundle)?;
     }
     Ok(())
 }
@@ -48,20 +68,6 @@ pub fn sync() -> BazaR<()> {
     Ok(())
 }
 
-pub fn edit(file: PathBuf, load_from: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::update(file, load_from, ctx)?;
-    }
-    Ok(())
-}
-
-pub fn show(file: PathBuf, load_from: PathBuf) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::read(file, load_from)?;
-    }
-    Ok(())
-}
-
 pub fn search(str: String) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
         gitfs::GitFs::search(str)?;
@@ -69,16 +75,9 @@ pub fn search(str: String) -> BazaR<()> {
     Ok(())
 }
 
-pub fn delete(path: PathBuf, ctx: Option<Ctx>) -> BazaR<()> {
+pub(crate) fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::delete(path, ctx)?;
-    }
-    Ok(())
-}
-
-pub fn copy_to_clipboard(file: PathBuf, load_from: PathBuf, ttl: u64) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::copy_to_clipboard(file, load_from, ttl)?;
+        gitfs::GitFs::copy_to_clipboard(bundle, ttl)?;
     }
     Ok(())
 }

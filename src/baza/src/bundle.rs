@@ -27,16 +27,16 @@ pub(crate) enum Commands {
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         Commands::Create { name } => {
-            container::add(name)?;
+            container::create(name)?;
         }
         Commands::Delete { name } => {
             container::delete(name)?;
         }
         Commands::Edit { name } => {
-            container::edit(name)?;
+            container::update(name)?;
         }
         Commands::Show { name } => {
-            container::show(name)?;
+            container::read(name)?;
         }
         Commands::Search { name } => {
             container::search(name)?;

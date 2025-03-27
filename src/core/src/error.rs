@@ -35,6 +35,8 @@ pub enum Error {
     Decription(aes_gcm::Error),
     #[error("Encription error: {0}")]
     Encription(aes_gcm::Error),
+    #[error("No pointer found.")]
+    NoPointerFound,
     // From traits
     #[error(transparent)]
     IO(#[from] std::io::Error),

@@ -86,7 +86,7 @@ impl Config {
                 passphrase: None,
             },
             gix: GixConfig {
-                enable: Some(true),
+                enable: Some(false),
             },
         }
     }

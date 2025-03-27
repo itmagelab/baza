@@ -1,8 +1,7 @@
-use std::{cell::RefCell, fmt, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use bundle::Bundle;
 use io::Read;
-use storage::Ctx;
 
 use super::*;
 
@@ -55,8 +54,13 @@ impl ContainerBuilder {
     fn add_bundle(&mut self, mut bundle: Bundle) -> BazaR<&mut Self> {
         if let Some(r#box) = self.boxes.last() {
             bundle.parent = Some(Rc::clone(r#box));
-            bundle.ptr = Some(r#box.borrow().ptr());
-            r#box.borrow_mut().bundles.push(bundle);
+            let mut ptr = r#box.borrow().ptr();
+            ptr.push(bundle.name.to_string());
+            bundle.ptr = Some(ptr);
+            r#box
+                .borrow_mut()
+                .bundles
+                .push(Rc::new(RefCell::new(bundle)));
         } else {
             return Err(Error::BoxMoreOne);
         }
@@ -74,11 +78,86 @@ impl Container {
         ContainerBuilder::new()
     }
 
+    fn create(self, data: Option<String>) -> BazaR<Self> {
+        if let Some(r#box) = self.boxes.last() {
+            let r#box = r#box.borrow();
+            let box_name = r#box.name.to_string();
+            let bundle = r#box
+                .bundles
+                .first()
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+            let bundle = bundle.borrow();
+            bundle.create(data)?;
+        }
+        Ok(self)
+    }
+
+    fn read(&mut self) -> BazaR<()> {
+        if let Some(r#box) = self.boxes.last() {
+            let box_name = r#box.borrow().name.to_string();
+            let mut r#box = r#box.borrow_mut();
+            let bundle = r#box
+                .bundles
+                .pop()
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+            let bundle = Rc::try_unwrap(bundle)
+                .map_err(|_| Error::CommonBazaError)?
+                .into_inner();
+            storage::read(bundle)?;
+        }
+        Ok(())
+    }
+
+    fn update(self) -> BazaR<Self> {
+        if let Some(r#box) = self.boxes.last() {
+            let mut r#box = r#box.borrow_mut();
+            let box_name = r#box.name.to_string();
+            let bundle = r#box
+                .bundles
+                .pop()
+                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+            let bundle = Rc::try_unwrap(bundle)
+                .map_err(|_| Error::CommonBazaError)?
+                .into_inner();
+            storage::update(bundle)?;
+        }
+        Ok(self)
+    }
+
+    fn delete(&mut self) -> BazaR<()> {
+        while let Some(r#box) = self.boxes.pop() {
+            let mut r#box = r#box.borrow_mut();
+            while let Some(bundle) = r#box.bundles.pop() {
+                let bundle = Rc::try_unwrap(bundle)
+                    .map_err(|_| Error::CommonBazaError)?
+                    .into_inner();
+                storage::delete(bundle)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn commit(&mut self) -> BazaR<()> {
+        while let Some(r#box) = self.boxes.pop() {
+            let mut r#box = r#box.borrow_mut();
+            while let Some(bundle) = r#box.bundles.pop() {
+                let bundle = Rc::try_unwrap(bundle)
+                    .map_err(|_| Error::CommonBazaError)?
+                    .into_inner();
+                storage::create(bundle)?;
+            }
+        }
+        Ok(())
+    }
+
     fn bundles(&self) -> Vec<String> {
         if let Some(r#box) = self.boxes.last() {
             let bundles = &r#box.borrow().bundles;
             if !bundles.is_empty() {
-                return bundles.iter().map(|b| b.name.to_string()).collect();
+                return bundles
+                    .iter()
+                    .map(|b| b.borrow().name.to_string())
+                    .collect();
             };
         };
         vec![]
@@ -94,109 +173,39 @@ impl Container {
         name.join(&Config::get().main.box_delimiter)
     }
 
-    fn create(self, data: Option<String>) -> BazaR<Self> {
-        if let Some(r#box) = self.boxes.last() {
-            let r#box = r#box.borrow();
-            let box_name = r#box.name.to_string();
-            let bundle = r#box
-                .bundles
-                .first()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle.create(data)?;
-        }
-        Ok(self)
-    }
-
-    fn save(&mut self, replace: bool) -> BazaR<()> {
-        while let Some(r#box) = self.boxes.pop() {
-            let mut r#box = r#box.borrow_mut();
-            while let Some(bundle) = r#box.bundles.pop() {
-                let path = self.ptr(&r#box, &bundle)?;
-                bundle.save(path, replace)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn edit(self) -> BazaR<Self> {
-        if let Some(r#box) = self.boxes.last() {
-            let r#box = r#box.borrow();
-            let box_name = r#box.name.to_string();
-            let bundle = r#box
-                .bundles
-                .first()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            let load_from = self.ptr(&r#box, bundle)?;
-            bundle.edit(load_from)?;
-        }
-        Ok(self)
-    }
-
-    fn show(self) -> BazaR<()> {
-        if let Some(r#box) = self.boxes.last() {
-            let box_name = r#box.borrow().name.to_string();
-            let r#box = r#box.borrow();
-            let bundle = r#box
-                .bundles
-                .first()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
-            bundle.show(self.ptr(&r#box, bundle)?)?;
-        }
-        Ok(())
-    }
-
     fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
-            let r#box = r#box.borrow();
-            let bundle = r#box.bundles.first().ok_or(Error::CommonBazaError)?;
-            bundle.copy_to_clipboard(self.ptr(&r#box, bundle)?, ttl)?;
-        }
-        Ok(())
-    }
-
-    fn ptr(&self, r#box: &r#box::r#Box, bundle: &Bundle) -> BazaR<PathBuf> {
-        let filename = format!("{}.{}", &*bundle.name, "baza");
-        let path = r#box.path().join(filename);
-        Ok(path)
-    }
-
-    fn delete(&mut self) -> BazaR<()> {
-        while let Some(r#box) = self.boxes.pop() {
             let mut r#box = r#box.borrow_mut();
-            while let Some(bundle) = r#box.bundles.pop() {
-                let path = self.ptr(&r#box, &bundle)?;
-                let ctx = if let Some(ptr) = bundle.ptr {
-                    let mut fullname = ptr;
-                    fullname.push(bundle.name.to_string());
-                    let name = fullname.join(&Config::get().main.box_delimiter);
-                    Some(Ctx { name })
-                } else {
-                    None
-                };
-                storage::delete(path, ctx)?;
-            }
+            let bundle = r#box.bundles.pop().ok_or(Error::CommonBazaError)?;
+            // bundle.copy_to_clipboard(self.ptr(&r#box, &bundle)?, ttl)?;
+            let bundle = Rc::try_unwrap(bundle)
+                .map_err(|_| Error::CommonBazaError)?
+                .into_inner();
+            storage::copy_to_clipboard(bundle, ttl)?;
         }
         Ok(())
     }
 }
 
-pub fn add(str: String) -> BazaR<()> {
+pub fn create(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()
         .create(None)?
-        .save(false)?;
+        .commit()?;
     Ok(())
 }
 
-pub fn from_stdin(str: String) -> BazaR<()> {
-    let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
+pub fn read(str: String) -> BazaR<()> {
+    Container::builder().create_from_str(str)?.build().read()?;
+    Ok(())
+}
+
+pub fn update(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()
-        .create(Some(input))?
-        .save(false)?;
+        .update()?;
     Ok(())
 }
 
@@ -208,15 +217,6 @@ pub fn delete(str: String) -> BazaR<()> {
     Ok(())
 }
 
-pub fn edit(str: String) -> BazaR<()> {
-    Container::builder()
-        .create_from_str(str)?
-        .build()
-        .edit()?
-        .save(true)?;
-    Ok(())
-}
-
 pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
@@ -225,8 +225,14 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
     Ok(())
 }
 
-pub fn show(str: String) -> BazaR<()> {
-    Container::builder().create_from_str(str)?.build().show()?;
+pub fn from_stdin(str: String) -> BazaR<()> {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input)?;
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .create(Some(input))?
+        .commit()?;
     Ok(())
 }
 
@@ -258,13 +264,13 @@ mod tests {
             .build()
             .create(Some(password))
             .unwrap()
-            .save(false)
+            .commit()
             .unwrap();
         Container::builder()
             .create_from_str(str.clone())
             .unwrap()
             .build()
-            .show()
+            .read()
             .unwrap();
         Container::builder()
             .create_from_str(str)

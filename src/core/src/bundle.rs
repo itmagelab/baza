@@ -1,9 +1,6 @@
-use crate::storage::Ctx;
-use crate::{r#box, storage, BazaR, Config};
+use crate::{r#box, BazaR, Config};
 use core::fmt;
 use std::cell::RefCell;
-use std::io::Read;
-use std::path::PathBuf;
 use std::process::Command;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -63,46 +60,6 @@ impl Bundle {
         };
 
         crate::encrypt_file(&file)?;
-        Ok(())
-    }
-
-    #[tracing::instrument(skip_all)]
-    pub(crate) fn edit(&self, load_from: PathBuf) -> BazaR<()> {
-        let ctx = if let Some(mut ptr) = self.ptr.clone() {
-            ptr.push(self.name.to_string());
-            let name = ptr.join(&Config::get().main.box_delimiter);
-            Some(Ctx { name })
-        } else {
-            None
-        };
-        storage::edit(self.file.path().to_path_buf(), load_from, ctx)?;
-        Ok(())
-    }
-
-    pub(crate) fn save(self, path: PathBuf, _replace: bool) -> BazaR<()> {
-        tracing::debug!("Saving bundle {:?}", &self.file);
-        let ctx = if let Some(mut ptr) = self.ptr {
-            ptr.push(self.name.to_string());
-            let name = ptr.join(&Config::get().main.box_delimiter);
-            Some(Ctx { name })
-        } else {
-            None
-        };
-        let mut file = self.file.reopen()?;
-        let mut blob = Vec::new();
-        file.read_to_end(&mut blob)?;
-        storage::create(&blob, path, ctx)?;
-        Ok(())
-    }
-
-    #[tracing::instrument(skip_all)]
-    pub(crate) fn show(&self, load_from: PathBuf) -> BazaR<()> {
-        storage::show(self.file.path().to_path_buf(), load_from)?;
-        Ok(())
-    }
-
-    pub(crate) fn copy_to_clipboard(&self, load_from: PathBuf, ttl: u64) -> BazaR<()> {
-        storage::copy_to_clipboard(self.file.path().to_path_buf(), load_from, ttl)?;
         Ok(())
     }
 }
