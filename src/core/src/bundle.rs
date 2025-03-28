@@ -6,12 +6,16 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 
+use self::r#box::BoxRef;
+
+pub type BundleRef = Rc<RefCell<Bundle>>;
+
 #[derive(Debug)]
 pub(crate) struct Bundle {
     pub(crate) name: Arc<str>,
     pub(crate) ptr: Option<Vec<String>>,
     pub(crate) file: NamedTempFile,
-    pub(crate) parent: Option<Rc<RefCell<r#box::r#Box>>>,
+    pub(crate) parent: Option<BoxRef>,
 }
 
 impl fmt::Display for Bundle {

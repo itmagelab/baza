@@ -1,16 +1,18 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use crate::bundle::Bundle;
+use crate::bundle::BundleRef;
+
+pub type BoxRef = Rc<RefCell<r#Box>>;
 
 #[derive(Debug, Default)]
 pub(crate) struct r#Box {
     pub(crate) name: Arc<str>,
-    pub(crate) bundles: Vec<Rc<RefCell<Bundle>>>,
-    pub(crate) parent: Option<Rc<RefCell<r#Box>>>,
+    pub(crate) bundles: Vec<BundleRef>,
+    pub(crate) parent: Option<BoxRef>,
 }
 
 impl r#Box {
-    pub(crate) fn new(name: String, parent: Option<Rc<RefCell<r#Box>>>) -> Self {
+    pub(crate) fn new(name: String, parent: Option<BoxRef>) -> Self {
         let name = Arc::from(name);
         Self {
             name,
