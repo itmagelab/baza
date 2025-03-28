@@ -13,10 +13,10 @@ trait Storage {
         Ok(())
     }
 
-    fn create(bundle: Bundle, replace: bool) -> BazaR<()>;
-    fn read(bundle: Bundle) -> BazaR<()>;
-    fn update(bundle: Bundle) -> BazaR<()>;
-    fn delete(bundle: Bundle) -> BazaR<()>;
+    fn create(&self, bundle: Bundle, replace: bool) -> BazaR<()>;
+    fn read(&self, bundle: Bundle) -> BazaR<()>;
+    fn update(&self, bundle: Bundle) -> BazaR<()>;
+    fn delete(&self, bundle: Bundle) -> BazaR<()>;
 
     fn sync() -> BazaR<()> {
         tracing::warn!("syncing is not implemented");
@@ -35,28 +35,28 @@ pub fn initialize() -> BazaR<()> {
 
 pub(crate) fn create(bundle: Bundle) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::create(bundle, true)?;
+        gitfs::GitFs.create(bundle, true)?;
     }
     Ok(())
 }
 
 pub(crate) fn read(bundle: Bundle) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::read(bundle)?;
+        gitfs::GitFs.read(bundle)?;
     }
     Ok(())
 }
 
 pub(crate) fn update(bundle: Bundle) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::update(bundle)?;
+        gitfs::GitFs.update(bundle)?;
     }
     Ok(())
 }
 
 pub(crate) fn delete(bundle: Bundle) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::delete(bundle)?;
+        gitfs::GitFs.delete(bundle)?;
     }
     Ok(())
 }

@@ -18,72 +18,71 @@ use crate::{
 use super::Bundle;
 
 const DIR: &str = "gitfs";
+const EXT: &str = "baza";
 
 pub struct GitFs;
 
-impl GitFs {
-    const EXT: &str = "baza";
+impl GitFs {}
 
-    fn dir() -> PathBuf {
-        PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
-    }
+fn dir() -> PathBuf {
+    PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
+}
 
-    fn signature() -> Result<Signature<'static>, git2::Error> {
-        Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
-    }
+fn signature() -> Result<Signature<'static>, git2::Error> {
+    Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
+}
 
-    fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
-        let mut index = repo.index()?;
-        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
-        index.write()?;
-        let tree_oid = index.write_tree()?;
-        repo.find_tree(tree_oid)
-    }
+fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
+    let mut index = repo.index()?;
+    index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+    index.write()?;
+    let tree_oid = index.write_tree()?;
+    repo.find_tree(tree_oid)
+}
 
-    fn is_hidden(entry: &DirEntry) -> bool {
-        entry
-            .file_name()
-            .to_str()
-            .map(|s| s.starts_with("."))
-            .unwrap_or(false)
-    }
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
+}
 
-    fn commit(msg: String) -> BazaR<()> {
-        if let Ok(repo) = Repository::discover(Self::dir()) {
-            if let Ok(head) = repo.head() {
-                let tree = Self::add_to_index(&repo)?;
-                let signature = Self::signature()?;
-                let parrent_commit = Some(head.peel_to_commit()?);
-                repo.commit(
-                    Some("HEAD"),
-                    &signature,
-                    &signature,
-                    &msg,
-                    &tree,
-                    &[&parrent_commit.ok_or(Error::CommonBazaError)?],
-                )?;
-            };
-        } else {
-            Self::initialize()?;
-            Self::commit(msg)?;
+fn commit(msg: String) -> BazaR<()> {
+    if let Ok(repo) = Repository::discover(dir()) {
+        if let Ok(head) = repo.head() {
+            let tree = add_to_index(&repo)?;
+            let signature = signature()?;
+            let parrent_commit = Some(head.peel_to_commit()?);
+            repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                &msg,
+                &tree,
+                &[&parrent_commit.ok_or(Error::CommonBazaError)?],
+            )?;
         };
+    } else {
+        GitFs::initialize()?;
+        commit(msg)?;
+    };
 
-        Ok(())
-    }
+    Ok(())
 }
 
 impl Storage for GitFs {
     fn initialize() -> BazaR<()> {
-        let repo = Repository::init(Self::dir())?;
+        let repo = Repository::init(dir())?;
         let mut path = repo.path().to_path_buf();
         path.pop();
         let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
         let mut file = File::create(gitignore_file)?;
         let gitignore = r#""#;
         file.write_all(gitignore.trim().as_bytes())?;
-        let tree = Self::add_to_index(&repo)?;
+        let tree = add_to_index(&repo)?;
         let commit_message = "Initial commit";
-        let signature = Self::signature()?;
+        let signature = signature()?;
         repo.commit(
             Some("HEAD"),
             &signature,
@@ -95,24 +94,24 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn create(bundle: Bundle, _replace: bool) -> BazaR<()> {
+    fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension(Self::EXT);
+        let path = dir().join(path).with_extension(EXT);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         bundle.file.persist_noclobber(path)?;
         let msg = format!("Bundle {name} was added");
-        Self::commit(msg)?;
+        commit(msg)?;
         Ok(())
     }
 
-    fn read(bundle: Bundle) -> BazaR<()> {
+    fn read(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = Self::dir().join(path).with_extension(Self::EXT);
+        let path = dir().join(path).with_extension(EXT);
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
@@ -127,11 +126,11 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn update(bundle: Bundle) -> BazaR<()> {
+    fn update(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension(Self::EXT);
+        let path = dir().join(path).with_extension(EXT);
         let file = bundle.file.path().to_path_buf();
 
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
@@ -150,16 +149,16 @@ impl Storage for GitFs {
         bundle.file.persist(path)?;
 
         let msg = format!("Bundle {name} was updated");
-        Self::commit(msg)?;
+        commit(msg)?;
 
         Ok(())
     }
 
-    fn delete(bundle: Bundle) -> BazaR<()> {
+    fn delete(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension(Self::EXT);
+        let path = dir().join(path).with_extension(EXT);
 
         if path.is_file() {
             std::fs::remove_file(&path)?;
@@ -170,13 +169,13 @@ impl Storage for GitFs {
         };
 
         let msg = format!("Bundle {name} was deleted");
-        Self::commit(msg)?;
+        commit(msg)?;
 
         Ok(())
     }
 
     fn sync() -> BazaR<()> {
-        let repo = Repository::open(Self::dir())?;
+        let repo = Repository::open(dir())?;
 
         let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
             key.clone()
@@ -218,13 +217,13 @@ impl Storage for GitFs {
 
     fn search(str: String) -> BazaR<()> {
         let builder = ContainerBuilder::new();
-        let walker = WalkDir::new(Self::dir()).into_iter();
-        for entry in walker.filter_entry(|e| !Self::is_hidden(e)) {
+        let walker = WalkDir::new(dir()).into_iter();
+        for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let entry = entry?;
             let path = entry.path();
 
             if path.is_file() {
-                let path = path.strip_prefix(Self::dir())?.with_extension("");
+                let path = path.strip_prefix(dir())?.with_extension("");
                 let lossy = path
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
@@ -243,7 +242,7 @@ impl Storage for GitFs {
         let mut clipboard = Clipboard::new()?;
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = Self::dir().join(path).with_extension(Self::EXT);
+        let path = dir().join(path).with_extension(EXT);
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
