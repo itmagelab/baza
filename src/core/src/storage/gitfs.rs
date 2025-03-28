@@ -22,6 +22,8 @@ const DIR: &str = "gitfs";
 pub struct GitFs;
 
 impl GitFs {
+    const EXT: &str = "baza";
+
     fn dir() -> PathBuf {
         PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
     }
@@ -97,7 +99,7 @@ impl Storage for GitFs {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension("baza");
+        let path = Self::dir().join(path).with_extension(Self::EXT);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -110,7 +112,7 @@ impl Storage for GitFs {
     fn read(bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = Self::dir().join(path).with_extension("baza");
+        let path = Self::dir().join(path).with_extension(Self::EXT);
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
@@ -129,7 +131,7 @@ impl Storage for GitFs {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension("baza");
+        let path = Self::dir().join(path).with_extension(Self::EXT);
         let file = bundle.file.path().to_path_buf();
 
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
@@ -157,7 +159,7 @@ impl Storage for GitFs {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = Self::dir().join(path).with_extension("baza");
+        let path = Self::dir().join(path).with_extension(Self::EXT);
 
         if path.is_file() {
             std::fs::remove_file(&path)?;
@@ -241,7 +243,7 @@ impl Storage for GitFs {
         let mut clipboard = Clipboard::new()?;
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = Self::dir().join(path).with_extension("baza");
+        let path = Self::dir().join(path).with_extension(Self::EXT);
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
