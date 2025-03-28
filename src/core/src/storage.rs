@@ -3,10 +3,6 @@ pub mod gitfs;
 
 use crate::{bundle::Bundle, BazaR, Config};
 
-pub struct Ctx {
-    pub name: String,
-}
-
 trait Storage {
     fn create(&self, bundle: Bundle, replace: bool) -> BazaR<()>;
     fn read(&self, bundle: Bundle) -> BazaR<()>;
