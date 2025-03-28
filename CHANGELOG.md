@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2025-03-28
+
+### 🚀 Features
+
+- Reword all boxes
+- Added gix storage
+- Storage using data paths
+- Move git as trait storage
+- Added sync wrapper
+- Rework logging
+
+### 🐛 Bug Fixes
+
+- Use cleaner once time
+- Make tmp when initialize a new bundle
+- Rename methods
+
+### 📚 Documentation
+
+- Update animation
+- Update animation
+- Added new usage
+- Rename shortcuts
+- Added shortcut for show
+- Added shortcut for copy
+- Writting reame
+- Update animation
+
+### ⚙️ Miscellaneous Tasks
+
+- Update media
+- Litle fixes
+- Rename funcs
+
 ## [2.6.1] - 2025-02-28
 
 ### 🐛 Bug Fixes
