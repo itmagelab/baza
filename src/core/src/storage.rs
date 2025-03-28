@@ -1,5 +1,4 @@
 pub mod gitfs;
-// pub mod gix;
 
 use crate::{bundle::Bundle, BazaR, Config};
 
