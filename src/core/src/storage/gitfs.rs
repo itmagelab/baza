@@ -137,9 +137,12 @@ pub fn sync() -> BazaR<()> {
 impl Storage for GitFs {
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir().join(path).with_extension(EXT);
+        let path = dir()
+            .join(path)
+            .with_file_name(format!("{}.{}", filename, EXT));
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -151,8 +154,11 @@ impl Storage for GitFs {
 
     fn read(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = dir().join(path).with_extension(EXT);
+        let path = dir()
+            .join(path)
+            .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
@@ -169,9 +175,12 @@ impl Storage for GitFs {
 
     fn update(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir().join(path).with_extension(EXT);
+        let path = dir()
+            .join(path)
+            .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();
 
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
@@ -197,9 +206,12 @@ impl Storage for GitFs {
 
     fn delete(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir().join(path).with_extension(EXT);
+        let path = dir()
+            .join(path)
+            .with_file_name(format!("{}.{}", filename, EXT));
 
         if path.is_file() {
             std::fs::remove_file(&path)?;
@@ -241,8 +253,11 @@ impl Storage for GitFs {
     fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()?;
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = dir().join(path).with_extension(EXT);
+        let path = dir()
+            .join(path)
+            .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
