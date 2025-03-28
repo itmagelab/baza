@@ -12,8 +12,8 @@ trait Storage {
     fn read(&self, bundle: Bundle) -> BazaR<()>;
     fn update(&self, bundle: Bundle) -> BazaR<()>;
     fn delete(&self, bundle: Bundle) -> BazaR<()>;
-    fn search(str: String) -> BazaR<()>;
-    fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()>;
+    fn search(&self, str: String) -> BazaR<()>;
+    fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()>;
 }
 
 pub fn initialize() -> BazaR<()> {
@@ -60,14 +60,14 @@ pub fn sync() -> BazaR<()> {
 
 pub fn search(str: String) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::search(str)?;
+        gitfs::GitFs.search(str)?;
     }
     Ok(())
 }
 
 pub(crate) fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs::copy_to_clipboard(bundle, ttl)?;
+        gitfs::GitFs.copy_to_clipboard(bundle, ttl)?;
     }
     Ok(())
 }

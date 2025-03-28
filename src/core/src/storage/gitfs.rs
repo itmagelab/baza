@@ -215,7 +215,7 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn search(str: String) -> BazaR<()> {
+    fn search(&self, str: String) -> BazaR<()> {
         let builder = ContainerBuilder::new();
         let walker = WalkDir::new(dir()).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
@@ -238,7 +238,7 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
+    fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()?;
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
