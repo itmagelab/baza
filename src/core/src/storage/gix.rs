@@ -1,146 +1,133 @@
-use std::{
-    io::Read,
-    process::{exit, Command},
-};
+use std::{hash::Hash, io::Read, path::PathBuf};
 
 use gix::{
-    config::tree::{Author, Committer},
-    objs::tree,
+    config::{
+        tree::{Author, Committer},
+        CommitAutoRollback, SnapshotMut,
+    }, index::write::{Extensions, Options}, objs::{tree, Tree}
 };
 
-use crate::{encrypt_data, error, key, BazaR, Config, DEFAULT_AUTHOR, DEFAULT_EMAIL};
+use crate::{
+    encrypt_data,
+    error::{self, Error},
+    key, BazaR, Config, DEFAULT_AUTHOR, DEFAULT_EMAIL,
+};
 
-use super::{Ctx, Storage};
+use super::{Bundle, Storage};
 
 pub struct Gix;
 
 const DIR: &str = "gix";
 
-impl Gix {
-    fn _commit(msg: String) -> BazaR<()> {
-        let git_dir = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        let mut repo =
-            gix::discover(git_dir).map_err(|err| error::Error::GixDiscover(Box::new(err)))?;
-        let mut config = repo.config_snapshot_mut();
-        config.set_raw_value(&Author::NAME, DEFAULT_AUTHOR)?;
-        config.set_raw_value(&Author::EMAIL, DEFAULT_EMAIL)?;
-        config.set_raw_value(&Committer::NAME, DEFAULT_AUTHOR)?;
-        config.set_raw_value(&Committer::EMAIL, DEFAULT_EMAIL)?;
-        let repo = config
-            .commit_auto_rollback()
-            .map_err(|err| error::Error::GixConfig(Box::new(err)))?;
-        let Ok(tree) = repo.head_tree() else {
-            Self::initialize()?;
-            Self::_commit(msg)?;
-            return Ok(());
-        };
-        repo.commit("HEAD", msg, tree.id(), repo.head()?.id())?;
-        Ok(())
-    }
+impl Gix {}
+
+fn dir() -> PathBuf {
+    PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
+}
+
+fn extend_config(mut config: SnapshotMut) -> BazaR<CommitAutoRollback> {
+    config.set_raw_value(&Author::NAME, DEFAULT_AUTHOR)?;
+    config.set_raw_value(&Author::EMAIL, DEFAULT_EMAIL)?;
+    config.set_raw_value(&Committer::NAME, DEFAULT_AUTHOR)?;
+    config.set_raw_value(&Committer::EMAIL, DEFAULT_EMAIL)?;
+    config
+        .commit_auto_rollback()
+        .map_err(|err| error::Error::GixConfig(Box::new(err)))
+}
+
+fn commit(msg: String, tree: Tree) -> BazaR<()> {
+    let mut repo = gix::discover(dir()).map_err(|err| error::Error::GixDiscover(Box::new(err)))?;
+    let repo = extend_config(repo.config_snapshot_mut())?;
+    let Ok(commit) = repo.head() else {
+        initialize()?;
+        commit(msg, tree)?;
+        return Ok(());
+    };
+    let tree_id = repo.write_object(&tree)?;
+    let index = repo.index_or_load_from_head()?;
+    // index.write(Options { extensions: Extensions::None, skip_hash: true });
+    dbg!(repo.index_path());
+    repo.commit("HEAD", msg, tree_id, commit.id())?;
+    Ok(())
+}
+
+pub(crate) fn initialize() -> BazaR<()> {
+    let mut repo = gix::init_bare(dir()).map_err(|err| error::Error::GixInit(Box::new(err)))?;
+
+    let tree = gix::objs::Tree::empty();
+    let empty_tree_id = repo.write_object(&tree)?.detach();
+
+    let repo = extend_config(repo.config_snapshot_mut())?;
+    repo.commit(
+        "HEAD",
+        "Initial commit",
+        empty_tree_id,
+        gix::commit::NO_PARENT_IDS,
+    )?;
+
+    Ok(())
 }
 
 impl Storage for Gix {
-    fn initialize() -> BazaR<()> {
-        let git_dir = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        let mut repo =
-            gix::init_bare(git_dir).map_err(|err| error::Error::GixInit(Box::new(err)))?;
+    fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let name = ptr.join(&Config::get().main.box_delimiter);
 
-        let tree = gix::objs::Tree::empty();
-        let empty_tree_id = repo.write_object(&tree)?.detach();
-
-        let mut config = repo.config_snapshot_mut();
-        config.set_raw_value(&Author::NAME, DEFAULT_AUTHOR)?;
-        config.set_raw_value(&Author::EMAIL, DEFAULT_EMAIL)?;
-        config.set_raw_value(&Committer::NAME, DEFAULT_AUTHOR)?;
-        config.set_raw_value(&Committer::EMAIL, DEFAULT_EMAIL)?;
-        {
-            let repo = config
-                .commit_auto_rollback()
-                .map_err(|err| error::Error::GixConfig(Box::new(err)))?;
-            repo.commit(
-                "HEAD",
-                "Initial commit",
-                empty_tree_id,
-                gix::commit::NO_PARENT_IDS,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    fn create(file: std::path::PathBuf, str: Option<String>) -> BazaR<()> {
-        let git_dir = format!("{}/data/{}", &Config::get().main.datadir, DIR);
-        let repo =
-            gix::discover(git_dir).map_err(|err| error::Error::GixDiscover(Box::new(err)))?;
+        let repo = gix::discover(dir()).map_err(|err| error::Error::GixDiscover(Box::new(err)))?;
         let mut tree = gix::objs::Tree::empty();
 
-        let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
-
-        if let Some(str) = str {
-            let blob_id = repo
-                .write_blob(encrypt_data(str.as_bytes(), &key()?)?)?
-                .into();
-            let entry = tree::Entry {
-                mode: tree::EntryKind::Blob.into(),
-                oid: blob_id,
-                filename: file.to_string_lossy().to_string().into(),
-            };
-            tree.entries.push(entry);
-        } else {
-            let status = Command::new(editor).arg(&file).status()?;
-            if !status.success() {
-                exit(1);
-            }
-            let mut buffer = Vec::new();
-            let mut filename = std::fs::File::open(&file)?;
-            filename.read_to_end(&mut buffer)?;
-            let blob_id = repo.write_blob(encrypt_data(&buffer, &key()?)?)?.into();
-            let entry = tree::Entry {
-                mode: tree::EntryKind::Blob.into(),
-                oid: blob_id,
-                filename: file.to_string_lossy().to_string().into(),
-            };
-            tree.entries.push(entry);
+        let mut buffer = Vec::new();
+        let mut filename = std::fs::File::open(&bundle.file)?;
+        filename.read_to_end(&mut buffer)?;
+        let blob_id = repo.write_blob(encrypt_data(&buffer, &key()?)?)?.into();
+        let entry = tree::Entry {
+            mode: tree::EntryKind::Blob.into(),
+            oid: blob_id,
+            filename: path.to_string_lossy().to_string().into(),
         };
+        tree.entries.push(entry);
 
-        repo.write_object(&tree)?;
+        let msg = format!("Bundle {name} was added");
+        commit(msg, tree)?;
         Ok(())
     }
 
-    fn read(_file: std::path::PathBuf, _load_from: std::path::PathBuf) -> BazaR<()> {
+    fn read(&self, bundle: super::Bundle) -> BazaR<()> {
+        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
+        let path: PathBuf = ptr.iter().collect();
+        let name = ptr.join(&Config::get().main.box_delimiter);
+
+        let repo = gix::discover(dir()).map_err(|err| error::Error::GixDiscover(Box::new(err)))?;
+
+        let index = repo
+            .index()
+            .map_err(|err| Error::GixWorktreeOpen(Box::new(err)))?;
+        for entry in index.entries() {
+            dbg!(&entry);
+        }
+
+        let tree = repo.head_tree()?;
+        let entry = tree
+            .find_entry(path.to_string_lossy().to_string())
+            .ok_or(Error::BundleNotExist(name.clone()))?;
+        println!("{:?}", entry.filename());
         todo!()
     }
 
-    fn update(
-        _file: std::path::PathBuf,
-        _load_from: std::path::PathBuf,
-        _ctx: Option<Ctx>,
-    ) -> BazaR<()> {
+    fn update(&self, bundle: super::Bundle) -> BazaR<()> {
         todo!()
     }
 
-    fn delete(_path: std::path::PathBuf, _ctx: Option<Ctx>) -> BazaR<()> {
+    fn delete(&self, bundle: super::Bundle) -> BazaR<()> {
         todo!()
     }
 
-    fn search(_str: String) -> BazaR<()> {
+    fn search(&self, str: String) -> BazaR<()> {
         todo!()
     }
 
-    fn copy_to_clipboard(
-        _file: std::path::PathBuf,
-        _load_from: std::path::PathBuf,
-        _ttl: u64,
-    ) -> BazaR<()> {
-        todo!()
-    }
-
-    fn create(
-        _file: tempfile::NamedTempFile,
-        _path: std::path::PathBuf,
-        _replace: bool,
-        _ctx: Option<Ctx>,
-    ) -> BazaR<()> {
+    fn copy_to_clipboard(&self, bundle: super::Bundle, ttl: u64) -> BazaR<()> {
         todo!()
     }
 }

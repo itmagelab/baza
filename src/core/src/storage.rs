@@ -1,5 +1,5 @@
 pub mod gitfs;
-// pub mod gix;
+pub mod gix;
 
 use crate::{bundle::Bundle, BazaR, Config};
 
@@ -16,19 +16,28 @@ pub fn initialize() -> BazaR<()> {
     if Config::get().gitfs.enable.unwrap_or(false) {
         gitfs::initialize()?;
     }
+    if Config::get().gix.enable.unwrap_or(false) {
+        gix::initialize()?;
+    }
     Ok(())
 }
 
 pub(crate) fn create(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.create(bundle, true)?;
+    // if Config::get().gitfs.enable.unwrap_or(false) {
+    //     gitfs::GitFs.create(bundle, true)?;
+    // }
+    if Config::get().gix.enable.unwrap_or(false) {
+        gix::Gix.create(bundle, true)?;
     }
     Ok(())
 }
 
 pub(crate) fn read(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.read(bundle)?;
+    // if Config::get().gitfs.enable.unwrap_or(false) {
+    //     gitfs::GitFs.read(bundle)?;
+    // }
+    if Config::get().gix.enable.unwrap_or(false) {
+        gix::Gix.read(bundle)?;
     }
     Ok(())
 }

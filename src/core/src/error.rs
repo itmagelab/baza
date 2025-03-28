@@ -72,4 +72,12 @@ pub enum Error {
     GixRefFind(#[from] gix::reference::find::existing::Error),
     #[error(transparent)]
     GixRefHeadTree(#[from] gix::reference::head_tree::Error),
+    #[error(transparent)]
+    GixObjectFindExisting(#[from] gix::object::find::existing::Error),
+    #[error(transparent)]
+    GixWorktreeOpen(Box<gix::worktree::open_index::Error>),
+    #[error(transparent)]
+    GixRepositoryIndex(#[from] gix::repository::index_from_tree::Error),
+    #[error(transparent)]
+    GixRepositoryIndexLoad(#[from] gix::repository::index_or_load_from_head::Error),
 }
