@@ -113,7 +113,7 @@ pub async fn main() {
     } else if let Some(s) = args.stdin {
         container::from_stdin(s)
     } else if args.list {
-        container::search(String::from(&Config::get().main.box_delimiter))
+        container::search(String::from(".*"))
     } else if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
         Ok(())
