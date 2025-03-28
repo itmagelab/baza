@@ -21,8 +21,8 @@ pub enum Error {
     TooFewArguments,
     #[error("Encription error")]
     EncriptionError(aes_gcm::Error),
-    #[error("Must be more what one box; like: `work::login`")]
-    BoxMoreOne,
+    #[error("At least one box is required, but none were found. Like: `work::login`")]
+    AtLeastOneBoxRequired,
     #[error("Bundle {0} does not exist")]
     BundleNotExist(String),
     #[error("The box {box} have not bundles")]

@@ -63,7 +63,7 @@ impl ContainerBuilder {
                 .bundles
                 .push(Rc::new(RefCell::new(bundle)));
         } else {
-            return Err(Error::BoxMoreOne);
+            return Err(Error::AtLeastOneBoxRequired);
         }
         Ok(self)
     }
