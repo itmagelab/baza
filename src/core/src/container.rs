@@ -2,13 +2,14 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 use bundle::Bundle;
 use io::Read;
+use r#box::BoxRef;
 
 use super::*;
 
 // cover, container, box, bundle
 #[derive(Debug, Clone)]
 pub struct Container {
-    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+    boxes: Vec<BoxRef>,
 }
 
 impl fmt::Display for Container {
@@ -19,7 +20,7 @@ impl fmt::Display for Container {
 
 #[derive(Debug, Default, Clone)]
 pub struct ContainerBuilder {
-    boxes: Vec<Rc<RefCell<r#box::r#Box>>>,
+    boxes: Vec<BoxRef>,
 }
 
 impl ContainerBuilder {
@@ -62,7 +63,7 @@ impl ContainerBuilder {
                 .bundles
                 .push(Rc::new(RefCell::new(bundle)));
         } else {
-            return Err(Error::BoxMoreOne);
+            return Err(Error::AtLeastOneBoxRequired);
         }
         Ok(self)
     }

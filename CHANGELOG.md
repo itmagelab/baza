@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.0] - 2025-03-28
+
+### 🚀 Features
+
+- Replace defaul search re
+- Move from impl #3
+- Move from impl #2
+- Move from impl
+- Ext as const
+- Rename error
+- Added types for box, bundle
+
+### 🐛 Bug Fixes
+
+- Bug with extention
+- Cleanup Ctx
+
 ## [2.7.0] - 2025-03-28
 
 ### 🚀 Features
@@ -32,6 +49,7 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Release
 - Update media
 - Litle fixes
 - Rename funcs
