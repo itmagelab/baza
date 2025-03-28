@@ -64,36 +64,77 @@ fn commit(msg: String) -> BazaR<()> {
             )?;
         };
     } else {
-        GitFs::initialize()?;
+        initialize()?;
         commit(msg)?;
     };
 
     Ok(())
 }
 
-impl Storage for GitFs {
-    fn initialize() -> BazaR<()> {
-        let repo = Repository::init(dir())?;
-        let mut path = repo.path().to_path_buf();
-        path.pop();
-        let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
-        let mut file = File::create(gitignore_file)?;
-        let gitignore = r#""#;
-        file.write_all(gitignore.trim().as_bytes())?;
-        let tree = add_to_index(&repo)?;
-        let commit_message = "Initial commit";
-        let signature = signature()?;
-        repo.commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            commit_message,
-            &tree,
-            &[],
-        )?;
-        Ok(())
-    }
+pub fn initialize() -> BazaR<()> {
+    let repo = Repository::init(dir())?;
+    let mut path = repo.path().to_path_buf();
+    path.pop();
+    let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
+    let mut file = File::create(gitignore_file)?;
+    let gitignore = r#""#;
+    file.write_all(gitignore.trim().as_bytes())?;
+    let tree = add_to_index(&repo)?;
+    let commit_message = "Initial commit";
+    let signature = signature()?;
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        commit_message,
+        &tree,
+        &[],
+    )?;
+    Ok(())
+}
 
+pub fn sync() -> BazaR<()> {
+    let repo = Repository::open(dir())?;
+
+    let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
+        key.clone()
+    } else {
+        format!("{}/.ssh/id_ed25519", std::env::var("HOME")?)
+    };
+    let passphrase = &Config::get().gitfs.passphrase;
+    if let Some(url) = &Config::get().gitfs.url {
+        let remote_name = "origin";
+        if repo.find_remote(remote_name).is_err() {
+            repo.remote(remote_name, url)?;
+        }
+
+        let mut remote = repo.find_remote(remote_name)?;
+
+        let mut callbacks = git2::RemoteCallbacks::new();
+        callbacks.credentials(|_, username_from_url, _| {
+            git2::Cred::ssh_key(
+                username_from_url.unwrap_or("git"),
+                None,
+                std::path::Path::new(privatekey.as_str()),
+                passphrase.as_deref(),
+            )
+        });
+
+        let mut push_options = git2::PushOptions::new();
+        push_options.remote_callbacks(callbacks);
+
+        remote.push(
+            &[&format!("refs/heads/{}", "master")],
+            Some(&mut push_options),
+        )?;
+
+        tracing::info!("Pushed successfully");
+    };
+
+    Ok(())
+}
+
+impl Storage for GitFs {
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let path: PathBuf = ptr.iter().collect();
@@ -170,47 +211,6 @@ impl Storage for GitFs {
 
         let msg = format!("Bundle {name} was deleted");
         commit(msg)?;
-
-        Ok(())
-    }
-
-    fn sync() -> BazaR<()> {
-        let repo = Repository::open(dir())?;
-
-        let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
-            key.clone()
-        } else {
-            format!("{}/.ssh/id_ed25519", std::env::var("HOME")?)
-        };
-        let passphrase = &Config::get().gitfs.passphrase;
-        if let Some(url) = &Config::get().gitfs.url {
-            let remote_name = "origin";
-            if repo.find_remote(remote_name).is_err() {
-                repo.remote(remote_name, url)?;
-            }
-
-            let mut remote = repo.find_remote(remote_name)?;
-
-            let mut callbacks = git2::RemoteCallbacks::new();
-            callbacks.credentials(|_, username_from_url, _| {
-                git2::Cred::ssh_key(
-                    username_from_url.unwrap_or("git"),
-                    None,
-                    std::path::Path::new(privatekey.as_str()),
-                    passphrase.as_deref(),
-                )
-            });
-
-            let mut push_options = git2::PushOptions::new();
-            push_options.remote_callbacks(callbacks);
-
-            remote.push(
-                &[&format!("refs/heads/{}", "master")],
-                Some(&mut push_options),
-            )?;
-
-            tracing::info!("Pushed successfully");
-        };
 
         Ok(())
     }
