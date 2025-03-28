@@ -246,39 +246,58 @@ pub fn search(str: String) -> BazaR<()> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn it_works() {
-        let str = "test::my::login".to_string();
+    fn create(str: &str) {
+        let str = str.to_string();
         let password = super::generate(255, false, false, false).unwrap();
-        init(Some(password.clone())).unwrap();
-        unlock(Some(password.clone())).unwrap();
-        cleanup_tmp_folder().unwrap();
         Container::builder()
-            .create_from_str(str.clone())
-            .unwrap()
-            .build()
-            .delete()
-            .unwrap();
-        Container::builder()
-            .create_from_str(str.clone())
+            .create_from_str(str)
             .unwrap()
             .build()
             .create(Some(password))
             .unwrap()
             .commit()
             .unwrap();
+    }
+
+    fn read(str: &str) {
+        let str = str.to_string();
         Container::builder()
-            .create_from_str(str.clone())
+            .create_from_str(str)
             .unwrap()
             .build()
             .read()
             .unwrap();
+    }
+
+    fn delete(str: &str) {
+        let str = str.to_string();
         Container::builder()
             .create_from_str(str)
             .unwrap()
             .build()
             .delete()
             .unwrap();
+    }
+
+    #[test]
+    fn it_works() {
+        let password = super::generate(255, false, false, false).unwrap();
+        init(Some(password.clone())).unwrap();
+        cleanup_tmp_folder().unwrap();
         lock().unwrap();
+
+        unlock(Some(password.clone())).unwrap();
+        let bundles = vec![
+            "test::my.test::login.ru",
+            "test::my@test::login@ru",
+            "test::my/test::login/ru",
+            "test::my-test::login-ru",
+            "test::my_test::login_ru",
+        ];
+        for name in bundles {
+            create(name);
+            read(name);
+            delete(name);
+        }
     }
 }
