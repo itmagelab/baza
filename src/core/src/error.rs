@@ -6,43 +6,41 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("No name found for save")]
-    NoName,
-    #[error("This is a common error")]
-    CommonBazaError,
-    #[error("Error opening editor")]
-    OpenEditor,
-    #[error("Path already exists")]
-    PathExists,
-    #[error("Size must be greater than zero")]
-    ZeroSize,
-    #[error("You must specify at least one of the following: latters, numbers, symbols")]
-    MustSpecifyAtLeastOne,
-    #[error("Too few arguments")]
-    TooFewArguments,
-    #[error("Encription error")]
-    EncriptionError(aes_gcm::Error),
-    #[error("At least one box is required, but none were found. Like: `work::login`")]
-    AtLeastOneBoxRequired,
-    #[error("Bundle {0} does not exist")]
+    NoName,    
+    #[error("Failed to open editor.")]
+    OpenEditor,    
+    #[error("Path already exists.")]
+    PathExists,    
+    #[error("Size must be greater than zero.")]
+    ZeroSize,    
+    #[error("At least one of these must be specified: letters, numbers, symbols.")]
+    MustSpecifyAtLeastOne,    
+    #[error("Too few arguments provided.")]
+    TooFewArguments,    
+    #[error("Encryption failed.")]
+    EncryptionError(aes_gcm::Error),    
+    #[error("At least one box is required (e.g., 'work::login').")]
+    AtLeastOneBoxRequired,    
+    #[error("Bundle '{0}' does not exist.")]
     BundleNotExist(String),
-    #[error("The box {box} have not bundles")]
-    BundlesIsEmpty { r#box: String },
-    #[error("No key found. Try using the command `baza unlock` or `baza init`")]
-    KeyNotFound,
-    #[error("Can't cleanup tmp folder, must be a writable: {0}")]
+    #[error("Box '{box}' has no bundles.")]
+    BundlesIsEmpty { r#box: String },    
+    #[error("No key found. Use 'baza unlock' or 'baza init'.")]
+    KeyNotFound,    
+    #[error("Failed to clean up temporary folder: {0}. Ensure it is writable.")]
     CleanupTmpFolder(std::io::Error),
-    #[error("Decription error: {0}")]
-    Decription(aes_gcm::Error),
-    #[error("Encription error: {0}")]
-    Encription(aes_gcm::Error),
-    #[error("No pointer found.")]
+    #[error("Decryption failed: {0}.")]
+    Decryption(aes_gcm::Error),    
+    #[error("Encryption error: {0}")]
+    Encryption(aes_gcm::Error),    
+    #[error("No pointer found in the data.")]
     NoPointerFound,
     // From traits
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
     Walkdir(#[from] walkdir::Error),
-    #[error(transparent)]
+    #[error(transparent)]    
     StripPrefix(#[from] StripPrefixError),
     #[error(transparent)]
     Persist(#[from] PersistError),
@@ -71,5 +69,5 @@ pub enum Error {
     #[error(transparent)]
     GixRefFind(#[from] gix::reference::find::existing::Error),
     #[error(transparent)]
-    GixRefHeadTree(#[from] gix::reference::head_tree::Error),
+    GixRefHeadTree(#[from] gix::reference::head_tree::Error),    
 }
