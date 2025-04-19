@@ -188,7 +188,7 @@ impl Container {
     }
 }
 
-pub fn create(str: String, data: Option<String>) -> BazaR<()> {
+pub fn add(str: String, data: Option<String>) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()

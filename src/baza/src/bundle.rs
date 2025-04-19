@@ -29,7 +29,7 @@ pub(crate) enum Commands {
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         Commands::Add { name } => {
-            container::create(name, None)?;
+            container::add(name, None)?;
         }
         Commands::Generate { name } => {
             container::generate(name)?;
