@@ -188,11 +188,21 @@ impl Container {
     }
 }
 
-pub fn create(str: String) -> BazaR<()> {
+pub fn create(str: String, data: Option<String>) -> BazaR<()> {
     Container::builder()
         .create_from_str(str)?
         .build()
-        .create(None)?
+        .create(data)?
+        .commit()?;
+    Ok(())
+}
+
+pub fn generate(str: String) -> BazaR<()> {
+    let data = crate::generate(12, false, false, false)?;
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .create(Some(data))?
         .commit()?;
     Ok(())
 }
@@ -248,7 +258,7 @@ mod tests {
 
     fn create(str: &str) {
         let str = str.to_string();
-        let password = super::generate(255, false, false, false).unwrap();
+        let password = crate::generate(255, false, false, false).unwrap();
         Container::builder()
             .create_from_str(str)
             .unwrap()
@@ -281,7 +291,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let password = super::generate(255, false, false, false).unwrap();
+        let password = crate::generate(255, false, false, false).unwrap();
         init(Some(password.clone())).unwrap();
         cleanup_tmp_folder().unwrap();
         lock().unwrap();
