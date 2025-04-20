@@ -56,6 +56,9 @@ pub struct Cli {
     /// Create bundle from STDIN
     #[arg(long, value_name = "BUNDLE")]
     stdin: Option<String>,
+    /// Generate default bundle
+    #[arg(short, long, value_name = "BUNDLE")]
+    generate: Option<String>,
     /// Edit exists bundle of passwords
     #[arg(short, long, value_name = "BUNDLE")]
     edit: Option<String>,
@@ -109,9 +112,11 @@ pub async fn main() {
     } else if let Some(s) = args.search {
         container::search(s)
     } else if let Some(s) = args.add {
-        container::create(s)
+        container::add(s, None)
     } else if let Some(s) = args.stdin {
         container::from_stdin(s)
+    } else if let Some(s) = args.generate {
+        container::generate(s)
     } else if args.list {
         container::search(String::from(".*"))
     } else if args.version {

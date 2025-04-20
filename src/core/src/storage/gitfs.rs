@@ -11,8 +11,8 @@ use git2::{IndexAddOption, Repository, Signature, Tree};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
-    container::ContainerBuilder, decrypt_file, encrypt_file, error::Error, m, storage::Storage,
-    BazaR, Config, MessageType, DEFAULT_AUTHOR, DEFAULT_EMAIL, TTL_SECONDS,
+    decrypt_file, encrypt_file, error::Error, m, storage::Storage, BazaR, Config, MessageType,
+    DEFAULT_AUTHOR, DEFAULT_EMAIL, TTL_SECONDS,
 };
 
 use super::Bundle;
@@ -228,7 +228,6 @@ impl Storage for GitFs {
     }
 
     fn search(&self, str: String) -> BazaR<()> {
-        let builder = ContainerBuilder::new();
         let walker = WalkDir::new(dir()).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let entry = entry?;
@@ -242,8 +241,7 @@ impl Storage for GitFs {
 
                 let re = regex::Regex::new(&str)?;
                 if re.is_match(&lossy) {
-                    let container = builder.clone().create_from_str(lossy)?.build();
-                    m(&format!("{}\n", container), MessageType::Clean);
+                    m(&format!("{}\n", lossy), MessageType::Clean);
                 }
             }
         }

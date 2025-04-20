@@ -11,7 +11,9 @@ pub(crate) struct Args {
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
     /// Create bundle of passwords
-    Create { name: String },
+    Add { name: String },
+    /// Generate a new bundle
+    Generate { name: String },
     /// Edit exists bundle of passwords
     Edit { name: String },
     /// Deleting a bundle
@@ -26,8 +28,11 @@ pub(crate) enum Commands {
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
-        Commands::Create { name } => {
-            container::create(name)?;
+        Commands::Add { name } => {
+            container::add(name, None)?;
+        }
+        Commands::Generate { name } => {
+            container::generate(name)?;
         }
         Commands::Delete { name } => {
             container::delete(name)?;
