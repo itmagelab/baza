@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.0] - 2025-04-20
+
+### 🚀 Features
+
+- Added action for a tag
+- Fixed a bug with too many open files
+- Reename create to add
+- Added auto password generation
+
+### 🐛 Bug Fixes
+
+- Cleanup
+- Cleanup
+- Extended tests
+
 ## [2.8.0] - 2025-03-28
 
 ### 🚀 Features
@@ -18,6 +33,10 @@ All notable changes to this project will be documented in this file.
 
 - Bug with extention
 - Cleanup Ctx
+
+### ⚙️ Miscellaneous Tasks
+
+- Release
 
 ## [2.7.0] - 2025-03-28
 
