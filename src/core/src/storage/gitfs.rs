@@ -24,10 +24,6 @@ pub struct GitFs;
 
 impl GitFs {}
 
-fn dir() -> PathBuf {
-    PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR))
-}
-
 fn signature() -> Result<Signature<'static>, git2::Error> {
     Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
 }
@@ -49,7 +45,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 fn commit(msg: String) -> BazaR<()> {
-    if let Ok(repo) = Repository::discover(dir()) {
+    if let Ok(repo) = Repository::discover(super::storage_dir(DIR)) {
         if let Ok(head) = repo.head() {
             let tree = add_to_index(&repo)?;
             let signature = signature()?;
@@ -72,7 +68,7 @@ fn commit(msg: String) -> BazaR<()> {
 }
 
 pub fn initialize() -> BazaR<()> {
-    let repo = Repository::init(dir())?;
+    let repo = Repository::init(super::storage_dir(DIR))?;
     let mut path = repo.path().to_path_buf();
     path.pop();
     let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
@@ -94,7 +90,7 @@ pub fn initialize() -> BazaR<()> {
 }
 
 pub fn sync() -> BazaR<()> {
-    let repo = Repository::open(dir())?;
+    let repo = Repository::open(super::storage_dir(DIR))?;
 
     let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
         key.clone()
@@ -140,7 +136,7 @@ impl Storage for GitFs {
         let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir()
+        let path = super::storage_dir(DIR)
             .join(path)
             .with_file_name(format!("{}.{}", filename, EXT));
         if let Some(parent) = path.parent() {
@@ -156,7 +152,7 @@ impl Storage for GitFs {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = dir()
+        let path = super::storage_dir(DIR)
             .join(path)
             .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();
@@ -178,7 +174,7 @@ impl Storage for GitFs {
         let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir()
+        let path = super::storage_dir(DIR)
             .join(path)
             .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();
@@ -209,7 +205,7 @@ impl Storage for GitFs {
         let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
-        let path = dir()
+        let path = super::storage_dir(DIR)
             .join(path)
             .with_file_name(format!("{}.{}", filename, EXT));
 
@@ -228,13 +224,14 @@ impl Storage for GitFs {
     }
 
     fn search(&self, str: String) -> BazaR<()> {
-        let walker = WalkDir::new(dir()).into_iter();
+        let dir = super::storage_dir(DIR);
+        let walker = WalkDir::new(&dir).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let entry = entry?;
             let path = entry.path();
 
             if path.is_file() {
-                let path = path.strip_prefix(dir())?.with_extension("");
+                let path = path.strip_prefix(&dir)?.with_extension("");
                 let lossy = path
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
@@ -253,7 +250,7 @@ impl Storage for GitFs {
         let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
         let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
         let path: PathBuf = ptr.iter().collect();
-        let path = dir()
+        let path = super::storage_dir(DIR)
             .join(path)
             .with_file_name(format!("{}.{}", filename, EXT));
         let file = bundle.file.path().to_path_buf();

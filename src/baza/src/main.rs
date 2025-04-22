@@ -82,6 +82,9 @@ pub struct Cli {
     /// List all containers
     #[arg(short, long)]
     list: bool,
+    /// List all containers
+    #[arg(long)]
+    config: bool,
 }
 
 #[tokio::main]
@@ -119,6 +122,8 @@ pub async fn main() {
         container::generate(s)
     } else if args.list {
         container::search(String::from(".*"))
+    } else if args.config {
+        baza_core::generate_config()
     } else if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
         Ok(())

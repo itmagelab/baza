@@ -48,6 +48,7 @@ pub struct Config {
     pub main: MainConfig,
     pub gitfs: GitConfig,
     pub gix: GixConfig,
+    pub storage: StorageConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -59,7 +60,6 @@ pub struct MainConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GitConfig {
-    pub enable: Option<bool>,
     pub url: Option<String>,
     pub privatekey: Option<String>,
     pub passphrase: Option<String>,
@@ -67,7 +67,20 @@ pub struct GitConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GixConfig {
-    pub enable: Option<bool>,
+    pub url: Option<String>,
+    pub privatekey: Option<String>,
+    pub passphrase: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum r#Type {
+    Gitfs,
+    Gix,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StorageConfig {
+    pub r#type: r#Type,
 }
 
 impl Config {
@@ -80,13 +93,17 @@ impl Config {
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
             },
             gitfs: GitConfig {
-                enable: Some(true),
                 url: None,
                 privatekey: None,
                 passphrase: None,
             },
             gix: GixConfig {
-                enable: Some(false),
+                url: None,
+                privatekey: None,
+                passphrase: None,
+            },
+            storage: StorageConfig {
+                r#type: r#Type::Gitfs,
             },
         }
     }
@@ -112,6 +129,13 @@ impl Config {
     pub fn get() -> Arc<Self> {
         CTX.get_or_init(|| Arc::new(Config::init())).clone()
     }
+}
+
+pub fn generate_config() -> BazaR<()> {
+    let config = Config::new();
+    let toml = toml::to_string(&config).expect("Failed to serialize struct");
+    m(&toml, MessageType::Clean);
+    Ok(())
 }
 
 pub type BazaR<T> = Result<T, Error>;

@@ -1,6 +1,11 @@
 pub mod gitfs;
+pub mod gix;
 
 use crate::{bundle::Bundle, BazaR, Config};
+
+pub fn storage_dir(dir: &'static str) -> std::path::PathBuf {
+    std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, dir))
+}
 
 trait Storage {
     fn create(&self, bundle: Bundle, replace: bool) -> BazaR<()>;
@@ -12,57 +17,65 @@ trait Storage {
 }
 
 pub fn initialize() -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::initialize()?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::initialize()?,
+        crate::r#Type::Gix => gix::initialize()?,
+    };
     Ok(())
 }
 
 pub(crate) fn create(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.create(bundle, true)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.create(bundle, true)?,
+        crate::r#Type::Gix => gix::Gix.create(bundle, true)?,
+    };
     Ok(())
 }
 
 pub(crate) fn read(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.read(bundle)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.read(bundle)?,
+        crate::r#Type::Gix => gix::Gix.read(bundle)?,
+    };
     Ok(())
 }
 
 pub(crate) fn update(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.update(bundle)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.update(bundle)?,
+        crate::r#Type::Gix => (),
+    };
     Ok(())
 }
 
 pub(crate) fn delete(bundle: Bundle) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.delete(bundle)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.delete(bundle)?,
+        crate::r#Type::Gix => (),
+    };
     Ok(())
 }
 
 pub fn sync() -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::sync()?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::sync()?,
+        crate::r#Type::Gix => (),
+    };
     Ok(())
 }
 
 pub fn search(str: String) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.search(str)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.search(str)?,
+        crate::r#Type::Gix => (),
+    };
     Ok(())
 }
 
 pub(crate) fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
-    if Config::get().gitfs.enable.unwrap_or(false) {
-        gitfs::GitFs.copy_to_clipboard(bundle, ttl)?;
-    }
+    match Config::get().storage.r#type {
+        crate::r#Type::Gitfs => gitfs::GitFs.copy_to_clipboard(bundle, ttl)?,
+        crate::r#Type::Gix => (),
+    };
     Ok(())
 }
