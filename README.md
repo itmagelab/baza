@@ -3,7 +3,7 @@
 ![RUST](https://github.com/itmagelab/baza/actions/workflows/rust.yaml/badge.svg)
 ![DOCKER](https://github.com/itmagelab/baza/actions/workflows/docker.yaml/badge.svg)
 
-![demo](contrib/Baza.gif)
+![demo](https://s697sas.storage.yandex.net/rdisk/a71dc8ecd15df180eff2883d6a7746506613baf9269c1d955e9dae9cb2851f2e/67e66215/TKGbzFHPUiRnpMvxkjcVTzg6SSbru5ud87MQEiOF2ng9vR7459uw0IyCdo9cHVO58LAxdQxcxr5cXD-pGM8NSg==?uid=0&filename=Baza.gif&disposition=inline&hash=&limit=0&content_type=image%2Fgif&owner_uid=0&fsize=998298&hid=ce66e3a721af9c798e3c1e9753c525f3&media_type=image&tknv=v2&etag=f3f0fb3a51d76aa3c88a1639ad1383b1&ts=631631e1cef40&s=29d6368812c0fc49a8e0bff14f6ad0160181f226191365e6cb164d0f1e646d19&pb=U2FsdGVkX1_M8BHS0aOOHmiHmylOwdDpED0ajs-fsPxvL2K6O2cuUDdCOB0Fa7ZQ5iY54OWSsoKadgXSV3IlsWxfF-qlehuIYzaXku0unkE)
 
 ## Description
 
