@@ -19,3 +19,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 tracing = { workspace = true }
 sequoia-openpgp = { workspace = true }
 toml = { workspace = true }
+anyhow.workspace = true

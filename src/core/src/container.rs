@@ -34,7 +34,7 @@ impl ContainerBuilder {
             .split(&Config::get().main.box_delimiter)
             .collect();
         let Some(bundle) = pack.pop() else {
-            return Err(Error::TooFewArguments);
+            return Err(Error::TooFewArguments.into());
         };
         pack.reverse();
         while let Some(r#box) = pack.pop() {
@@ -63,7 +63,7 @@ impl ContainerBuilder {
                 .bundles
                 .push(Rc::new(RefCell::new(bundle)));
         } else {
-            return Err(Error::AtLeastOneBoxRequired);
+            return Err(Error::AtLeastOneBoxRequired.into());
         }
         Ok(self)
     }

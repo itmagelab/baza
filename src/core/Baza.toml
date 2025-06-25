@@ -8,4 +8,4 @@ bundle_delimiter = ","
 [gix]
 
 [storage]
-type = "Gix"
+type = "Sled"

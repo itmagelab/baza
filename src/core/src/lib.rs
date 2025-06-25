@@ -9,11 +9,13 @@ use colored::Colorize;
 use core::str;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+use std::any;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
+use storage::{gitfs, gix};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -76,6 +78,7 @@ pub struct GixConfig {
 pub enum r#Type {
     Gitfs,
     Gix,
+    Sled,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -138,7 +141,7 @@ pub fn generate_config() -> BazaR<()> {
     Ok(())
 }
 
-pub type BazaR<T> = Result<T, Error>;
+pub type BazaR<T> = anyhow::Result<T>;
 
 pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool) -> BazaR<String> {
     let latters = "abcdefghijklmnopqrstuvwxyz\
@@ -156,7 +159,7 @@ pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool
 
     Ok((0..length)
         .map(|_| {
-            let idx = rand::thread_rng().gen_range(0..chars.len());
+            let idx = rand::rng().random_range(0..chars.len());
             chars[idx] as char
         })
         .collect())
@@ -213,7 +216,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
         Err(_) => {
-            return Err(Error::KeyNotFound);
+            return Err(Error::KeyNotFound.into());
         }
     };
     Ok(data)
@@ -296,5 +299,7 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let ciphertext = &ciphertext[12..];
-    cipher.decrypt(nonce, ciphertext).map_err(Error::Decription)
+    Ok(cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(Error::Decription)?)
 }
