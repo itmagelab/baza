@@ -156,7 +156,7 @@ pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool
 
     Ok((0..length)
         .map(|_| {
-            let idx = rand::thread_rng().gen_range(0..chars.len());
+            let idx = rand::rng().random_range(0..chars.len());
             chars[idx] as char
         })
         .collect())
