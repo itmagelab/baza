@@ -48,6 +48,7 @@ pub struct Config {
     pub main: MainConfig,
     pub gitfs: GitConfig,
     pub gix: GixConfig,
+    pub sled: SledConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -55,6 +56,7 @@ pub struct MainConfig {
     pub datadir: String,
     pub box_delimiter: String,
     pub bundle_delimiter: String,
+    pub storage: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -63,6 +65,10 @@ pub struct GitConfig {
     pub url: Option<String>,
     pub privatekey: Option<String>,
     pub passphrase: Option<String>,
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SledConfig {
+    pub enable: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,6 +84,7 @@ impl Config {
                 box_delimiter: String::from(BOX_DELIMITER),
                 bundle_delimiter: String::from(BUNDLE_DELIMITER),
                 datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
+                storage: String::from("sled"),
             },
             gitfs: GitConfig {
                 enable: Some(true),
@@ -86,6 +93,9 @@ impl Config {
                 passphrase: None,
             },
             gix: GixConfig {
+                enable: Some(false),
+            },
+            sled: SledConfig {
                 enable: Some(false),
             },
         }
