@@ -114,7 +114,7 @@ impl Config {
             fs::read_to_string("Baza.toml").expect("Failed to read config file")
         } else {
             let home = std::env::var("HOME").unwrap();
-            let config_path = format!("{}/.Baza.toml", home);
+            let config_path = format!("{home}/.Baza.toml");
             if !Path::new(&config_path).exists() {
                 tracing::info!("A new configuration file has been created");
                 let config = Config::new();
@@ -227,28 +227,28 @@ pub fn m(msg: &str, r#type: MessageType) {
         MessageType::Warning => &format!("{}", msg.bright_yellow()),
         MessageType::Error => &format!("{}", msg.bright_red()),
     };
-    print!("{}", msg);
+    print!("{msg}");
 }
 
 // TODO: Make with NamedTmpFolder
 /// Cleanup temporary files
 pub fn cleanup_tmp_folder() -> BazaR<()> {
     let datadir = &Config::get().main.datadir;
-    let tmpdir = format!("{}/tmp", datadir);
+    let tmpdir = format!("{datadir}/tmp");
     if std::fs::remove_dir_all(&tmpdir)
         .map_err(Error::CleanupTmpFolder)
         .is_err()
     {
         tracing::debug!("Tmp folder already cleaned");
     };
-    std::fs::create_dir_all(format!("{}/tmp", datadir)).map_err(Error::CleanupTmpFolder)?;
+    std::fs::create_dir_all(format!("{datadir}/tmp")).map_err(Error::CleanupTmpFolder)?;
     Ok(())
 }
 
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
     // Create common folders
     let datadir = &Config::get().main.datadir;
-    fs::create_dir_all(format!("{}/data", datadir))?;
+    fs::create_dir_all(format!("{datadir}/data"))?;
     storage::initialize()?;
 
     // Initialize the default key
@@ -275,7 +275,7 @@ pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
 pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let mut nonce = [0u8; 12];
-    rand::thread_rng().fill(&mut nonce);
+    rand::rng().fill(&mut nonce);
     let nonce = Nonce::from_slice(&nonce);
     let ciphertext = cipher
         .encrypt(nonce, plaintext)

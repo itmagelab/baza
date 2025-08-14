@@ -138,7 +138,7 @@ impl Storage for GitFs {
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
             .join(path)
-            .with_file_name(format!("{}.{}", filename, EXT));
+            .with_file_name(format!("{filename}.{EXT}"));
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -154,7 +154,7 @@ impl Storage for GitFs {
         let path: PathBuf = ptr.iter().collect();
         let path = super::storage_dir(DIR)
             .join(path)
-            .with_file_name(format!("{}.{}", filename, EXT));
+            .with_file_name(format!("{filename}.{EXT}"));
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
@@ -176,7 +176,7 @@ impl Storage for GitFs {
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
             .join(path)
-            .with_file_name(format!("{}.{}", filename, EXT));
+            .with_file_name(format!("{filename}.{EXT}"));
         let file = bundle.file.path().to_path_buf();
 
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
@@ -207,7 +207,7 @@ impl Storage for GitFs {
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
             .join(path)
-            .with_file_name(format!("{}.{}", filename, EXT));
+            .with_file_name(format!("{filename}.{EXT}"));
 
         if path.is_file() {
             std::fs::remove_file(&path)?;
@@ -238,7 +238,7 @@ impl Storage for GitFs {
 
                 let re = regex::Regex::new(&str)?;
                 if re.is_match(&lossy) {
-                    m(&format!("{}\n", lossy), MessageType::Clean);
+                    m(&format!("{lossy}\n"), MessageType::Clean);
                 }
             }
         }
@@ -252,7 +252,7 @@ impl Storage for GitFs {
         let path: PathBuf = ptr.iter().collect();
         let path = super::storage_dir(DIR)
             .join(path)
-            .with_file_name(format!("{}.{}", filename, EXT));
+            .with_file_name(format!("{filename}.{EXT}"));
         let file = bundle.file.path().to_path_buf();
 
         std::fs::copy(path, &file)?;
@@ -269,10 +269,7 @@ impl Storage for GitFs {
 
         let ttl_duration = std::time::Duration::new(ttl, 0);
 
-        let message = format!(
-            "Copied to clipboard. Will clear in {} seconds.",
-            TTL_SECONDS
-        );
+        let message = format!("Copied to clipboard. Will clear in {TTL_SECONDS} seconds.");
         println!("{}", message.bright_yellow().bold());
         // TODO: This is start after sleep
         // m(&message, crate::MessageType::Data);
