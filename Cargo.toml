@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["src/baza", "src/core"]
-default-members = ["src/baza"]
+members = ["crates/*"]
+default-members = ["crates/baza"]
 
 [workspace.package]
 version = "2.9.0"
@@ -11,25 +11,25 @@ license = "Apache-2.0"
 description = "The base password manager"
 
 [workspace.dependencies]
-baza_core = { path = "src/core", version = "2.6.1" }
-thiserror = "2.0.1"
+baza_core = { path = "crates/baza-core", version = "2.6.1" }
+thiserror = "2.0.14"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 walkdir = "2.5.0"
-anyhow = "1.0.94"
+anyhow = "1.0.99"
 sequoia-openpgp = "2.0.0"
-toml = "0.8.20"
-serde = "1.0.217"
-tempfile = "3.14.0"
-rand = "0.9.1"
+toml = "0.9.5"
+serde = "1.0.219"
+tempfile = "3.20.0"
+rand = "0.9.2"
 aes = "0.8.4"
 aes-gcm = "0.10.3"
-uuid = { version = "1.11.0" }
+uuid = { version = "1.18.0" }
 colored = "3.0.0"
-sha2 = "0.10.8"
-arboard = "3.4.1"
-git2 = "0.20.0"
-clap = { version = "4.5.20" }
-tokio = { version = "1.41.1" }
+sha2 = "0.10.9"
+arboard = "3.6.0"
+git2 = "0.20.2"
+clap = { version = "4.5.45" }
+tokio = { version = "1.47.1" }
 regex = "1.11.1"
-gix = "0.72.1"
+gix = "0.73.0"
