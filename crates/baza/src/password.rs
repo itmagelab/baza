@@ -1,4 +1,4 @@
-use baza_core::{error::Error, generate};
+use baza_core::{container, generate, BazaR};
 use std::io::{self, Write};
 
 use clap::{command, value_parser, Args as ClapArgs, Subcommand};
@@ -21,10 +21,17 @@ pub(crate) enum Commands {
         #[arg(long, default_value_t = false)]
         no_numbers: bool,
     },
+    Add {
+        name: String,
+    },
 }
 
-pub(crate) fn handle(args: Args) -> Result<(), Error> {
+pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
+        Commands::Add { name } => {
+            container::generate(name)?;
+            Ok(())
+        }
         Commands::Generate {
             length,
             no_latters,
@@ -33,7 +40,9 @@ pub(crate) fn handle(args: Args) -> Result<(), Error> {
         } => {
             let mut stdout = io::stdout();
             if no_latters && no_symbols && no_numbers {
-                return Err(Error::MustSpecifyAtLeastOne);
+                anyhow::bail!(
+                    "at least one of --no-latters, --no-symbols or --no-numbers must be specified"
+                );
             };
             writeln!(
                 stdout,

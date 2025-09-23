@@ -37,7 +37,7 @@ impl Bundle {
         })
     }
 
-    pub(crate) fn ptr(&self) -> Vec<String> {
+    fn ptr(&self) -> Vec<String> {
         let mut pointer = self
             .parent
             .as_ref()
@@ -49,7 +49,6 @@ impl Bundle {
     }
 
     pub(crate) fn create(&self, data: Option<String>) -> BazaR<()> {
-        tracing::debug!("Creating bundle {:?}", &self.file);
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let file = self.file.path().to_path_buf();

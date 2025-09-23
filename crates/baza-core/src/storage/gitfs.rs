@@ -11,8 +11,8 @@ use git2::{IndexAddOption, Repository, Signature, Tree};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
-    decrypt_file, encrypt_file, error::Error, m, storage::Storage, BazaR, Config, MessageType,
-    DEFAULT_AUTHOR, DEFAULT_EMAIL, TTL_SECONDS,
+    decrypt_file, encrypt_file, m, storage::Storage, BazaR, Config, MessageType, DEFAULT_AUTHOR,
+    DEFAULT_EMAIL, TTL_SECONDS,
 };
 
 use super::Bundle;
@@ -56,7 +56,7 @@ fn commit(msg: String) -> BazaR<()> {
                 &signature,
                 &msg,
                 &tree,
-                &[&parrent_commit.ok_or(Error::CommonBazaError)?],
+                &[&parrent_commit.ok_or_else(|| anyhow::anyhow!("Parrent commit not found"))?],
             )?;
         };
     } else {
@@ -132,8 +132,12 @@ pub fn sync() -> BazaR<()> {
 
 impl Storage for GitFs {
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
-        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
-        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
+        let ptr = bundle
+            .ptr
+            .ok_or_else(|| anyhow::anyhow!("Pointer not found"))?;
+        let filename = ptr
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Must specify at least one"))?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
@@ -149,8 +153,12 @@ impl Storage for GitFs {
     }
 
     fn read(&self, bundle: Bundle) -> BazaR<()> {
-        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
-        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
+        let ptr = bundle
+            .ptr
+            .ok_or_else(|| anyhow::anyhow!("Pointer not found"))?;
+        let filename = ptr
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Must specify at least one"))?;
         let path: PathBuf = ptr.iter().collect();
         let path = super::storage_dir(DIR)
             .join(path)
@@ -170,8 +178,12 @@ impl Storage for GitFs {
     }
 
     fn update(&self, bundle: Bundle) -> BazaR<()> {
-        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
-        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
+        let ptr = bundle
+            .ptr
+            .ok_or_else(|| anyhow::anyhow!("Pointer not found"))?;
+        let filename = ptr
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Must specify at least one"))?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
@@ -201,8 +213,12 @@ impl Storage for GitFs {
     }
 
     fn delete(&self, bundle: Bundle) -> BazaR<()> {
-        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
-        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
+        let ptr = bundle
+            .ptr
+            .ok_or_else(|| anyhow::anyhow!("Pointer not found"))?;
+        let filename = ptr
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Must specify at least one"))?;
         let path: PathBuf = ptr.iter().collect();
         let name = ptr.join(&Config::get().main.box_delimiter);
         let path = super::storage_dir(DIR)
@@ -223,7 +239,7 @@ impl Storage for GitFs {
         Ok(())
     }
 
-    fn search(&self, str: String) -> BazaR<()> {
+    fn search(&self, pattern: String) -> BazaR<()> {
         let dir = super::storage_dir(DIR);
         let walker = WalkDir::new(&dir).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
@@ -236,7 +252,7 @@ impl Storage for GitFs {
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
 
-                let re = regex::Regex::new(&str)?;
+                let re = regex::Regex::new(&pattern)?;
                 if re.is_match(&lossy) {
                     m(&format!("{lossy}\n"), MessageType::Clean);
                 }
@@ -247,8 +263,12 @@ impl Storage for GitFs {
 
     fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()?;
-        let ptr = bundle.ptr.ok_or(Error::NoPointerFound)?;
-        let filename = ptr.last().ok_or(Error::MustSpecifyAtLeastOne)?;
+        let ptr = bundle
+            .ptr
+            .ok_or_else(|| anyhow::anyhow!("Pointer not found"))?;
+        let filename = ptr
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Must specify at least one"))?;
         let path: PathBuf = ptr.iter().collect();
         let path = super::storage_dir(DIR)
             .join(path)

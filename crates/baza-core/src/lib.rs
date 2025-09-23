@@ -17,7 +17,6 @@ use std::sync::{Arc, OnceLock};
 use tracing::instrument;
 use uuid::Uuid;
 
-use error::Error;
 use rand::Rng;
 
 pub(crate) mod r#box;
@@ -47,7 +46,6 @@ pub enum MessageType {
 pub struct Config {
     pub main: MainConfig,
     pub gitfs: GitConfig,
-    pub gix: GixConfig,
     pub storage: StorageConfig,
 }
 
@@ -66,16 +64,9 @@ pub struct GitConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct GixConfig {
-    pub url: Option<String>,
-    pub privatekey: Option<String>,
-    pub passphrase: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub enum r#Type {
     Gitfs,
-    Gix,
+    Redb,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -90,38 +81,33 @@ impl Config {
             main: MainConfig {
                 box_delimiter: String::from(BOX_DELIMITER),
                 bundle_delimiter: String::from(BUNDLE_DELIMITER),
-                datadir: format!("{}/{}", home, String::from(BAZA_DIR)),
+                datadir: format!("{home}/{BAZA_DIR}"),
             },
             gitfs: GitConfig {
                 url: None,
                 privatekey: None,
                 passphrase: None,
             },
-            gix: GixConfig {
-                url: None,
-                privatekey: None,
-                passphrase: None,
-            },
             storage: StorageConfig {
-                r#type: r#Type::Gitfs,
+                r#type: r#Type::Redb,
             },
         }
     }
 
     fn init() -> Self {
-        let config_str: String = if Path::new("Baza.toml").exists() {
-            tracing::debug!("Use config in current folder Baza.toml");
-            fs::read_to_string("Baza.toml").expect("Failed to read config file")
+        let home = std::env::var("HOME").unwrap();
+        let config_path = format!("{home}/.config/baza");
+        let config_file = format!("{config_path}/baza.toml");
+        fs::create_dir_all(&config_path).unwrap();
+
+        let config_str: String = if Path::new(&config_file).exists() {
+            fs::read_to_string(&config_file).expect("Failed to read config file")
         } else {
-            let home = std::env::var("HOME").unwrap();
-            let config_path = format!("{home}/.Baza.toml");
-            if !Path::new(&config_path).exists() {
-                tracing::info!("A new configuration file has been created");
-                let config = Config::new();
-                let toml = toml::to_string(&config).expect("Failed to serialize struct");
-                fs::write(&config_path, toml).expect("Failed to write config file");
-            };
-            fs::read_to_string(config_path).expect("Failed to read config file")
+            tracing::info!("A new configuration file has been created");
+            let config = Config::new();
+            let toml = toml::to_string(&config).expect("Failed to serialize struct");
+            fs::write(&config_file, toml).expect("Failed to write config file");
+            fs::read_to_string(&config_file).expect("Failed to read config file")
         };
         toml::from_str(&config_str).expect("Failed to parse TOML")
     }
@@ -138,7 +124,7 @@ pub fn generate_config() -> BazaR<()> {
     Ok(())
 }
 
-pub type BazaR<T> = Result<T, Error>;
+pub type BazaR<T> = anyhow::Result<T>;
 
 pub fn generate(length: u8, no_latters: bool, no_symbols: bool, no_numbers: bool) -> BazaR<String> {
     let latters = "abcdefghijklmnopqrstuvwxyz\
@@ -213,7 +199,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     let data = match fs::read(key_file()) {
         Ok(data) => data,
         Err(_) => {
-            return Err(Error::KeyNotFound);
+            anyhow::bail!("Failed to read key");
         }
     };
     Ok(data)
@@ -235,13 +221,10 @@ pub fn m(msg: &str, r#type: MessageType) {
 pub fn cleanup_tmp_folder() -> BazaR<()> {
     let datadir = &Config::get().main.datadir;
     let tmpdir = format!("{datadir}/tmp");
-    if std::fs::remove_dir_all(&tmpdir)
-        .map_err(Error::CleanupTmpFolder)
-        .is_err()
-    {
+    if std::fs::remove_dir_all(&tmpdir).is_err() {
         tracing::debug!("Tmp folder already cleaned");
     };
-    std::fs::create_dir_all(format!("{datadir}/tmp")).map_err(Error::CleanupTmpFolder)?;
+    std::fs::create_dir_all(format!("{datadir}/tmp"))?;
     Ok(())
 }
 
@@ -277,9 +260,7 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let mut nonce = [0u8; 12];
     rand::rng().fill(&mut nonce);
     let nonce = Nonce::from_slice(&nonce);
-    let ciphertext = cipher
-        .encrypt(nonce, plaintext)
-        .map_err(Error::Encription)?;
+    let ciphertext = cipher.encrypt(nonce, plaintext)?;
     Ok([nonce.as_slice(), &ciphertext].concat())
 }
 
@@ -296,7 +277,7 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let ciphertext = &ciphertext[12..];
-    cipher.decrypt(nonce, ciphertext).map_err(Error::Decription)
+    Ok(cipher.decrypt(nonce, ciphertext)?)
 }
 
 #[cfg(test)]

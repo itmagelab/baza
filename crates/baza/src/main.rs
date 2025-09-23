@@ -1,6 +1,6 @@
 //! This project is created as an alternative to password-store,
 //! but written in a low-level language with additional features
-use baza_core::{cleanup_tmp_folder, container, error::Error, sync, Config};
+use baza_core::{cleanup_tmp_folder, container, sync, BazaR};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -43,6 +43,24 @@ pub(crate) enum Commands {
     Bundle(bundle::Args),
     /// Generating a password
     Password(password::Args),
+    None,
+}
+
+impl Commands {
+    fn run(self) -> BazaR<()> {
+        match self {
+            Commands::Password(s) => password::handle(s)?,
+            Commands::Bundle(s) => bundle::handle(s)?,
+            Commands::Init { passphrase } => baza_core::init(passphrase)?,
+            Commands::Unlock => baza_core::unlock(None)?,
+            Commands::Lock => baza_core::lock()?,
+            Commands::Sync => sync()?,
+            Commands::None => {
+                Cli::command().print_long_help()?;
+            }
+        };
+        Ok(())
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -57,7 +75,7 @@ pub struct Cli {
     #[arg(long, value_name = "BUNDLE")]
     stdin: Option<String>,
     /// Generate default bundle
-    #[arg(short, long, value_name = "BUNDLE")]
+    #[arg(short, long, value_name = "BUNDLE", num_args = 0..=1)]
     generate: Option<String>,
     /// Edit exists bundle of passwords
     #[arg(short, long, value_name = "BUNDLE")]
@@ -82,9 +100,6 @@ pub struct Cli {
     /// List all containers
     #[arg(short, long)]
     list: bool,
-    /// List all containers
-    #[arg(long)]
-    config: bool,
 }
 
 #[tokio::main]
@@ -101,49 +116,73 @@ pub async fn main() {
         .with_filter(filter);
     tracing_subscriber::registry().with(fmt).init();
 
-    tracing::debug!(datadir = &Config::get().main.datadir, "Use datadir");
-
     let args = Cli::parse();
-    let result = if let Some(s) = args.copy {
-        container::copy_to_clipboard(s)
-    } else if let Some(s) = args.show {
-        container::read(s)
-    } else if let Some(s) = args.edit {
-        container::update(s)
-    } else if let Some(s) = args.delete {
-        container::delete(s)
-    } else if let Some(s) = args.search {
-        container::search(s)
-    } else if let Some(s) = args.add {
-        container::add(s, None)
-    } else if let Some(s) = args.stdin {
-        container::from_stdin(s)
-    } else if let Some(s) = args.generate {
-        container::generate(s)
-    } else if args.list {
-        container::search(String::from(".*"))
-    } else if args.config {
-        baza_core::generate_config()
-    } else if args.version {
+
+    let mut command = Commands::None;
+
+    if let Some(c) = args.command {
+        command = c;
+    };
+
+    if let Some(name) = args.copy {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Copy { name },
+        });
+    };
+
+    if let Some(name) = args.show {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Show { name },
+        });
+    };
+
+    if let Some(name) = args.edit {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Edit { name },
+        });
+    };
+
+    if let Some(name) = args.delete {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Delete { name },
+        });
+    };
+
+    if let Some(name) = args.search {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Search { name },
+        });
+    };
+
+    if let Some(name) = args.add {
+        command = Commands::Bundle(bundle::Args {
+            command: bundle::Commands::Add { name },
+        });
+    };
+
+    if let Some(str) = args.stdin {
+        container::from_stdin(str).ok();
+        return;
+    };
+
+    if let Some(name) = args.generate {
+        command = Commands::Password(password::Args {
+            command: password::Commands::Add { name },
+        });
+    };
+
+    if args.list {
+        container::search(String::from(".*")).ok();
+        return;
+    };
+
+    if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
-        Ok(())
-    } else if let Some(command) = args.command {
-        match command {
-            Commands::Password(s) => password::handle(s),
-            Commands::Bundle(s) => bundle::handle(s),
-            Commands::Init { passphrase } => baza_core::init(passphrase),
-            Commands::Unlock => baza_core::unlock(None),
-            Commands::Lock => baza_core::lock(),
-            Commands::Sync => sync(),
-        }
-    } else {
-        Cli::command().print_long_help().map_err(Error::IO)
+        return;
     };
-    match result {
-        Ok(_) => (),
-        Err(err) => {
-            tracing::error!(error = ?err, "{err}");
-            std::process::exit(1);
-        }
-    };
+
+    if let Err(err) = command.run() {
+        tracing::error!(?err);
+        std::process::exit(1);
+    }
 }

@@ -34,7 +34,7 @@ impl ContainerBuilder {
             .split(&Config::get().main.box_delimiter)
             .collect();
         let Some(bundle) = pack.pop() else {
-            return Err(Error::TooFewArguments);
+            anyhow::bail!("Failed to parse container name");
         };
         pack.reverse();
         while let Some(r#box) = pack.pop() {
@@ -63,7 +63,7 @@ impl ContainerBuilder {
                 .bundles
                 .push(Rc::new(RefCell::new(bundle)));
         } else {
-            return Err(Error::AtLeastOneBoxRequired);
+            anyhow::bail!("Failed to add bundle to empty container");
         }
         Ok(self)
     }
@@ -86,7 +86,7 @@ impl Container {
             let bundle = r#box
                 .bundles
                 .first()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
             let bundle = bundle.borrow();
             bundle.create(data)?;
         }
@@ -100,9 +100,9 @@ impl Container {
             let bundle = r#box
                 .bundles
                 .pop()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| Error::CommonBazaError)?
+                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
                 .into_inner();
             storage::read(bundle)?;
         }
@@ -116,9 +116,9 @@ impl Container {
             let bundle = r#box
                 .bundles
                 .pop()
-                .ok_or(Error::BundlesIsEmpty { r#box: box_name })?;
+                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| Error::CommonBazaError)?
+                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
                 .into_inner();
             storage::update(bundle)?;
         }
@@ -130,7 +130,7 @@ impl Container {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let bundle = Rc::try_unwrap(bundle)
-                    .map_err(|_| Error::CommonBazaError)?
+                    .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
                     .into_inner();
                 storage::delete(bundle)?;
             }
@@ -143,7 +143,7 @@ impl Container {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let bundle = Rc::try_unwrap(bundle)
-                    .map_err(|_| Error::CommonBazaError)?
+                    .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
                     .into_inner();
                 storage::create(bundle)?;
             }
@@ -177,10 +177,13 @@ impl Container {
     fn copy_to_clipboard(self, ttl: u64) -> BazaR<()> {
         if let Some(r#box) = self.boxes.last() {
             let mut r#box = r#box.borrow_mut();
-            let bundle = r#box.bundles.pop().ok_or(Error::CommonBazaError)?;
+            let bundle = r#box
+                .bundles
+                .pop()
+                .ok_or_else(|| anyhow::anyhow!("The box have not bundles"))?;
             // bundle.copy_to_clipboard(self.ptr(&r#box, &bundle)?, ttl)?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| Error::CommonBazaError)?
+                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
                 .into_inner();
             storage::copy_to_clipboard(bundle, ttl)?;
         }
