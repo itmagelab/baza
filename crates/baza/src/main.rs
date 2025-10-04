@@ -43,7 +43,6 @@ pub(crate) enum Commands {
     Bundle(bundle::Args),
     /// Generating a password
     Password(password::Args),
-    None,
 }
 
 impl Commands {
@@ -55,9 +54,6 @@ impl Commands {
             Commands::Unlock => baza_core::unlock(None)?,
             Commands::Lock => baza_core::lock()?,
             Commands::Sync => sync()?,
-            Commands::None => {
-                Cli::command().print_long_help()?;
-            }
         };
         Ok(())
     }
@@ -118,46 +114,46 @@ pub async fn main() {
 
     let args = Cli::parse();
 
-    let mut command = Commands::None;
+    let mut command = None;
 
     if let Some(c) = args.command {
-        command = c;
+        command = Some(c);
     };
 
     if let Some(name) = args.copy {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Copy { name },
-        });
+        }));
     };
 
     if let Some(name) = args.show {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Show { name },
-        });
+        }));
     };
 
     if let Some(name) = args.edit {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Edit { name },
-        });
+        }));
     };
 
     if let Some(name) = args.delete {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Delete { name },
-        });
+        }));
     };
 
     if let Some(name) = args.search {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Search { name },
-        });
+        }));
     };
 
     if let Some(name) = args.add {
-        command = Commands::Bundle(bundle::Args {
+        command = Some(Commands::Bundle(bundle::Args {
             command: bundle::Commands::Add { name },
-        });
+        }));
     };
 
     if let Some(str) = args.stdin {
@@ -166,9 +162,9 @@ pub async fn main() {
     };
 
     if let Some(name) = args.generate {
-        command = Commands::Password(password::Args {
+        command = Some(Commands::Password(password::Args {
             command: password::Commands::Add { name },
-        });
+        }));
     };
 
     if args.list {
@@ -181,8 +177,15 @@ pub async fn main() {
         return;
     };
 
-    if let Err(err) = command.run() {
-        tracing::error!(?err);
-        std::process::exit(1);
+    match command {
+        Some(cmd) => {
+            if let Err(err) = cmd.run() {
+                tracing::error!(?err);
+                std::process::exit(1);
+            }
+        }
+        None => {
+            Cli::command().print_long_help().ok();
+        }
     }
 }
