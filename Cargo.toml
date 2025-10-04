@@ -14,7 +14,7 @@ description = "The base password manager"
 baza_core = { path = "crates/baza-core", version = "2.6.1" }
 thiserror = "2.0.14"
 tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 walkdir = "2.5.0"
 anyhow = "1.0.99"
 sequoia-openpgp = "2.0.0"
