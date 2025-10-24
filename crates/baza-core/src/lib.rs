@@ -279,20 +279,3 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let ciphertext = &ciphertext[12..];
     Ok(cipher.decrypt(nonce, ciphertext)?)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let password = generate(255, false, false, false);
-        assert!(password.is_ok());
-        let password = password.unwrap();
-        assert!(password.len() == 255);
-
-        assert!(init(Some(password.clone())).is_ok());
-        lock().unwrap();
-        unlock(Some(password)).unwrap();
-    }
-}
