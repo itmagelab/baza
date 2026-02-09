@@ -207,7 +207,7 @@ impl StorageBackend for Redb {
             .open_table(TABLE)
             .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
 
-        let re = regex::Regex::new(&pattern)
+        let re = regex_lite::Regex::new(&pattern)
             .or_raise(|| crate::error::Error::Message("Invalid search pattern".into()))?;
 
         for result in table

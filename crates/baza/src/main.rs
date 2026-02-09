@@ -1,203 +1,190 @@
+use argh::FromArgs;
 use baza_core::{cleanup_tmp_folder, container, sync, BazaR};
 use exn::ResultExt;
-
-use clap::{CommandFactory, Parser, Subcommand};
 
 mod bundle;
 mod password;
 
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
-
-#[derive(Debug, Subcommand)]
-#[command(
-    about = "Baza: The base password manager",
-    override_usage = r#"baza [-a <bundle> | --add <bundle>] [-d <bundle> | --delete <bundle>]
-            [-e <bundle> | --edit <bundle>] [-c <bundle> | --copy <bundle>]
-            [-s <bundle> | --search <bundle>] [-p <bundle> | --show <bundle>]
-            [-v | --version] [-h | --help] [-l | --list]
-            [<command>] [<args>]
-
-    "#,
-    long_about = r#"
-        +-+-+-+-+
-        |B|A|Z|A|
-        +-+-+-+-+
-
-The base password manager
-"#
-)]
-pub(crate) enum Commands {
-    /// Unlock database
-    Unlock,
-    /// Lock database
-    Lock,
-    /// Initializing the database
-    Init {
-        #[arg(short, long)]
-        passphrase: Option<String>,
-    },
-    /// Load database
-    Sync,
-    /// Work with passwords (bundles)
-    Bundle(bundle::Args),
-    /// Generating a password
-    Password(password::Args),
-    /// List all containers
-    List,
-    /// Show Version
-    Version,
-}
-
-impl Commands {
-    fn run(self) -> BazaR<()> {
-        match self {
-            Commands::Password(s) => password::handle(s)?,
-            Commands::Bundle(s) => bundle::handle(s)?,
-            Commands::Init { passphrase } => baza_core::init(passphrase)?,
-            Commands::Unlock => baza_core::unlock(None)?,
-            Commands::Lock => baza_core::lock()?,
-            Commands::Sync => sync()?,
-            Commands::List => {
-                container::search(String::from(".*"))?;
-            }
-            Commands::Version => {
-                println!("{}", env!("CARGO_PKG_VERSION"));
-            }
-        };
-        Ok(())
-    }
-}
-
-#[derive(Parser, Debug)]
-#[command(name = "baza", version)]
-pub struct Cli {
-    /// Adding bundle of passwords
-    #[arg(short, long, value_name = "BUNDLE")]
+#[derive(FromArgs, Debug)]
+/// Baza: The base password manager
+struct Cli {
+    /// adding bundle of passwords
+    #[argh(option, short = 'a')]
     add: Option<String>,
 
-    /// Create bundle from STDIN
-    #[arg(long, value_name = "BUNDLE")]
+    /// create bundle from STDIN
+    #[argh(option)]
     stdin: Option<String>,
 
-    /// Generate default bundle
-    #[arg(short, long, value_name = "BUNDLE", num_args = 0..=1)]
+    /// generate default bundle
+    #[argh(option, short = 'g')]
     generate: Option<String>,
 
-    /// Edit exists bundle of passwords
-    #[arg(short, long, value_name = "BUNDLE")]
+    /// edit exists bundle of passwords
+    #[argh(option, short = 'e')]
     edit: Option<String>,
 
-    /// Deleting a bundle
-    #[arg(short, long, value_name = "BUNDLE")]
+    /// deleting a bundle
+    #[argh(option, short = 'd')]
     delete: Option<String>,
 
-    /// Search bundle by name
-    #[arg(short, long, value_name = "REGEX")]
+    /// search bundle by name
+    #[argh(option, short = 's')]
     search: Option<String>,
 
-    /// Copy all bundle to clipboard
-    #[arg(short, long, value_name = "BUNDLE")]
+    /// copy all bundle to clipboard
+    #[argh(option, short = 'c')]
     copy: Option<String>,
 
-    /// Show content of bundle
-    #[arg(short = 'p', long, value_name = "BUNDLE")]
+    /// show content of bundle
+    #[argh(option, short = 'p')]
     show: Option<String>,
 
-    /// List all containers
-    #[arg(short, long)]
+    /// list all containers
+    #[argh(switch, short = 'l')]
     list: bool,
 
-    #[command(subcommand)]
+    #[argh(subcommand)]
     command: Option<Commands>,
 }
 
-impl Cli {
-    /// Maps top-level shortcut flags to their corresponding subcommands
-    fn get_command(self) -> Option<Commands> {
-        if self.list {
-            return Some(Commands::List);
-        }
-
-        if let Some(name) = self.copy {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Copy { name },
-            }));
-        }
-
-        if let Some(name) = self.show {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Show { name },
-            }));
-        }
-
-        if let Some(name) = self.edit {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Edit { name },
-            }));
-        }
-
-        if let Some(name) = self.delete {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Delete { name },
-            }));
-        }
-
-        if let Some(name) = self.search {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Search { name },
-            }));
-        }
-
-        if let Some(name) = self.add {
-            return Some(Commands::Bundle(bundle::Args {
-                command: bundle::Commands::Add { name },
-            }));
-        }
-
-        if let Some(name) = self.generate {
-            return Some(Commands::Password(password::Args {
-                command: password::Commands::Add { name },
-            }));
-        }
-
-        self.command
-    }
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
+enum Commands {
+    Unlock(UnlockArgs),
+    Lock(LockArgs),
+    Init(InitArgs),
+    Sync(SyncArgs),
+    Bundle(bundle::Args),
+    Password(password::Args),
+    List(ListArgs),
+    Version(VersionArgs),
 }
 
-#[tokio::main]
-pub async fn main() -> BazaR<()> {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "unlock")]
+/// Unlock database
+struct UnlockArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "lock")]
+/// Lock database
+struct LockArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "init")]
+/// Initializing the database
+struct InitArgs {
+    /// passphrase for the database
+    #[argh(option, short = 'p')]
+    passphrase: Option<String>,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "sync")]
+/// Load database
+struct SyncArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "list")]
+/// List all containers
+struct ListArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "version")]
+/// Show Version
+struct VersionArgs {}
+
+fn run_command(cmd: Commands) -> BazaR<()> {
+    match cmd {
+        Commands::Password(s) => password::handle(s)?,
+        Commands::Bundle(s) => bundle::handle(s)?,
+        Commands::Init(args) => baza_core::init(args.passphrase)?,
+        Commands::Unlock(_) => baza_core::unlock(None)?,
+        Commands::Lock(_) => baza_core::lock()?,
+        Commands::Sync(_) => sync()?,
+        Commands::List(_) => {
+            container::search(String::from(".*"))?;
+        }
+        Commands::Version(_) => {
+            println!("{}", env!("CARGO_PKG_VERSION"));
+        }
+    };
+    Ok(())
+}
+
+fn main() -> BazaR<()> {
+    simple_logger::init_with_level(log::Level::Info).ok();
 
     cleanup_tmp_folder().or_raise(|| {
         baza_core::error::Error::Message("Failed to cleanup temporary folder".into())
     })?;
 
-    let fmt = fmt::layer()
-        .with_target(false)
-        .without_time()
-        .compact()
-        .json()
-        .with_filter(filter);
-    tracing_subscriber::registry().with(fmt).init();
+    let args: Cli = argh::from_env();
 
-    let args = Cli::parse();
-
-    if let Some(str) = args.stdin.as_ref() {
-        container::from_stdin(str.clone()).or_raise(|| {
+    if let Some(str) = args.stdin {
+        container::from_stdin(str).or_raise(|| {
             baza_core::error::Error::Message("Failed to create bundle from STDIN".into())
         })?;
         return Ok(());
     };
 
-    match args.get_command() {
+    if args.list {
+        return run_command(Commands::List(ListArgs {}));
+    }
+
+    if let Some(name) = args.copy {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Copy(bundle::CopyArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.show {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Show(bundle::ShowArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.edit {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Edit(bundle::EditArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.delete {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Delete(bundle::DeleteArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.search {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Search(bundle::SearchArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.add {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Add(bundle::AddArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.generate {
+        return password::handle(password::Args {
+            command: password::SubCommands::Add(password::AddArgs { name }),
+        });
+    }
+
+    match args.command {
         Some(cmd) => {
-            if let Err(err) = cmd.run() {
+            if let Err(err) = run_command(cmd) {
                 tracing::error!(?err);
                 std::process::exit(1);
             }
         }
         None => {
-            Cli::command().print_long_help().ok();
+            println!("Baza: The base password manager");
+            println!("Use --help for usage information");
         }
     }
 

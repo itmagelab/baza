@@ -1,53 +1,104 @@
+use argh::FromArgs;
 use baza_core::{container, BazaR};
 
-use clap::{Args as ClapArgs, Subcommand};
-
-#[derive(Debug, ClapArgs)]
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "bundle")]
+/// Work with passwords (bundles)
 pub(crate) struct Args {
-    #[command(subcommand)]
-    pub(crate) command: Commands,
+    #[argh(subcommand)]
+    pub(crate) command: SubCommands,
 }
 
-#[derive(Debug, Subcommand)]
-pub(crate) enum Commands {
-    /// Create bundle of passwords
-    Add { name: String },
-    /// Generate a new bundle
-    Generate { name: String },
-    /// Edit exists bundle of passwords
-    Edit { name: String },
-    /// Deleting a bundle
-    Delete { name: String },
-    /// Search bundle by name
-    Search { name: String },
-    /// Copy all bundle to clipboard
-    Copy { name: String },
-    /// Show content of bundle
-    Show { name: String },
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
+pub(crate) enum SubCommands {
+    Add(AddArgs),
+    Generate(GenerateArgs),
+    Edit(EditArgs),
+    Delete(DeleteArgs),
+    Search(SearchArgs),
+    Copy(CopyArgs),
+    Show(ShowArgs),
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "add")]
+/// Create bundle of passwords
+pub(crate) struct AddArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "generate")]
+/// Generate a new bundle
+pub(crate) struct GenerateArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "edit")]
+/// Edit exists bundle of passwords
+pub(crate) struct EditArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "delete")]
+/// Deleting a bundle
+pub(crate) struct DeleteArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "search")]
+/// Search bundle by name
+pub(crate) struct SearchArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "copy")]
+/// Copy all bundle to clipboard
+pub(crate) struct CopyArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "show")]
+/// Show content of bundle
+pub(crate) struct ShowArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
-        Commands::Add { name } => {
-            container::add(name, None)?;
+        SubCommands::Add(args) => {
+            container::add(args.name, None)?;
         }
-        Commands::Generate { name } => {
-            container::generate(name)?;
+        SubCommands::Generate(args) => {
+            container::generate(args.name)?;
         }
-        Commands::Delete { name } => {
-            container::delete(name)?;
+        SubCommands::Delete(args) => {
+            container::delete(args.name)?;
         }
-        Commands::Edit { name } => {
-            container::update(name)?;
+        SubCommands::Edit(args) => {
+            container::update(args.name)?;
         }
-        Commands::Show { name } => {
-            container::read(name)?;
+        SubCommands::Show(args) => {
+            container::read(args.name)?;
         }
-        Commands::Search { name } => {
-            container::search(name)?;
+        SubCommands::Search(args) => {
+            container::search(args.name)?;
         }
-        Commands::Copy { name } => {
-            container::copy_to_clipboard(name)?;
+        SubCommands::Copy(args) => {
+            container::copy_to_clipboard(args.name)?;
         }
     };
     Ok(())

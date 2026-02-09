@@ -8,7 +8,6 @@ use std::{
 use arboard::Clipboard;
 use colored::Colorize;
 use exn::ResultExt;
-use git2::{IndexAddOption, Repository, Signature, Tree};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
@@ -21,22 +20,6 @@ use super::Bundle;
 const DIR: &str = "gitfs";
 const EXT: &str = "baza";
 
-pub struct GitFs;
-
-impl GitFs {}
-
-fn signature() -> Result<Signature<'static>, git2::Error> {
-    Signature::now(DEFAULT_AUTHOR, DEFAULT_EMAIL)
-}
-
-fn add_to_index(repo: &'_ Repository) -> Result<Tree<'_>, git2::Error> {
-    let mut index = repo.index()?;
-    index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
-    index.write()?;
-    let tree_oid = index.write_tree()?;
-    repo.find_tree(tree_oid)
-}
-
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
@@ -45,114 +28,112 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
+pub struct GitFs;
+
+impl GitFs {}
+
+fn git_cmd() -> Command {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(super::storage_dir(DIR));
+    cmd
+}
+
 fn commit(msg: String) -> BazaR<()> {
-    if let Ok(repo) = Repository::discover(super::storage_dir(DIR)) {
-        if let Ok(head) = repo.head() {
-            let tree = add_to_index(&repo)
-                .or_raise(|| crate::error::Error::Message("Failed to add to index".into()))?;
-            let signature = signature()
-                .or_raise(|| crate::error::Error::Message("Failed to get git signature".into()))?;
-            let parrent_commit =
-                Some(head.peel_to_commit().or_raise(|| {
-                    crate::error::Error::Message("Failed to peel to commit".into())
-                })?);
-            repo.commit(
-                Some("HEAD"),
-                &signature,
-                &signature,
-                &msg,
-                &tree,
-                &[&parrent_commit.ok_or_else(|| {
-                    crate::error::Error::Message("Parrent commit not found".into())
-                })?],
-            )
-            .or_raise(|| crate::error::Error::Message("Failed to commit to repository".into()))?;
-        };
-    } else {
+    let storage_dir = super::storage_dir(DIR);
+    if !storage_dir.exists() || !storage_dir.join(".git").exists() {
         initialize()?;
-        commit(msg)?;
-    };
+    }
+
+    git_cmd()
+        .args(["add", "."])
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to add to index".into()))?;
+
+    let status = git_cmd()
+        .args(["commit", "-m", &msg])
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to commit to repository".into()))?;
+
+    if !status.success() {
+        tracing::debug!("Nothing to commit or commit failed");
+    }
 
     Ok(())
 }
 
 pub fn initialize() -> BazaR<()> {
-    let repo = Repository::init(super::storage_dir(DIR))
+    let storage_dir = super::storage_dir(DIR);
+    std::fs::create_dir_all(&storage_dir)
+        .or_raise(|| crate::error::Error::Message("Failed to create storage directory".into()))?;
+
+    Command::new("git")
+        .arg("init")
+        .current_dir(&storage_dir)
+        .status()
         .or_raise(|| crate::error::Error::Message("Failed to initialize git repository".into()))?;
-    let mut path = repo.path().to_path_buf();
-    path.pop();
-    let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
+
+    let gitignore_file = storage_dir.join(".gitignore");
     let mut file = File::create(gitignore_file)
         .or_raise(|| crate::error::Error::Message("Failed to create .gitignore file".into()))?;
-    let gitignore = r#""#;
-    file.write_all(gitignore.trim().as_bytes())
+    file.write_all(b"")
         .or_raise(|| crate::error::Error::Message("Failed to write to .gitignore".into()))?;
-    let tree = add_to_index(&repo)
-        .or_raise(|| crate::error::Error::Message("Failed to add to index".into()))?;
-    let commit_message = "Initial commit";
-    let signature = signature()
-        .or_raise(|| crate::error::Error::Message("Failed to get git signature".into()))?;
-    repo.commit(
-        Some("HEAD"),
-        &signature,
-        &signature,
-        commit_message,
-        &tree,
-        &[],
-    )
-    .or_raise(|| crate::error::Error::Message("Failed to commit initial changes".into()))?;
+
+    Command::new("git")
+        .args(["config", "user.name", DEFAULT_AUTHOR])
+        .current_dir(&storage_dir)
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to set git user.name".into()))?;
+
+    Command::new("git")
+        .args(["config", "user.email", DEFAULT_EMAIL])
+        .current_dir(&storage_dir)
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to set git user.email".into()))?;
+
+    git_cmd()
+        .args(["add", ".gitignore"])
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to add .gitignore".into()))?;
+
+    git_cmd()
+        .args(["commit", "-m", "Initial commit"])
+        .status()
+        .or_raise(|| crate::error::Error::Message("Failed to commit initial changes".into()))?;
+
     Ok(())
 }
 
 pub fn sync() -> BazaR<()> {
-    let repo = Repository::open(super::storage_dir(DIR))
-        .or_raise(|| crate::error::Error::Message("Failed to open git repository".into()))?;
-
-    let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
-        key.clone()
-    } else {
-        format!(
-            "{}/.ssh/id_ed25519",
-            std::env::var("HOME").or_raise(|| crate::error::Error::Message(
-                "Failed to get HOME environment variable".into()
-            ))?
-        )
-    };
-    let passphrase = &Config::get().gitfs.passphrase;
     if let Some(url) = &Config::get().gitfs.url {
-        let remote_name = "origin";
-        if repo.find_remote(remote_name).is_err() {
-            repo.remote(remote_name, url)
+        // Add remote if not exists
+        let remotes = git_cmd()
+            .args(["remote"])
+            .output()
+            .or_raise(|| crate::error::Error::Message("Failed to list remotes".into()))?;
+        let remotes_str = String::from_utf8_lossy(&remotes.stdout);
+
+        if !remotes_str.contains("origin") {
+            git_cmd()
+                .args(["remote", "add", "origin", url])
+                .status()
                 .or_raise(|| crate::error::Error::Message("Failed to add git remote".into()))?;
         }
 
-        let mut remote = repo
-            .find_remote(remote_name)
-            .or_raise(|| crate::error::Error::Message("Failed to find git remote".into()))?;
-
-        let mut callbacks = git2::RemoteCallbacks::new();
-        callbacks.credentials(|_, username_from_url, _| {
-            git2::Cred::ssh_key(
-                username_from_url.unwrap_or("git"),
-                None,
-                std::path::Path::new(privatekey.as_str()),
-                passphrase.as_deref(),
-            )
-        });
-
-        let mut push_options = git2::PushOptions::new();
-        push_options.remote_callbacks(callbacks);
-
-        remote
-            .push(
-                &[&format!("refs/heads/{}", "master")],
-                Some(&mut push_options),
-            )
+        // Push to remote
+        let status = git_cmd()
+            .args(["push", "origin", "master"])
+            .status()
             .or_raise(|| {
                 crate::error::Error::Message("Failed to push to remote repository".into())
             })?;
 
-        tracing::info!("Pushed successfully");
+        if status.success() {
+            tracing::info!("Pushed successfully");
+        } else {
+            exn::bail!(crate::error::Error::Message(
+                "Failed to push to remote repository".into()
+            ));
+        }
     };
 
     Ok(())
@@ -306,7 +287,7 @@ impl crate::storage::StorageBackend for GitFs {
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
 
-                let re = regex::Regex::new(&pattern)
+                let re = regex_lite::Regex::new(&pattern)
                     .or_raise(|| crate::error::Error::Message("Invalid search pattern".into()))?;
                 if re.is_match(&lossy) {
                     m(&format!("{lossy}\n"), MessageType::Clean);

@@ -24,6 +24,5 @@ uuid = { workspace = true, features = ["v4"] }
 colored = { workspace = true }
 sha2 = { workspace = true }
 arboard = { workspace = true }
-git2 = { workspace = true }
-regex = { workspace = true }
+regex-lite = { workspace = true }
 redb.workspace = true

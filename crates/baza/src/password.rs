@@ -1,54 +1,73 @@
+use argh::FromArgs;
 use baza_core::{container, generate, BazaR};
 use std::io::{self, Write};
 
-use clap::{value_parser, Args as ClapArgs, Subcommand};
-
-#[derive(Debug, ClapArgs)]
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "password")]
+/// Generating a password
 pub(crate) struct Args {
-    #[command(subcommand)]
-    pub(crate) command: Commands,
+    #[argh(subcommand)]
+    pub(crate) command: SubCommands,
 }
 
-#[derive(Debug, Subcommand)]
-pub(crate) enum Commands {
-    Generate {
-        #[arg(value_parser = value_parser!(u8).range(1..=255))]
-        length: u8,
-        #[arg(long, default_value_t = false)]
-        no_latters: bool,
-        #[arg(long, default_value_t = false)]
-        no_symbols: bool,
-        #[arg(long, default_value_t = false)]
-        no_numbers: bool,
-    },
-    Add {
-        name: String,
-    },
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
+pub(crate) enum SubCommands {
+    Generate(GenerateArgs),
+    Add(AddArgs),
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "generate")]
+/// Generating a password
+pub(crate) struct GenerateArgs {
+    /// length of the password
+    #[argh(option, default = "24")]
+    pub(crate) length: usize,
+
+    /// exclude letters
+    #[argh(switch)]
+    pub(crate) no_letters: bool,
+
+    /// exclude symbols
+    #[argh(switch)]
+    pub(crate) no_symbols: bool,
+
+    /// exclude numbers
+    #[argh(switch)]
+    pub(crate) no_numbers: bool,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "add")]
+/// Add a new password bundle
+pub(crate) struct AddArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
 }
 
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
-        Commands::Add { name } => {
-            container::generate(name)?;
+        SubCommands::Add(args) => {
+            container::generate(args.name)?;
             Ok(())
         }
-        Commands::Generate {
-            length,
-            no_latters,
-            no_symbols,
-            no_numbers,
-        } => {
+        SubCommands::Generate(args) => {
             let mut stdout = io::stdout();
-            if no_latters && no_symbols && no_numbers {
+            if args.no_letters && args.no_symbols && args.no_numbers {
                 exn::bail!(baza_core::error::Error::Message(
-                    "at least one of --no-latters, --no-symbols or --no-numbers must be specified"
-                        .into()
+                    "at least one character type must be enabled".into()
                 ));
             };
             writeln!(
                 stdout,
                 "{}",
-                generate(length as usize, no_latters, no_symbols, no_numbers)?
+                generate(
+                    args.length,
+                    args.no_letters,
+                    args.no_symbols,
+                    args.no_numbers
+                )?
             )
             .map_err(|e| exn::Exn::new(baza_core::error::Error::Io(e)))?;
             Ok(())

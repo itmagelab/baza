@@ -14,7 +14,8 @@ description = "The base password manager"
 baza_core = { path = "crates/baza-core", version = "2.6.1" }
 thiserror = "2.0.14"
 tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
+log = "0.4"
+simple_logger = "5.0.0"
 walkdir = "2.5.0"
 exn = "0.3.0"
 toml = "0.9.5"
@@ -27,10 +28,8 @@ uuid = { version = "1.18.0" }
 colored = "3.0.0"
 sha2 = "0.10.9"
 arboard = "3.6.0"
-git2 = { version = "0.20.2", default-features = false, features = ["ssh"] }
-clap = { version = "4.5.45" }
-tokio = { version = "1.47.1", default-features = false }
-regex = "1.11.1"
+argh = "0.1.13"
+regex-lite = "0.1.6"
 redb = "3.0.2"
 
 [profile.release]

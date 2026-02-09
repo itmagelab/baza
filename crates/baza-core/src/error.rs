@@ -9,9 +9,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    Git(#[from] git2::Error),
-
-    #[error(transparent)]
     Toml(#[from] toml::ser::Error),
 
     #[error(transparent)]
@@ -21,7 +18,7 @@ pub enum Error {
     WalkDir(#[from] walkdir::Error),
 
     #[error(transparent)]
-    Regex(#[from] regex::Error),
+    Regex(#[from] regex_lite::Error),
 
     #[error(transparent)]
     AesGcm(#[from] aes_gcm::Error),
