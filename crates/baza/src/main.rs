@@ -109,6 +109,31 @@ fn run_command(cmd: Commands) -> BazaR<()> {
 fn main() -> BazaR<()> {
     simple_logger::init_with_level(log::Level::Info).ok();
 
+    let home = std::env::var("HOME").or_raise(|| {
+        baza_core::error::Error::Message("Failed to get HOME environment variable".into())
+    })?;
+
+    let config_paths = [
+        format!("{}/.config/baza/baza.toml", home),
+        format!("{}/.baza/config.toml", home),
+        format!("{}/.Baza.toml", home),
+    ];
+
+    let mut found_config = false;
+    for path in config_paths.iter() {
+        let p = std::path::PathBuf::from(path);
+        if p.exists() {
+            baza_core::Config::build(&p)?;
+            found_config = true;
+            break;
+        }
+    }
+
+    if !found_config {
+        let default_path = std::path::PathBuf::from(&config_paths[0]);
+        baza_core::Config::build(&default_path)?;
+    }
+
     cleanup_tmp_folder().or_raise(|| {
         baza_core::error::Error::Message("Failed to cleanup temporary folder".into())
     })?;

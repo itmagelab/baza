@@ -302,6 +302,14 @@ mod tests {
 
     #[test]
     fn it_works() {
+        let temp = tempfile::tempdir().unwrap();
+        let config_path = temp.path().join("baza.toml");
+        let mut config = Config::default();
+        config.main.datadir = temp.path().to_string_lossy().to_string();
+        let config_str = toml::to_string(&config).unwrap();
+        std::fs::write(&config_path, config_str).unwrap();
+        Config::build(&config_path).unwrap();
+
         let password = crate::generate(255, false, false, false).unwrap();
         init(Some(password.clone())).unwrap();
         cleanup_tmp_folder().unwrap();

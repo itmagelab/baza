@@ -52,7 +52,7 @@ pub struct StorageConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Type {
-    #[serde(rename = "redb")]
+    #[serde(rename = "redb", alias = "Redb")]
     Redb,
 }
 
@@ -100,7 +100,7 @@ impl Config {
             config
         };
 
-        CONFIG.set(config).unwrap();
+        let _ = CONFIG.set(config);
         Ok(())
     }
 }
@@ -178,12 +178,15 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
 
 #[instrument(skip_all)]
 pub(crate) fn key() -> BazaR<Vec<u8>> {
-    let data = match fs::read(key_file()) {
-        Ok(data) => data,
-        Err(_) => {
-            exn::bail!(crate::error::Error::Message("Failed to read key".into()));
-        }
-    };
+    let data = fs::read(key_file()).or_raise(|| {
+        crate::error::Error::Message(format!("Failed to read key file at {}", key_file()))
+    })?;
+    if data.len() != 32 {
+        exn::bail!(crate::error::Error::Message(format!(
+            "Invalid key length: expected 32 bytes, got {}",
+            data.len()
+        )));
+    }
     Ok(data)
 }
 
@@ -252,14 +255,15 @@ pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
 }
 
 pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
-    let cipher = Aes256Gcm::new(key.into());
-    let mut nonce = [0u8; 12];
-    rand::rng().fill(&mut nonce);
-    let nonce = Nonce::from_slice(&nonce);
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .or_raise(|| error::Error::Message("Failed to initialize cipher".into()))?;
+    let mut nonce_bytes = [0u8; 12];
+    rand::rng().fill(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher
         .encrypt(nonce, plaintext)
         .or_raise(|| error::Error::Message("Failed to encrypt data".into()))?;
-    Ok([nonce.as_slice(), &ciphertext].concat())
+    Ok([nonce_bytes.as_slice(), &ciphertext].concat())
 }
 
 pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
@@ -287,10 +291,16 @@ pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
 
 #[instrument(skip_all)]
 pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
-    let cipher = Aes256Gcm::new(key.into());
-    let nonce = Nonce::from_slice(&ciphertext[..12]);
-    let ciphertext = &ciphertext[12..];
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .or_raise(|| error::Error::Message("Failed to initialize cipher".into()))?;
+    if ciphertext.len() < 12 {
+        exn::bail!(error::Error::Message(
+            "Invalid ciphertext: too short".into()
+        ));
+    }
+    let (nonce_bytes, actual_ciphertext) = ciphertext.split_at(12);
+    let nonce = Nonce::from_slice(nonce_bytes);
     Ok(cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(nonce, actual_ciphertext)
         .map_err(|e| exn::Exn::new(e.into()))?)
 }
