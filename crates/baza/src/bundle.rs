@@ -1,6 +1,6 @@
 use baza_core::{container, BazaR};
 
-use clap::{command, Args as ClapArgs, Subcommand};
+use clap::{Args as ClapArgs, Subcommand};
 
 #[derive(Debug, ClapArgs)]
 pub(crate) struct Args {

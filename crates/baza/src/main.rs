@@ -1,5 +1,4 @@
-//! This project is created as an alternative to password-store,
-//! but written in a low-level language with additional features
+use anyhow::Context;
 use baza_core::{cleanup_tmp_folder, container, sync, BazaR};
 
 use clap::{CommandFactory, Parser, Subcommand};
@@ -43,6 +42,10 @@ pub(crate) enum Commands {
     Bundle(bundle::Args),
     /// Generating a password
     Password(password::Args),
+    /// List all containers
+    List,
+    /// Show Version
+    Version,
 }
 
 impl Commands {
@@ -54,55 +57,118 @@ impl Commands {
             Commands::Unlock => baza_core::unlock(None)?,
             Commands::Lock => baza_core::lock()?,
             Commands::Sync => sync()?,
+            Commands::List => {
+                container::search(String::from(".*"))?;
+            }
+            Commands::Version => {
+                println!("{}", env!("CARGO_PKG_VERSION"));
+            }
         };
         Ok(())
     }
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "baza")]
+#[command(name = "baza", version)]
 pub struct Cli {
     /// Adding bundle of passwords
-    ///
-    /// baza [--add my::secret::login | -a my::secret::login]
     #[arg(short, long, value_name = "BUNDLE")]
     add: Option<String>,
+
     /// Create bundle from STDIN
     #[arg(long, value_name = "BUNDLE")]
     stdin: Option<String>,
+
     /// Generate default bundle
     #[arg(short, long, value_name = "BUNDLE", num_args = 0..=1)]
     generate: Option<String>,
+
     /// Edit exists bundle of passwords
     #[arg(short, long, value_name = "BUNDLE")]
     edit: Option<String>,
+
     /// Deleting a bundle
     #[arg(short, long, value_name = "BUNDLE")]
     delete: Option<String>,
+
     /// Search bundle by name
     #[arg(short, long, value_name = "REGEX")]
     search: Option<String>,
+
     /// Copy all bundle to clipboard
     #[arg(short, long, value_name = "BUNDLE")]
     copy: Option<String>,
-    /// Show Version
-    #[arg(short, long)]
-    version: bool,
-    #[command(subcommand)]
-    command: Option<Commands>,
+
     /// Show content of bundle
     #[arg(short = 'p', long, value_name = "BUNDLE")]
     show: Option<String>,
+
     /// List all containers
     #[arg(short, long)]
     list: bool,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+impl Cli {
+    /// Maps top-level shortcut flags to their corresponding subcommands
+    fn get_command(self) -> Option<Commands> {
+        if self.list {
+            return Some(Commands::List);
+        }
+
+        if let Some(name) = self.copy {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Copy { name },
+            }));
+        }
+
+        if let Some(name) = self.show {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Show { name },
+            }));
+        }
+
+        if let Some(name) = self.edit {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Edit { name },
+            }));
+        }
+
+        if let Some(name) = self.delete {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Delete { name },
+            }));
+        }
+
+        if let Some(name) = self.search {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Search { name },
+            }));
+        }
+
+        if let Some(name) = self.add {
+            return Some(Commands::Bundle(bundle::Args {
+                command: bundle::Commands::Add { name },
+            }));
+        }
+
+        if let Some(name) = self.generate {
+            return Some(Commands::Password(password::Args {
+                command: password::Commands::Add { name },
+            }));
+        }
+
+        self.command
+    }
 }
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> BazaR<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    cleanup_tmp_folder().unwrap();
+    cleanup_tmp_folder().context("Failed to cleanup temporary folder")?;
 
     let fmt = fmt::layer()
         .with_target(false)
@@ -114,70 +180,12 @@ pub async fn main() {
 
     let args = Cli::parse();
 
-    let mut command = None;
-
-    if let Some(c) = args.command {
-        command = Some(c);
+    if let Some(str) = args.stdin.as_ref() {
+        container::from_stdin(str.clone()).context("Failed to create bundle from STDIN")?;
+        return Ok(());
     };
 
-    if let Some(name) = args.copy {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Copy { name },
-        }));
-    };
-
-    if let Some(name) = args.show {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Show { name },
-        }));
-    };
-
-    if let Some(name) = args.edit {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Edit { name },
-        }));
-    };
-
-    if let Some(name) = args.delete {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Delete { name },
-        }));
-    };
-
-    if let Some(name) = args.search {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Search { name },
-        }));
-    };
-
-    if let Some(name) = args.add {
-        command = Some(Commands::Bundle(bundle::Args {
-            command: bundle::Commands::Add { name },
-        }));
-    };
-
-    if let Some(str) = args.stdin {
-        container::from_stdin(str).ok();
-        return;
-    };
-
-    if let Some(name) = args.generate {
-        command = Some(Commands::Password(password::Args {
-            command: password::Commands::Add { name },
-        }));
-    };
-
-    if args.list {
-        container::search(String::from(".*")).ok();
-        return;
-    };
-
-    if args.version {
-        println!("{}", env!("CARGO_PKG_VERSION"));
-        return;
-    };
-
-    match command {
+    match args.get_command() {
         Some(cmd) => {
             if let Err(err) = cmd.run() {
                 tracing::error!(?err);
@@ -188,4 +196,6 @@ pub async fn main() {
             Cli::command().print_long_help().ok();
         }
     }
+
+    Ok(())
 }

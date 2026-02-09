@@ -1,7 +1,7 @@
 use baza_core::{container, generate, BazaR};
 use std::io::{self, Write};
 
-use clap::{command, value_parser, Args as ClapArgs, Subcommand};
+use clap::{value_parser, Args as ClapArgs, Subcommand};
 
 #[derive(Debug, ClapArgs)]
 pub(crate) struct Args {
