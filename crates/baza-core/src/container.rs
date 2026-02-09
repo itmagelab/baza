@@ -1,6 +1,7 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
 use bundle::Bundle;
+use exn::ResultExt;
 use io::Read;
 use r#box::BoxRef;
 
@@ -248,7 +249,7 @@ pub fn from_stdin(str: String) -> BazaR<()> {
     let mut input = String::new();
     io::stdin()
         .read_to_string(&mut input)
-        .map_err(|e| exn::Exn::new(e.into()))?;
+        .or_raise(|| crate::error::Error::Message("Failed to read from stdin".into()))?;
     Container::builder()
         .create_from_str(str)?
         .build()

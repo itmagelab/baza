@@ -6,6 +6,7 @@ use std::{
 
 use arboard::Clipboard;
 use colored::Colorize;
+use exn::ResultExt;
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 
 use crate::{
@@ -63,19 +64,24 @@ impl StorageBackend for Redb {
         let name = ptr.join(&Config::get().main.box_delimiter);
 
         let file = bundle.file.path().to_path_buf();
-        let buf: Vec<u8> = std::fs::read(file).map_err(|e| exn::Exn::new(e.into()))?;
+        let buf: Vec<u8> = std::fs::read(file)
+            .or_raise(|| crate::error::Error::Message("Failed to read bundle file".into()))?;
 
         let db = Redb::new()?.db()?;
-        let write_txn = db.begin_write().map_err(|e| exn::Exn::new(e.into()))?;
+        let write_txn = db.begin_write().or_raise(|| {
+            crate::error::Error::Message("Failed to begin write transaction".into())
+        })?;
         {
             let mut table = write_txn
                 .open_table(TABLE)
-                .map_err(|e| exn::Exn::new(e.into()))?;
+                .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
             table
                 .insert(&*name, buf)
-                .map_err(|e| exn::Exn::new(e.into()))?;
+                .or_raise(|| crate::error::Error::Message("Failed to insert into table".into()))?;
         }
-        write_txn.commit().map_err(|e| exn::Exn::new(e.into()))?;
+        write_txn
+            .commit()
+            .or_raise(|| crate::error::Error::Message("Failed to commit transaction".into()))?;
         Ok(())
     }
 
@@ -86,25 +92,30 @@ impl StorageBackend for Redb {
         let name = ptr.join(&Config::get().main.box_delimiter);
 
         let db = Redb::new()?.db()?;
-        let read_txn = db.begin_read().map_err(|e| exn::Exn::new(e.into()))?;
+        let read_txn = db
+            .begin_read()
+            .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
         let table = read_txn
             .open_table(TABLE)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
 
         let path = bundle.file.path().to_path_buf();
 
         let data = table
             .get(&*name)
-            .map_err(|e| exn::Exn::new(e.into()))?
+            .or_raise(|| crate::error::Error::Message("Failed to get value from table".into()))?
             .ok_or(crate::error::Error::Message("No such key".into()))?
             .value();
-        std::fs::write(&path, &data).map_err(|e| exn::Exn::new(e.into()))?;
+        std::fs::write(&path, &data).or_raise(|| {
+            crate::error::Error::Message("Failed to write to temporary file".into())
+        })?;
         decrypt_file(&path)?;
 
-        let mut file = File::open(path).map_err(|e| exn::Exn::new(e.into()))?;
+        let mut file = File::open(path)
+            .or_raise(|| crate::error::Error::Message("Failed to open temporary file".into()))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to read temporary file".into()))?;
 
         m(&contents, crate::MessageType::Clean);
         Ok(())
@@ -128,31 +139,38 @@ impl StorageBackend for Redb {
 
         let data = table
             .get(&*name)
-            .map_err(|e| exn::Exn::new(e.into()))?
+            .or_raise(|| crate::error::Error::Message("Failed to get value from table".into()))?
             .ok_or(crate::error::Error::Message("No such key".into()))?
             .value();
-        std::fs::write(&path, &data).map_err(|e| exn::Exn::new(e.into()))?;
+        std::fs::write(&path, &data).or_raise(|| {
+            crate::error::Error::Message("Failed to write to temporary file".into())
+        })?;
         decrypt_file(&path)?;
         let status = Command::new(editor)
             .arg(&path)
             .status()
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to launch editor".into()))?;
         if !status.success() {
             exit(1);
         }
         encrypt_file(&path)?;
 
-        let buf: Vec<u8> = std::fs::read(path).map_err(|e| exn::Exn::new(e.into()))?;
-        let write_txn = db.begin_write().map_err(|e| exn::Exn::new(e.into()))?;
+        let buf: Vec<u8> = std::fs::read(path)
+            .or_raise(|| crate::error::Error::Message("Failed to read edited bundle".into()))?;
+        let write_txn = db.begin_write().or_raise(|| {
+            crate::error::Error::Message("Failed to begin write transaction".into())
+        })?;
         {
-            let mut table = write_txn
-                .open_table(TABLE)
-                .map_err(|e| exn::Exn::new(e.into()))?;
-            table
-                .insert(&*name, buf)
-                .map_err(|e| exn::Exn::new(e.into()))?;
+            let mut table = write_txn.open_table(TABLE).or_raise(|| {
+                crate::error::Error::Message("Failed to open table for update".into())
+            })?;
+            table.insert(&*name, buf).or_raise(|| {
+                crate::error::Error::Message("Failed to insert updated value".into())
+            })?;
         }
-        write_txn.commit().map_err(|e| exn::Exn::new(e.into()))?;
+        write_txn.commit().or_raise(|| {
+            crate::error::Error::Message("Failed to commit update transaction".into())
+        })?;
         Ok(())
     }
 
@@ -163,29 +181,43 @@ impl StorageBackend for Redb {
         let name = ptr.join(&Config::get().main.box_delimiter);
 
         let db = Redb::new()?.db()?;
-        let write_txn = db.begin_write().map_err(|e| exn::Exn::new(e.into()))?;
+        let write_txn = db.begin_write().or_raise(|| {
+            crate::error::Error::Message("Failed to begin delete transaction".into())
+        })?;
         {
-            let mut table = write_txn
-                .open_table(TABLE)
-                .map_err(|e| exn::Exn::new(e.into()))?;
-            table.remove(&*name).map_err(|e| exn::Exn::new(e.into()))?;
+            let mut table = write_txn.open_table(TABLE).or_raise(|| {
+                crate::error::Error::Message("Failed to open table for deletion".into())
+            })?;
+            table.remove(&*name).or_raise(|| {
+                crate::error::Error::Message("Failed to remove key from table".into())
+            })?;
         }
-        write_txn.commit().map_err(|e| exn::Exn::new(e.into()))?;
+        write_txn.commit().or_raise(|| {
+            crate::error::Error::Message("Failed to commit delete transaction".into())
+        })?;
         Ok(())
     }
 
     fn search(&self, pattern: String) -> BazaR<()> {
         let db = Redb::new()?.db()?;
-        let read_txn = db.begin_read().map_err(|e| exn::Exn::new(e.into()))?;
+        let read_txn = db
+            .begin_read()
+            .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
         let table = read_txn
             .open_table(TABLE)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
 
-        let re = regex::Regex::new(&pattern).map_err(|e| exn::Exn::new(e.into()))?;
+        let re = regex::Regex::new(&pattern)
+            .or_raise(|| crate::error::Error::Message("Invalid search pattern".into()))?;
 
-        for result in table.iter().map_err(|e| exn::Exn::new(e.into()))? {
+        for result in table
+            .iter()
+            .or_raise(|| crate::error::Error::Message("Failed to iterate over table".into()))?
+        {
             let (key, _): (redb::AccessGuard<&str>, redb::AccessGuard<Vec<u8>>) =
-                result.map_err(|e| exn::Exn::new(e.into()))?;
+                result.or_raise(|| {
+                    crate::error::Error::Message("Failed to read entry from table".into())
+                })?;
             if re.is_match(key.value()) {
                 m(&format!("{}\n", key.value()), MessageType::Clean);
             }
@@ -195,7 +227,8 @@ impl StorageBackend for Redb {
     }
 
     fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
-        let mut clipboard = Clipboard::new().map_err(|e| exn::Exn::new(e.into()))?;
+        let mut clipboard = Clipboard::new()
+            .or_raise(|| crate::error::Error::Message("Failed to access clipboard".into()))?;
 
         let ptr = bundle
             .ptr
@@ -203,33 +236,38 @@ impl StorageBackend for Redb {
         let name = ptr.join(&Config::get().main.box_delimiter);
 
         let db = Redb::new()?.db()?;
-        let read_txn = db.begin_read().map_err(|e| exn::Exn::new(e.into()))?;
+        let read_txn = db
+            .begin_read()
+            .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
         let table = read_txn
             .open_table(TABLE)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
 
         let path = bundle.file.path().to_path_buf();
 
         let data = table
             .get(&*name)
-            .map_err(|e| exn::Exn::new(e.into()))?
+            .or_raise(|| crate::error::Error::Message("Failed to get value from table".into()))?
             .ok_or(crate::error::Error::Message("No such key".into()))?
             .value();
-        std::fs::write(&path, &data).map_err(|e| exn::Exn::new(e.into()))?;
+        std::fs::write(&path, &data).or_raise(|| {
+            crate::error::Error::Message("Failed to write to temporary file".into())
+        })?;
         decrypt_file(&path)?;
 
-        let file = File::open(path).map_err(|e| exn::Exn::new(e.into()))?;
+        let file = File::open(path)
+            .or_raise(|| crate::error::Error::Message("Failed to open temporary file".into()))?;
 
         let mut buffer = std::io::BufReader::new(file);
         let mut first_line = String::new();
         buffer
             .read_line(&mut first_line)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to read secrets file".into()))?;
 
         let lossy = first_line.trim();
         clipboard
             .set_text(lossy.trim())
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to set clipboard text".into()))?;
 
         let ttl_duration = std::time::Duration::new(ttl, 0);
 
@@ -240,7 +278,7 @@ impl StorageBackend for Redb {
         std::thread::sleep(ttl_duration);
         clipboard
             .set_text("".to_string())
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to clear clipboard".into()))?;
         Ok(())
     }
 }

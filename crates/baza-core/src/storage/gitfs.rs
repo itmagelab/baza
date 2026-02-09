@@ -7,6 +7,7 @@ use std::{
 
 use arboard::Clipboard;
 use colored::Colorize;
+use exn::ResultExt;
 use git2::{IndexAddOption, Repository, Signature, Tree};
 use walkdir::{DirEntry, WalkDir};
 
@@ -47,9 +48,14 @@ fn is_hidden(entry: &DirEntry) -> bool {
 fn commit(msg: String) -> BazaR<()> {
     if let Ok(repo) = Repository::discover(super::storage_dir(DIR)) {
         if let Ok(head) = repo.head() {
-            let tree = add_to_index(&repo).map_err(|e| exn::Exn::new(e.into()))?;
-            let signature = signature().map_err(|e| exn::Exn::new(e.into()))?;
-            let parrent_commit = Some(head.peel_to_commit().map_err(|e| exn::Exn::new(e.into()))?);
+            let tree = add_to_index(&repo)
+                .or_raise(|| crate::error::Error::Message("Failed to add to index".into()))?;
+            let signature = signature()
+                .or_raise(|| crate::error::Error::Message("Failed to get git signature".into()))?;
+            let parrent_commit =
+                Some(head.peel_to_commit().or_raise(|| {
+                    crate::error::Error::Message("Failed to peel to commit".into())
+                })?);
             repo.commit(
                 Some("HEAD"),
                 &signature,
@@ -60,7 +66,7 @@ fn commit(msg: String) -> BazaR<()> {
                     crate::error::Error::Message("Parrent commit not found".into())
                 })?],
             )
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to commit to repository".into()))?;
         };
     } else {
         initialize()?;
@@ -71,17 +77,21 @@ fn commit(msg: String) -> BazaR<()> {
 }
 
 pub fn initialize() -> BazaR<()> {
-    let repo = Repository::init(super::storage_dir(DIR)).map_err(|e| exn::Exn::new(e.into()))?;
+    let repo = Repository::init(super::storage_dir(DIR))
+        .or_raise(|| crate::error::Error::Message("Failed to initialize git repository".into()))?;
     let mut path = repo.path().to_path_buf();
     path.pop();
     let gitignore_file = format!("{}/.gitignore", &path.to_string_lossy());
-    let mut file = File::create(gitignore_file).map_err(|e| exn::Exn::new(e.into()))?;
+    let mut file = File::create(gitignore_file)
+        .or_raise(|| crate::error::Error::Message("Failed to create .gitignore file".into()))?;
     let gitignore = r#""#;
     file.write_all(gitignore.trim().as_bytes())
-        .map_err(|e| exn::Exn::new(e.into()))?;
-    let tree = add_to_index(&repo).map_err(|e| exn::Exn::new(e.into()))?;
+        .or_raise(|| crate::error::Error::Message("Failed to write to .gitignore".into()))?;
+    let tree = add_to_index(&repo)
+        .or_raise(|| crate::error::Error::Message("Failed to add to index".into()))?;
     let commit_message = "Initial commit";
-    let signature = signature().map_err(|e| exn::Exn::new(e.into()))?;
+    let signature = signature()
+        .or_raise(|| crate::error::Error::Message("Failed to get git signature".into()))?;
     repo.commit(
         Some("HEAD"),
         &signature,
@@ -90,19 +100,22 @@ pub fn initialize() -> BazaR<()> {
         &tree,
         &[],
     )
-    .map_err(|e| exn::Exn::new(e.into()))?;
+    .or_raise(|| crate::error::Error::Message("Failed to commit initial changes".into()))?;
     Ok(())
 }
 
 pub fn sync() -> BazaR<()> {
-    let repo = Repository::open(super::storage_dir(DIR)).map_err(|e| exn::Exn::new(e.into()))?;
+    let repo = Repository::open(super::storage_dir(DIR))
+        .or_raise(|| crate::error::Error::Message("Failed to open git repository".into()))?;
 
     let privatekey = if let Some(key) = &Config::get().gitfs.privatekey {
         key.clone()
     } else {
         format!(
             "{}/.ssh/id_ed25519",
-            std::env::var("HOME").map_err(|e| exn::Exn::new(crate::error::Error::from(e)))?
+            std::env::var("HOME").or_raise(|| crate::error::Error::Message(
+                "Failed to get HOME environment variable".into()
+            ))?
         )
     };
     let passphrase = &Config::get().gitfs.passphrase;
@@ -110,12 +123,12 @@ pub fn sync() -> BazaR<()> {
         let remote_name = "origin";
         if repo.find_remote(remote_name).is_err() {
             repo.remote(remote_name, url)
-                .map_err(|e| exn::Exn::new(e.into()))?;
+                .or_raise(|| crate::error::Error::Message("Failed to add git remote".into()))?;
         }
 
         let mut remote = repo
             .find_remote(remote_name)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to find git remote".into()))?;
 
         let mut callbacks = git2::RemoteCallbacks::new();
         callbacks.credentials(|_, username_from_url, _| {
@@ -135,7 +148,9 @@ pub fn sync() -> BazaR<()> {
                 &[&format!("refs/heads/{}", "master")],
                 Some(&mut push_options),
             )
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| {
+                crate::error::Error::Message("Failed to push to remote repository".into())
+            })?;
 
         tracing::info!("Pushed successfully");
     };
@@ -161,12 +176,14 @@ impl crate::storage::StorageBackend for GitFs {
             .join(path)
             .with_file_name(format!("{filename}.{EXT}"));
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| exn::Exn::new(e.into()))?;
+            std::fs::create_dir_all(parent).or_raise(|| {
+                crate::error::Error::Message("Failed to create parent directory".into())
+            })?;
         }
         bundle
             .file
             .persist_noclobber(path)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to persist bundle file".into()))?;
         let msg = format!("Bundle {name} was added");
         commit(msg)?;
         Ok(())
@@ -231,7 +248,7 @@ impl crate::storage::StorageBackend for GitFs {
         bundle
             .file
             .persist(path)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to persist updated bundle".into()))?;
 
         let msg = format!("Bundle {name} was updated");
         commit(msg)?;
@@ -253,9 +270,12 @@ impl crate::storage::StorageBackend for GitFs {
             .with_file_name(format!("{filename}.{EXT}"));
 
         if path.is_file() {
-            std::fs::remove_file(&path).map_err(|e| exn::Exn::new(e.into()))?;
+            std::fs::remove_file(&path)
+                .or_raise(|| crate::error::Error::Message("Failed to remove bundle file".into()))?;
         } else if path.is_dir() {
-            std::fs::remove_dir_all(&path).map_err(|e| exn::Exn::new(e.into()))?;
+            std::fs::remove_dir_all(&path).or_raise(|| {
+                crate::error::Error::Message("Failed to remove bundle directory".into())
+            })?;
         } else {
             return Ok(());
         };
@@ -270,19 +290,24 @@ impl crate::storage::StorageBackend for GitFs {
         let dir = super::storage_dir(DIR);
         let walker = WalkDir::new(&dir).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
-            let entry = entry.map_err(|e| exn::Exn::new(e.into()))?;
+            let entry = entry.or_raise(|| {
+                crate::error::Error::Message("Failed to read directory entry".into())
+            })?;
             let path = entry.path();
 
             if path.is_file() {
                 let path = path
                     .strip_prefix(&dir)
-                    .map_err(|e| exn::Exn::new(e.into()))?
+                    .or_raise(|| {
+                        crate::error::Error::Message("Failed to strip directory prefix".into())
+                    })?
                     .with_extension("");
                 let lossy = path
                     .to_string_lossy()
                     .replace(MAIN_SEPARATOR, &Config::get().main.box_delimiter);
 
-                let re = regex::Regex::new(&pattern).map_err(|e| exn::Exn::new(e.into()))?;
+                let re = regex::Regex::new(&pattern)
+                    .or_raise(|| crate::error::Error::Message("Invalid search pattern".into()))?;
                 if re.is_match(&lossy) {
                     m(&format!("{lossy}\n"), MessageType::Clean);
                 }
@@ -292,7 +317,8 @@ impl crate::storage::StorageBackend for GitFs {
     }
 
     fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
-        let mut clipboard = Clipboard::new().map_err(|e| exn::Exn::new(e.into()))?;
+        let mut clipboard = Clipboard::new()
+            .or_raise(|| crate::error::Error::Message("Failed to access clipboard".into()))?;
         let ptr = bundle
             .ptr
             .ok_or_else(|| crate::error::Error::Message("Pointer not found".into()))?;
@@ -305,21 +331,24 @@ impl crate::storage::StorageBackend for GitFs {
             .with_file_name(format!("{filename}.{EXT}"));
         let file = bundle.file.path().to_path_buf();
 
-        std::fs::copy(path, &file).map_err(|e| exn::Exn::new(e.into()))?;
+        std::fs::copy(path, &file).or_raise(|| {
+            crate::error::Error::Message("Failed to copy bundle to temporary file".into())
+        })?;
 
         decrypt_file(&file)?;
 
-        let file = std::fs::File::open(file).map_err(|e| exn::Exn::new(e.into()))?;
+        let file = std::fs::File::open(file)
+            .or_raise(|| crate::error::Error::Message("Failed to open temporary file".into()))?;
         let mut buffer = std::io::BufReader::new(file);
         let mut first_line = String::new();
         buffer
             .read_line(&mut first_line)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to read secrets file".into()))?;
 
         let lossy = first_line.trim();
         clipboard
             .set_text(lossy.trim())
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| crate::error::Error::Message("Failed to set clipboard text".into()))?;
 
         let ttl_duration = std::time::Duration::new(ttl, 0);
 

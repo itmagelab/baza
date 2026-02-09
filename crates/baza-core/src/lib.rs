@@ -7,6 +7,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
+use exn::ResultExt;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::fs::{self, File};
@@ -99,13 +100,18 @@ impl Config {
 
     pub fn build(path: &Path) -> BazaR<()> {
         let config = if path.exists() {
-            let config = fs::read_to_string(path).map_err(|e| exn::Exn::new(e.into()))?;
-            toml::from_str(&config).map_err(|e| exn::Exn::new(e.into()))?
+            let config = fs::read_to_string(path)
+                .or_raise(|| error::Error::Message("Failed to read config file".into()))?;
+            toml::from_str(&config)
+                .or_raise(|| error::Error::Message("Failed to parse config file".into()))?
         } else {
             let config = Config::default();
-            let config_str = toml::to_string(&config).map_err(|e| exn::Exn::new(e.into()))?;
-            fs::create_dir_all(path.parent().unwrap()).map_err(|e| exn::Exn::new(e.into()))?;
-            fs::write(path, config_str).map_err(|e| exn::Exn::new(e.into()))?;
+            let config_str = toml::to_string(&config)
+                .or_raise(|| error::Error::Message("Failed to serialize default config".into()))?;
+            fs::create_dir_all(path.parent().unwrap())
+                .or_raise(|| error::Error::Message("Failed to create config directory".into()))?;
+            fs::write(path, config_str)
+                .or_raise(|| error::Error::Message("Failed to write config file".into()))?;
             config
         };
 
@@ -154,7 +160,8 @@ pub(crate) fn key_file() -> String {
 }
 
 pub fn lock() -> BazaR<()> {
-    fs::remove_file(key_file()).map_err(|e| exn::Exn::new(e.into()))?;
+    fs::remove_file(key_file())
+        .or_raise(|| error::Error::Message("Failed to remove key file".into()))?;
     Ok(())
 }
 
@@ -173,18 +180,23 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
     } else {
         let mut passphrase = String::new();
         m("Enter your password: ", MessageType::Warning);
-        io::stdout().flush().map_err(|e| exn::Exn::new(e.into()))?;
+        io::stdout()
+            .flush()
+            .or_raise(|| error::Error::Message("Failed to flush stdout".into()))?;
         io::stdin()
             .read_line(&mut passphrase)
-            .map_err(|e| exn::Exn::new(e.into()))?;
+            .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
 
         passphrase
     };
     let datadir = &Config::get().main.datadir;
     let key = as_hash(passphrase.trim());
-    fs::create_dir_all(datadir).map_err(|e| exn::Exn::new(e.into()))?;
-    let mut file = File::create(key_file()).map_err(|e| exn::Exn::new(e.into()))?;
-    file.write_all(&key).map_err(|e| exn::Exn::new(e.into()))?;
+    fs::create_dir_all(datadir)
+        .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
+    let mut file = File::create(key_file())
+        .or_raise(|| error::Error::Message("Failed to create key file".into()))?;
+    file.write_all(&key)
+        .or_raise(|| error::Error::Message("Failed to write key to file".into()))?;
     Ok(())
 }
 
@@ -218,14 +230,16 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
     if std::fs::remove_dir_all(&tmpdir).is_err() {
         tracing::debug!("Tmp folder already cleaned");
     };
-    std::fs::create_dir_all(format!("{datadir}/tmp")).map_err(|e| exn::Exn::new(e.into()))?;
+    std::fs::create_dir_all(format!("{datadir}/tmp"))
+        .or_raise(|| error::Error::Message("Failed to create tmp directory".into()))?;
     Ok(())
 }
 
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
     // Create common folders
     let datadir = &Config::get().main.datadir;
-    fs::create_dir_all(format!("{datadir}/data")).map_err(|e| exn::Exn::new(e.into()))?;
+    fs::create_dir_all(format!("{datadir}/data"))
+        .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
     storage::initialize()?;
 
     // Initialize the default key
@@ -242,11 +256,25 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
 }
 
 pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
-    let data = fs::read(path).map_err(|e| exn::Exn::new(e.into()))?;
+    let data = fs::read(path).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to read file for encryption: {}",
+            path.display()
+        ))
+    })?;
     let encrypted = encrypt_data(&data, &key()?)?;
-    let mut file = File::create(path).map_err(|e| exn::Exn::new(e.into()))?;
-    file.write_all(&encrypted)
-        .map_err(|e| exn::Exn::new(e.into()))?;
+    let mut file = File::create(path).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to create file for encryption: {}",
+            path.display()
+        ))
+    })?;
+    file.write_all(&encrypted).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to write encrypted data to: {}",
+            path.display()
+        ))
+    })?;
     Ok(())
 }
 
@@ -257,16 +285,30 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let nonce = Nonce::from_slice(&nonce);
     let ciphertext = cipher
         .encrypt(nonce, plaintext)
-        .map_err(|e| exn::Exn::new(e.into()))?;
+        .or_raise(|| error::Error::Message("Failed to encrypt data".into()))?;
     Ok([nonce.as_slice(), &ciphertext].concat())
 }
 
 pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
-    let ciphertext = fs::read(path).map_err(|e| exn::Exn::new(e.into()))?;
+    let ciphertext = fs::read(path).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to read file for decryption: {}",
+            path.display()
+        ))
+    })?;
     let encrypted = decrypt_data(&ciphertext, &key()?)?;
-    let mut file = File::create(path).map_err(|e| exn::Exn::new(e.into()))?;
-    file.write_all(&encrypted)
-        .map_err(|e| exn::Exn::new(e.into()))?;
+    let mut file = File::create(path).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to create file for decryption: {}",
+            path.display()
+        ))
+    })?;
+    file.write_all(&encrypted).or_raise(|| {
+        error::Error::Message(format!(
+            "Failed to write decrypted data to: {}",
+            path.display()
+        ))
+    })?;
     Ok(())
 }
 
