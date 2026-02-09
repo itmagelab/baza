@@ -11,8 +11,8 @@ use git2::{IndexAddOption, Repository, Signature, Tree};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
-    decrypt_file, encrypt_file, m, storage::Storage, BazaR, Config, MessageType, DEFAULT_AUTHOR,
-    DEFAULT_EMAIL, TTL_SECONDS,
+    decrypt_file, encrypt_file, m, BazaR, Config, MessageType, DEFAULT_AUTHOR, DEFAULT_EMAIL,
+    TTL_SECONDS,
 };
 
 use super::Bundle;
@@ -130,7 +130,11 @@ pub fn sync() -> BazaR<()> {
     Ok(())
 }
 
-impl Storage for GitFs {
+impl crate::storage::StorageBackend for GitFs {
+    fn sync(&self) -> BazaR<()> {
+        sync()
+    }
+
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle
             .ptr

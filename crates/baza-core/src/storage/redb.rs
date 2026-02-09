@@ -9,7 +9,7 @@ use colored::Colorize;
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 
 use crate::{
-    decrypt_file, encrypt_file, m, storage::Storage, BazaR, Config, MessageType, TTL_SECONDS,
+    decrypt_file, encrypt_file, m, storage::StorageBackend, BazaR, Config, MessageType, TTL_SECONDS,
 };
 
 use super::Bundle;
@@ -21,16 +21,16 @@ pub struct Redb {
 }
 
 impl Redb {
+    pub fn instance() -> BazaR<Self> {
+        Self::new()
+    }
+
     pub fn new() -> BazaR<Self> {
         let folder =
             std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
         std::fs::create_dir_all(&folder)?;
         let path = format!("{}/db.redb", folder.to_string_lossy());
         Ok(Self { path })
-    }
-
-    fn create(&self) -> BazaR<Database> {
-        Ok(Database::create(&self.path)?)
     }
 
     fn db(&self) -> BazaR<Database> {
@@ -41,12 +41,19 @@ impl Redb {
 const TABLE: TableDefinition<&str, Vec<u8>> = TableDefinition::new("passwords");
 
 pub fn initialize() -> BazaR<()> {
-    Redb::new()?.create()?;
+    let folder = std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
+    std::fs::create_dir_all(&folder)?;
+    let path = format!("{}/db.redb", folder.to_string_lossy());
+    Database::create(path)?;
 
     Ok(())
 }
 
-impl Storage for Redb {
+impl StorageBackend for Redb {
+    fn sync(&self) -> BazaR<()> {
+        anyhow::bail!("Sync is not supported for Redb storage")
+    }
+
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle.ptr.ok_or(anyhow::anyhow!("No pointer found"))?;
         let name = ptr.join(&Config::get().main.box_delimiter);
