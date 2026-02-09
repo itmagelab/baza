@@ -1,0 +1,119 @@
+:root {
+    /* Gruvbox-inspired Coffee Palette */
+    --bg-color: #282828;
+    /* Dark soft grey-brown */
+    --fg-color: #ebdbb2;
+    /* Soft cream/beige */
+    --prompt-color: #fabd2f;
+    /* Muted Gold/Yellow */
+    --accent-color: #fe8019;
+    /* Bright Orange */
+    --dim-color: #928374;
+    /* Grey for comments/dimmed text */
+    --error-color: #cc241d;
+    /* Muted Red */
+    --success-color: #98971a;
+    /* Muted Green */
+
+    --font-stack: 'JetBrains Mono', 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--fg-color);
+    font-family: var(--font-stack);
+    margin: 0;
+    padding: 2rem;
+    line-height: 1.5;
+    overflow-x: hidden;
+}
+
+/* CRT Scanline Effect (Subtle) */
+body::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(to bottom,
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.1) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0.15;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    min-height: 80vh;
+    /* Make container fill most of height for click-to-focus */
+}
+
+h1 {
+    color: var(--prompt-color);
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--dim-color);
+    padding-bottom: 0.5rem;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+.terminal-output {
+    margin-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+.line {
+    margin-bottom: 0.25rem;
+    word-break: break-all;
+}
+
+.prompt {
+    color: var(--accent-color);
+    font-weight: bold;
+    margin-right: 0.75rem;
+}
+
+.prefix {
+    margin-right: 0.75rem;
+    display: inline-block;
+    width: 2.5rem;
+    /* Match width of prompt roughly */
+}
+
+/* Input Styling */
+.input-line {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.terminal-input {
+    background: transparent;
+    border: none;
+    color: var(--fg-color);
+    font-family: var(--font-stack);
+    font-size: 1rem;
+    flex-grow: 1;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+    background-color: rgba(254, 128, 25, 0.1);
+}

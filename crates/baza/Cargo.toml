@@ -16,6 +16,7 @@ log = { workspace = true }
 argh = { workspace = true }
 simple_logger = { workspace = true }
 baza_core = { workspace = true }
+pollster = { workspace = true }
 tracing = { workspace = true }
 toml = { workspace = true }
 exn.workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "baza-web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { version = "0.7.0", features = ["csr"] } 
+console_error_panic_hook = "0.1"
+baza_core = { path = "../baza-core" }
+tracing = { workspace = true }
+tracing-subscriber = "0.3"
+tracing-wasm = "0.2"
+uuid = { version = "1.8", features = ["v4"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 'z'
+panic = 'abort'

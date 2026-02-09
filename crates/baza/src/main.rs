@@ -97,7 +97,7 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Unlock(_) => baza_core::unlock(None)?,
         Commands::Lock(_) => baza_core::lock()?,
         Commands::List(_) => {
-            container::search(String::from(".*"))?;
+            pollster::block_on(container::search(String::from(".*")))?;
         }
         Commands::Version(_) => {
             println!("{}", env!("CARGO_PKG_VERSION"));
@@ -141,7 +141,7 @@ fn main() -> BazaR<()> {
     let args: Cli = argh::from_env();
 
     if let Some(str) = args.stdin {
-        container::from_stdin(str).or_raise(|| {
+        pollster::block_on(container::from_stdin(str)).or_raise(|| {
             baza_core::error::Error::Message("Failed to create bundle from STDIN".into())
         })?;
         return Ok(());

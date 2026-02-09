@@ -80,25 +80,25 @@ pub(crate) struct ShowArgs {
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         SubCommands::Add(args) => {
-            container::add(args.name, None)?;
+            pollster::block_on(container::add(args.name, None))?;
         }
         SubCommands::Generate(args) => {
-            container::generate(args.name)?;
+            pollster::block_on(container::generate(args.name))?;
         }
         SubCommands::Delete(args) => {
-            container::delete(args.name)?;
+            pollster::block_on(container::delete(args.name))?;
         }
         SubCommands::Edit(args) => {
-            container::update(args.name)?;
+            pollster::block_on(container::update(args.name))?;
         }
         SubCommands::Show(args) => {
-            container::read(args.name)?;
+            pollster::block_on(container::read(args.name))?;
         }
         SubCommands::Search(args) => {
-            container::search(args.name)?;
+            pollster::block_on(container::search(args.name))?;
         }
         SubCommands::Copy(args) => {
-            container::copy_to_clipboard(args.name)?;
+            pollster::block_on(container::copy_to_clipboard(args.name))?;
         }
     };
     Ok(())

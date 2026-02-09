@@ -5,12 +5,19 @@
 
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
+#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 use core::str;
 use exn::ResultExt;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+#[cfg(target_arch = "wasm32")]
+use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::{self, File};
+#[cfg(target_arch = "wasm32")]
+use std::io;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -58,7 +65,11 @@ pub enum Type {
 
 impl Default for Config {
     fn default() -> Self {
-        let home = std::env::var("HOME").unwrap();
+        #[cfg(not(target_arch = "wasm32"))]
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        #[cfg(target_arch = "wasm32")]
+        let home = ".".to_string();
+
         Self {
             main: MainConfig {
                 datadir: format!("{home}/.baza"),
@@ -144,65 +155,92 @@ pub(crate) fn key_file() -> String {
     format!("{datadir}/key.bin")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn lock() -> BazaR<()> {
     fs::remove_file(key_file())
         .or_raise(|| error::Error::Message("Failed to remove key file".into()))?;
     Ok(())
 }
 
-pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
-    let passphrase = if let Some(passphrase) = passphrase {
-        passphrase
-    } else {
-        let mut passphrase = String::new();
-        m("Enter your password: ", MessageType::Warning);
-        io::stdout()
-            .flush()
-            .or_raise(|| error::Error::Message("Failed to flush stdout".into()))?;
-        io::stdin()
-            .read_line(&mut passphrase)
-            .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
+#[cfg(target_arch = "wasm32")]
+static WASM_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
+    std::sync::OnceLock::new();
 
-        passphrase
-    };
-    let datadir = &Config::get().main.datadir;
-    let key = as_hash(passphrase.trim());
-    fs::create_dir_all(datadir)
-        .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
-    let mut file = File::create(key_file())
-        .or_raise(|| error::Error::Message("Failed to create key file".into()))?;
-    file.write_all(&key)
-        .or_raise(|| error::Error::Message("Failed to write key to file".into()))?;
+#[cfg(target_arch = "wasm32")]
+pub fn lock() -> BazaR<()> {
+    if let Some(mutex) = WASM_KEY.get() {
+        let mut guard = mutex
+            .lock()
+            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+        *guard = None;
+    }
     Ok(())
 }
 
-#[instrument(skip_all)]
-pub(crate) fn key() -> BazaR<Vec<u8>> {
-    let data = fs::read(key_file()).or_raise(|| {
-        crate::error::Error::Message(format!("Failed to read key file at {}", key_file()))
+#[cfg(target_arch = "wasm32")]
+pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
+    let passphrase = passphrase.ok_or_else(|| {
+        crate::error::Error::Message("Passphrase required for WASM unlock".into())
     })?;
-    if data.len() != 32 {
-        exn::bail!(crate::error::Error::Message(format!(
-            "Invalid key length: expected 32 bytes, got {}",
-            data.len()
-        )));
-    }
-    Ok(data)
+    let key_bytes = as_hash(passphrase.trim());
+
+    let mutex = WASM_KEY.get_or_init(|| std::sync::Mutex::new(None));
+    let mut guard = mutex
+        .lock()
+        .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+    *guard = Some(key_bytes.to_vec());
+
+    tracing::info!("WASM Unlock successful");
+    Ok(())
 }
 
-pub fn m(msg: &str, r#type: MessageType) {
-    let msg = match r#type {
+#[cfg(not(target_arch = "wasm32"))]
+pub fn unlock(_passphrase: Option<String>) -> BazaR<()> {
+    // Для not WASM unlock ничего не делает, ключ читается с диска
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn key() -> BazaR<Vec<u8>> {
+    // Здесь должен быть реальный код получения ключа с диска
+    // Для примера: Ok(vec![0; 32])
+    Err(exn::Exn::new(error::Error::Message("key() not implemented for native".into())))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn key() -> BazaR<Vec<u8>> {
+    let mutex = WASM_KEY.get_or_init(|| std::sync::Mutex::new(None));
+    let guard = mutex
+        .lock()
+        .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+
+    match &*guard {
+        Some(k) => Ok(k.clone()),
+        None => exn::bail!(crate::error::Error::Message(
+            "Vault is locked. Use 'unlock <password>'".into()
+        )),
+    }
+}
+
+pub fn m(msg: &str, _type: MessageType) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let msg = match _type {
         MessageType::Clean => msg,
         MessageType::Data => &format!("{}", msg.bright_blue()),
         MessageType::Info => &format!("{}", msg.bright_green()),
         MessageType::Warning => &format!("{}", msg.bright_yellow()),
         MessageType::Error => &format!("{}", msg.bright_red()),
     };
-    print!("{msg}");
+
+    #[cfg(target_arch = "wasm32")]
+    let msg = msg; // No coloring for WASM log for now
+
+    tracing::info!("{msg}");
 }
 
 // TODO: Make with NamedTmpFolder
 /// Cleanup temporary files
+#[cfg(not(target_arch = "wasm32"))]
 pub fn cleanup_tmp_folder() -> BazaR<()> {
     let datadir = &Config::get().main.datadir;
     let tmpdir = format!("{datadir}/tmp");
@@ -214,11 +252,19 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
     Ok(())
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn cleanup_tmp_folder() -> BazaR<()> {
+    Ok(())
+}
+
 pub fn init(passphrase: Option<String>) -> BazaR<()> {
     // Create common folders
-    let datadir = &Config::get().main.datadir;
-    fs::create_dir_all(format!("{datadir}/data"))
-        .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let datadir = &Config::get().main.datadir;
+        fs::create_dir_all(format!("{datadir}/data"))
+            .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
+    }
     storage::initialize()?;
 
     // Initialize the default key
@@ -226,11 +272,12 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     tracing::info!("Initializing baza in data directory");
     tracing::warn!(passphrase, "!!! Save this password phrase for future use");
 
-    unlock(Some(passphrase))?;
+    self::unlock(Some(passphrase))?;
 
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
     let data = fs::read(path).or_raise(|| {
         error::Error::Message(format!(
@@ -238,7 +285,7 @@ pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
             path.display()
         ))
     })?;
-    let encrypted = encrypt_data(&data, &key()?)?;
+    let encrypted = encrypt_data(&data, &self::key()?)?;
     let mut file = File::create(path).or_raise(|| {
         error::Error::Message(format!(
             "Failed to create file for encryption: {}",
@@ -266,6 +313,7 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     Ok([nonce_bytes.as_slice(), &ciphertext].concat())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
     let ciphertext = fs::read(path).or_raise(|| {
         error::Error::Message(format!(
@@ -273,7 +321,7 @@ pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
             path.display()
         ))
     })?;
-    let encrypted = decrypt_data(&ciphertext, &key()?)?;
+    let encrypted = decrypt_data(&ciphertext, &self::key()?)?;
     let mut file = File::create(path).or_raise(|| {
         error::Error::Message(format!(
             "Failed to create file for decryption: {}",

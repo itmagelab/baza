@@ -12,6 +12,7 @@ use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 use crate::{
     decrypt_file, encrypt_file, m, storage::StorageBackend, BazaR, Config, MessageType, TTL_SECONDS,
 };
+use std::sync::OnceLock;
 
 use super::Bundle;
 
@@ -22,8 +23,9 @@ pub struct Redb {
 }
 
 impl Redb {
-    pub fn instance() -> BazaR<Self> {
-        Self::new()
+    pub(crate) fn instance() -> BazaR<&'static dyn StorageBackend> {
+        static INSTANCE: OnceLock<Redb> = OnceLock::new();
+        Ok(INSTANCE.get_or_init(|| Self::new().expect("Failed to initialize Redb storage")))
     }
 
     pub fn new() -> BazaR<Self> {
@@ -50,8 +52,11 @@ pub fn initialize() -> BazaR<()> {
     Ok(())
 }
 
+use async_trait::async_trait;
+
+#[async_trait(?Send)]
 impl StorageBackend for Redb {
-    fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
+    async fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle
             .ptr
             .ok_or(crate::error::Error::Message("No pointer found".into()))?;
@@ -61,7 +66,7 @@ impl StorageBackend for Redb {
         let buf: Vec<u8> = std::fs::read(file)
             .or_raise(|| crate::error::Error::Message("Failed to read bundle file".into()))?;
 
-        let db = Redb::new()?.db()?;
+        let db = self.db()?;
         let write_txn = db.begin_write().or_raise(|| {
             crate::error::Error::Message("Failed to begin write transaction".into())
         })?;
@@ -79,13 +84,13 @@ impl StorageBackend for Redb {
         Ok(())
     }
 
-    fn read(&self, bundle: Bundle) -> BazaR<()> {
+    async fn read(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle
             .ptr
             .ok_or(crate::error::Error::Message("No pointer found".into()))?;
         let name = ptr.join(&Config::get().main.box_delimiter);
 
-        let db = Redb::new()?.db()?;
+        let db = self.db()?;
         let read_txn = db
             .begin_read()
             .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
@@ -115,7 +120,7 @@ impl StorageBackend for Redb {
         Ok(())
     }
 
-    fn update(&self, bundle: Bundle) -> BazaR<()> {
+    async fn update(&self, bundle: Bundle) -> BazaR<()> {
         let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
 
         let ptr = bundle
@@ -123,7 +128,7 @@ impl StorageBackend for Redb {
             .ok_or(crate::error::Error::Message("No pointer found".into()))?;
         let name = ptr.join(&Config::get().main.box_delimiter);
 
-        let db = Redb::new()?.db()?;
+        let db = self.db()?;
         let read_txn = db.begin_read().map_err(|e| exn::Exn::new(e.into()))?;
         let table = read_txn
             .open_table(TABLE)
@@ -168,13 +173,13 @@ impl StorageBackend for Redb {
         Ok(())
     }
 
-    fn delete(&self, bundle: Bundle) -> BazaR<()> {
+    async fn delete(&self, bundle: Bundle) -> BazaR<()> {
         let ptr = bundle
             .ptr
             .ok_or(crate::error::Error::Message("No pointer found".into()))?;
         let name = ptr.join(&Config::get().main.box_delimiter);
 
-        let db = Redb::new()?.db()?;
+        let db = self.db()?;
         let write_txn = db.begin_write().or_raise(|| {
             crate::error::Error::Message("Failed to begin delete transaction".into())
         })?;
@@ -192,8 +197,8 @@ impl StorageBackend for Redb {
         Ok(())
     }
 
-    fn search(&self, pattern: String) -> BazaR<()> {
-        let db = Redb::new()?.db()?;
+    async fn search(&self, pattern: String) -> BazaR<()> {
+        let db = self.db()?;
         let read_txn = db
             .begin_read()
             .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
@@ -220,7 +225,7 @@ impl StorageBackend for Redb {
         Ok(())
     }
 
-    fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
+    async fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()> {
         let mut clipboard = Clipboard::new()
             .or_raise(|| crate::error::Error::Message("Failed to access clipboard".into()))?;
 
@@ -229,7 +234,7 @@ impl StorageBackend for Redb {
             .ok_or(crate::error::Error::Message("No pointer found".into()))?;
         let name = ptr.join(&Config::get().main.box_delimiter);
 
-        let db = Redb::new()?.db()?;
+        let db = self.db()?;
         let read_txn = db
             .begin_read()
             .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;

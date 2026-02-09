@@ -49,7 +49,7 @@ pub(crate) struct AddArgs {
 pub(crate) fn handle(args: Args) -> BazaR<()> {
     match args.command {
         SubCommands::Add(args) => {
-            container::generate(args.name)?;
+            pollster::block_on(container::generate(args.name))?;
             Ok(())
         }
         SubCommands::Generate(args) => {
