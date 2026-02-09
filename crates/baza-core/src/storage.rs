@@ -1,4 +1,3 @@
-pub mod gitfs;
 pub mod redb;
 
 use crate::{bundle::Bundle, BazaR, Config};
@@ -14,7 +13,6 @@ pub(crate) trait StorageBackend {
     fn delete(&self, bundle: Bundle) -> BazaR<()>;
     fn search(&self, pattern: String) -> BazaR<()>;
     fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()>;
-    fn sync(&self) -> BazaR<()>;
 }
 
 fn with_backend<F, R>(f: F) -> BazaR<R>
@@ -22,14 +20,12 @@ where
     F: FnOnce(&dyn StorageBackend) -> BazaR<R>,
 {
     match Config::get().storage.r#type {
-        crate::r#Type::Gitfs => f(&gitfs::GitFs),
         crate::r#Type::Redb => f(&redb::Redb::instance()?),
     }
 }
 
 pub fn initialize() -> BazaR<()> {
     match Config::get().storage.r#type {
-        crate::r#Type::Gitfs => gitfs::initialize()?,
         crate::r#Type::Redb => redb::initialize()?,
     };
     Ok(())
@@ -49,10 +45,6 @@ pub(crate) fn update(bundle: Bundle) -> BazaR<()> {
 
 pub(crate) fn delete(bundle: Bundle) -> BazaR<()> {
     with_backend(|backend| backend.delete(bundle))
-}
-
-pub fn sync() -> BazaR<()> {
-    with_backend(|backend| backend.sync())
 }
 
 pub fn search(str: String) -> BazaR<()> {

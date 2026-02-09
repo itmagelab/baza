@@ -51,12 +51,6 @@ pub fn initialize() -> BazaR<()> {
 }
 
 impl StorageBackend for Redb {
-    fn sync(&self) -> BazaR<()> {
-        exn::bail!(crate::error::Error::Message(
-            "Sync is not supported for Redb storage".into()
-        ))
-    }
-
     fn create(&self, bundle: Bundle, _replace: bool) -> BazaR<()> {
         let ptr = bundle
             .ptr

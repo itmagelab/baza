@@ -1,5 +1,5 @@
 use argh::FromArgs;
-use baza_core::{cleanup_tmp_folder, container, sync, BazaR};
+use baza_core::{cleanup_tmp_folder, container, BazaR};
 use exn::ResultExt;
 
 mod bundle;
@@ -54,7 +54,6 @@ enum Commands {
     Unlock(UnlockArgs),
     Lock(LockArgs),
     Init(InitArgs),
-    Sync(SyncArgs),
     Bundle(bundle::Args),
     Password(password::Args),
     List(ListArgs),
@@ -81,11 +80,6 @@ struct InitArgs {
 }
 
 #[derive(FromArgs, Debug)]
-#[argh(subcommand, name = "sync")]
-/// Load database
-struct SyncArgs {}
-
-#[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "list")]
 /// List all containers
 struct ListArgs {}
@@ -102,7 +96,6 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Init(args) => baza_core::init(args.passphrase)?,
         Commands::Unlock(_) => baza_core::unlock(None)?,
         Commands::Lock(_) => baza_core::lock()?,
-        Commands::Sync(_) => sync()?,
         Commands::List(_) => {
             container::search(String::from(".*"))?;
         }

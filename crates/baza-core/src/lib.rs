@@ -35,7 +35,6 @@ pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub main: MainConfig,
-    pub gitfs: GitFsConfig,
     pub storage: StorageConfig,
 }
 
@@ -47,21 +46,12 @@ pub struct MainConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GitFsConfig {
-    pub url: Option<String>,
-    pub privatekey: Option<String>,
-    pub passphrase: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
     pub r#type: Type,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Type {
-    #[serde(rename = "gitfs")]
-    Gitfs,
     #[serde(rename = "redb")]
     Redb,
 }
@@ -74,11 +64,6 @@ impl Default for Config {
                 datadir: format!("{home}/.baza"),
                 box_delimiter: "::".into(),
                 bundle_delimiter: ".".into(),
-            },
-            gitfs: GitFsConfig {
-                url: None,
-                privatekey: None,
-                passphrase: None,
             },
             storage: StorageConfig { r#type: Type::Redb },
         }
@@ -162,15 +147,6 @@ pub(crate) fn key_file() -> String {
 pub fn lock() -> BazaR<()> {
     fs::remove_file(key_file())
         .or_raise(|| error::Error::Message("Failed to remove key file".into()))?;
-    Ok(())
-}
-
-pub fn sync() -> BazaR<()> {
-    if let Some(_url) = &Config::get().gitfs.url {
-        storage::sync()?;
-    } else {
-        tracing::info!("Please set url for git remote");
-    }
     Ok(())
 }
 
