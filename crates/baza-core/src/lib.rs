@@ -249,9 +249,6 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
 
     unlock(Some(passphrase))?;
 
-    // Generate default pgp key
-    // This is doesn't using now
-    // pgp::generate()?;
     Ok(())
 }
 
