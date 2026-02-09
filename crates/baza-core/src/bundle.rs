@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 
 use self::r#box::BoxRef;
 
-pub type BundleRef = Rc<RefCell<Bundle>>;
+pub(crate) type BundleRef = Rc<RefCell<Bundle>>;
 
 #[derive(Debug)]
 pub(crate) struct Bundle {
@@ -26,8 +26,9 @@ impl fmt::Display for Bundle {
 
 impl Bundle {
     pub(crate) fn new(name: String) -> BazaR<Self> {
-        let file =
-            tempfile::Builder::new().tempfile_in(format!("{}/tmp", Config::get().main.datadir))?;
+        let file = tempfile::Builder::new()
+            .tempfile_in(format!("{}/tmp", Config::get().main.datadir))
+            .map_err(crate::error::Error::from)?;
         let name = Arc::from(name);
         Ok(Self {
             name,
@@ -54,9 +55,12 @@ impl Bundle {
         let file = self.file.path().to_path_buf();
 
         if let Some(str) = data {
-            std::fs::write(&file, str)?;
+            std::fs::write(&file, str).map_err(crate::error::Error::from)?;
         } else {
-            let status = Command::new(editor).arg(&file).status()?;
+            let status = Command::new(editor)
+                .arg(&file)
+                .status()
+                .map_err(crate::error::Error::from)?;
             if !status.success() {
                 std::process::exit(1);
             }

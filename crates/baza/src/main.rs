@@ -1,4 +1,3 @@
-use anyhow::Context;
 use baza_core::{cleanup_tmp_folder, container, sync, BazaR};
 
 use clap::{CommandFactory, Parser, Subcommand};
@@ -168,7 +167,12 @@ impl Cli {
 pub async fn main() -> BazaR<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    cleanup_tmp_folder().context("Failed to cleanup temporary folder")?;
+    cleanup_tmp_folder().map_err(|e| {
+        exn::Exn::new(baza_core::error::Error::Message(format!(
+            "Failed to cleanup temporary folder: {}",
+            e
+        )))
+    })?;
 
     let fmt = fmt::layer()
         .with_target(false)
@@ -181,7 +185,12 @@ pub async fn main() -> BazaR<()> {
     let args = Cli::parse();
 
     if let Some(str) = args.stdin.as_ref() {
-        container::from_stdin(str.clone()).context("Failed to create bundle from STDIN")?;
+        container::from_stdin(str.clone()).map_err(|e| {
+            exn::Exn::new(baza_core::error::Error::Message(format!(
+                "Failed to create bundle from STDIN: {}",
+                e
+            )))
+        })?;
         return Ok(());
     };
 

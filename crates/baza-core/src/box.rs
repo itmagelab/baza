@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use crate::bundle::BundleRef;
 
-pub type BoxRef = Rc<RefCell<r#Box>>;
+pub(crate) type BoxRef = Rc<RefCell<r#Box>>;
 
 #[derive(Debug, Default)]
 pub(crate) struct r#Box {

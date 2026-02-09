@@ -13,7 +13,7 @@ path = "src/lib.rs"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 walkdir = { workspace = true }
-anyhow = { workspace = true }
+exn = { workspace = true }
 sequoia-openpgp = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

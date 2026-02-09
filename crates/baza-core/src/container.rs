@@ -34,7 +34,9 @@ impl ContainerBuilder {
             .split(&Config::get().main.box_delimiter)
             .collect();
         let Some(bundle) = pack.pop() else {
-            anyhow::bail!("Failed to parse container name");
+            exn::bail!(crate::error::Error::Message(
+                "Failed to parse container name".into()
+            ));
         };
         pack.reverse();
         while let Some(r#box) = pack.pop() {
@@ -63,7 +65,9 @@ impl ContainerBuilder {
                 .bundles
                 .push(Rc::new(RefCell::new(bundle)));
         } else {
-            anyhow::bail!("Failed to add bundle to empty container");
+            exn::bail!(crate::error::Error::Message(
+                "Failed to add bundle to empty container".into()
+            ));
         }
         Ok(self)
     }
@@ -83,10 +87,9 @@ impl Container {
         if let Some(r#box) = self.boxes.last() {
             let r#box = r#box.borrow();
             let box_name = r#box.name.to_string();
-            let bundle = r#box
-                .bundles
-                .first()
-                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
+            let bundle = r#box.bundles.first().ok_or_else(|| {
+                crate::error::Error::Message(format!("The box {box_name} have not bundles"))
+            })?;
             let bundle = bundle.borrow();
             bundle.create(data)?;
         }
@@ -97,12 +100,11 @@ impl Container {
         if let Some(r#box) = self.boxes.last() {
             let box_name = r#box.borrow().name.to_string();
             let mut r#box = r#box.borrow_mut();
-            let bundle = r#box
-                .bundles
-                .pop()
-                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
+            let bundle = r#box.bundles.pop().ok_or_else(|| {
+                crate::error::Error::Message(format!("The box {box_name} have not bundles"))
+            })?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
+                .map_err(|_| crate::error::Error::Message("Bundle still has references".into()))?
                 .into_inner();
             storage::read(bundle)?;
         }
@@ -113,12 +115,11 @@ impl Container {
         if let Some(r#box) = self.boxes.last() {
             let mut r#box = r#box.borrow_mut();
             let box_name = r#box.name.to_string();
-            let bundle = r#box
-                .bundles
-                .pop()
-                .ok_or_else(|| anyhow::anyhow!("The box {box_name} have not bundles"))?;
+            let bundle = r#box.bundles.pop().ok_or_else(|| {
+                crate::error::Error::Message(format!("The box {box_name} have not bundles"))
+            })?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
+                .map_err(|_| crate::error::Error::Message("Bundle still has references".into()))?
                 .into_inner();
             storage::update(bundle)?;
         }
@@ -130,7 +131,9 @@ impl Container {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let bundle = Rc::try_unwrap(bundle)
-                    .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
+                    .map_err(|_| {
+                        crate::error::Error::Message("Bundle still has references".into())
+                    })?
                     .into_inner();
                 storage::delete(bundle)?;
             }
@@ -143,7 +146,9 @@ impl Container {
             let mut r#box = r#box.borrow_mut();
             while let Some(bundle) = r#box.bundles.pop() {
                 let bundle = Rc::try_unwrap(bundle)
-                    .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
+                    .map_err(|_| {
+                        crate::error::Error::Message("Bundle still has references".into())
+                    })?
                     .into_inner();
                 storage::create(bundle)?;
             }
@@ -180,10 +185,10 @@ impl Container {
             let bundle = r#box
                 .bundles
                 .pop()
-                .ok_or_else(|| anyhow::anyhow!("The box have not bundles"))?;
+                .ok_or_else(|| crate::error::Error::Message("The box have not bundles".into()))?;
             // bundle.copy_to_clipboard(self.ptr(&r#box, &bundle)?, ttl)?;
             let bundle = Rc::try_unwrap(bundle)
-                .map_err(|_| anyhow::anyhow!("Bundle still has references"))?
+                .map_err(|_| crate::error::Error::Message("Bundle still has references".into()))?
                 .into_inner();
             storage::copy_to_clipboard(bundle, ttl)?;
         }
@@ -241,7 +246,9 @@ pub fn copy_to_clipboard(str: String) -> BazaR<()> {
 
 pub fn from_stdin(str: String) -> BazaR<()> {
     let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
+    io::stdin()
+        .read_to_string(&mut input)
+        .map_err(|e| exn::Exn::new(e.into()))?;
     Container::builder()
         .create_from_str(str)?
         .build()

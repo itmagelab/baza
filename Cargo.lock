@@ -210,9 +210,9 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 name = "baza"
 version = "2.9.0"
 dependencies = [
- "anyhow",
  "baza_core",
  "clap",
+ "exn",
  "sequoia-openpgp",
  "tokio",
  "toml",
@@ -226,9 +226,9 @@ version = "2.9.0"
 dependencies = [
  "aes",
  "aes-gcm",
- "anyhow",
  "arboard",
  "colored",
+ "exn",
  "git2",
  "rand",
  "redb",
@@ -634,6 +634,12 @@ name = "error-code"
 version = "3.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5d9305ccc6942a704f4335694ecd3de2ea531b114ac2d51f5f843750787a92f"
+
+[[package]]
+name = "exn"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca6badeb8a07b76663c7d7cb0903c1cc40c38d6fc06d3a2206780c63e8b9496"
 
 [[package]]
 name = "fastrand"
