@@ -3,3 +3,4 @@ contrib/*.mp4
 contrib/*.webm
 /target
 Baza.toml
+.DS_Store
