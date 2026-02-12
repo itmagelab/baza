@@ -93,7 +93,13 @@ fn run_command(cmd: Commands) -> BazaR<()> {
     match cmd {
         Commands::Password(s) => password::handle(s)?,
         Commands::Bundle(s) => bundle::handle(s)?,
-        Commands::Init(args) => baza_core::init(args.passphrase)?,
+        Commands::Init(args) => {
+            if pollster::block_on(baza_core::storage::is_initialized())? {
+                println!("Warning: Vault already exists.");
+            }
+            let p = baza_core::init(args.passphrase)?;
+            println!("Vault initialized with passphrase: {}", p);
+        }
         Commands::Unlock(_) => baza_core::unlock(None)?,
         Commands::Lock(_) => baza_core::lock()?,
         Commands::List(_) => {

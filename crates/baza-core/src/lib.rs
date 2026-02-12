@@ -257,7 +257,7 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
     Ok(())
 }
 
-pub fn init(passphrase: Option<String>) -> BazaR<()> {
+pub fn init(passphrase: Option<String>) -> BazaR<String> {
     // Create common folders
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -268,13 +268,13 @@ pub fn init(passphrase: Option<String>) -> BazaR<()> {
     storage::initialize()?;
 
     // Initialize the default key
-    let passphrase = passphrase.unwrap_or(Uuid::new_v4().hyphenated().to_string());
+    let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
     tracing::info!("Initializing baza in data directory");
     tracing::warn!(passphrase, "!!! Save this password phrase for future use");
 
-    self::unlock(Some(passphrase))?;
+    self::unlock(Some(passphrase.clone()))?;
 
-    Ok(())
+    Ok(passphrase)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

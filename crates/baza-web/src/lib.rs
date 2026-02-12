@@ -1,339 +1,350 @@
-use leptos::ev::KeyboardEvent;
+use leptos::task::spawn_local;
 use leptos::prelude::*;
-use baza_core::{container, generate, BazaR};
+use leptos::either::Either;
 
-#[derive(Clone, Debug)]
-struct Line {
-    content: String,
-    is_user: bool,
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum AppView {
+    Login,
+    Dashboard,
+    AddBundle,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct BundleInfo {
+    name: String,
 }
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (history, set_history) = signal(vec![
-        Line {
-            content: "Welcome to Baza v2.9.0 (WASM)".to_string(),
-            is_user: false,
-        },
-        Line {
-            content: "Type 'help' for available commands.".to_string(),
-            is_user: false,
-        },
-    ]);
-    let (input, set_input) = signal(String::new());
-    let (is_locked, set_is_locked) = signal(true);
-    let input_ref = NodeRef::<leptos::html::Input>::new();
+    let (view, set_view) = signal(AppView::Login);
+    let (passphrase, set_passphrase) = signal(String::new());
+    let (bundles, set_bundles) = signal(Vec::<BundleInfo>::new());
+    let (search_query, set_search_query) = signal(String::new());
+    let (error_msg, set_error_msg) = signal(String::new());
+    let (show_init_confirm, set_show_init_confirm) = signal(false);
+    let (init_passphrase, set_init_passphrase) = signal(None::<String>);
 
-    let add_output = move |msg: &str| {
-        set_history.update(|h| {
-            h.push(Line {
-                content: msg.to_string(),
-                is_user: false,
-            })
+    // Add Bundle Form State
+    let (new_bundle_name, set_new_bundle_name) = signal(String::new());
+    let (new_bundle_pass, set_new_bundle_pass) = signal(String::new());
+    let (is_editing, set_is_editing) = signal(false);
+    let (show_delete_confirm, set_show_delete_confirm) = signal(false);
+
+    let load_bundles = move || {
+        spawn_local(async move {
+            match baza_core::storage::list_all_keys().await {
+                Ok(keys) => {
+                    let info = keys.into_iter()
+                        .map(|name| BundleInfo { name })
+                        .collect();
+                    set_bundles.set(info);
+                }
+                Err(e) => set_error_msg.set(format!("Load failed: {}", e)),
+            }
         });
     };
 
-    let show_help = move || {
-        add_output("Baza Commands:");
-        add_output("  init [passphrase]          - Initialize vault");
-        add_output("  unlock <passphrase>        - Unlock vault");
-        add_output("  lock                       - Lock vault");
-        add_output("  list                       - List all bundles");
-        add_output("  bundle add <name>          - Create new bundle");
-        add_output("  bundle generate <name>     - Generate bundle with random password");
-        add_output("  bundle show <name>         - Show bundle contents");
-        add_output("  bundle edit <name>         - Edit bundle");
-        add_output("  bundle delete <name>       - Delete bundle");
-        add_output("  bundle search <pattern>    - Search bundles");
-        add_output("  bundle copy <name>         - Copy bundle to clipboard");
-        add_output("  password generate [len]    - Generate random password");
-        add_output("  clear                      - Clear terminal");
-        add_output("  help                       - Show this help");
+    // Actions
+    let perform_unlock = move || {
+        let p = passphrase.get();
+        if p.is_empty() {
+            set_error_msg.set("Passphrase cannot be empty".to_string());
+            return;
+        }
+        match baza_core::unlock(Some(p)) {
+            Ok(_) => {
+                set_init_passphrase.set(None); // Clear init key if logging in normally
+                set_view.set(AppView::Dashboard);
+                set_error_msg.set(String::new());
+                load_bundles();
+            }
+            Err(e) => set_error_msg.set(format!("Unlock failed: {}", e)),
+        }
     };
 
-    let handle_keydown = move |ev: KeyboardEvent| {
-        if ev.key() == "Enter" {
-            let cmd = input.get();
-            if cmd.trim().is_empty() {
-                return;
-            }
-
-            // Add user command to history
-            set_history.update(|h| {
-                h.push(Line {
-                    content: cmd.clone(),
-                    is_user: true,
-                })
-            });
-
-            // Parse and process command
-            let parts: Vec<&str> = cmd.trim().split_whitespace().collect();
-            if !parts.is_empty() {
-                let response = match parts[0] {
-                    "help" => {
-                        show_help();
-                        None
+    let perform_init = move |force: bool| {
+        spawn_local(async move {
+            if !force {
+                match baza_core::storage::is_initialized().await {
+                    Ok(true) => {
+                        set_show_init_confirm.set(true);
+                        return;
                     }
-                    "clear" => {
-                        set_history.set(vec![]);
-                        None
+                    Err(e) => {
+                        set_error_msg.set(format!("Check failed: {}", e));
+                        return;
                     }
-                    "init" => {
-                        let passphrase = parts.get(1).map(|s| s.to_string());
-                        match process_init(passphrase) {
-                            Ok(msg) => {
-                                set_is_locked.set(false);
-                                Some(msg)
-                            }
-                            Err(e) => Some(format!("Error: {}", e)),
-                        }
-                    }
-                    "unlock" => {
-                        if parts.len() < 2 {
-                            Some("Error: passphrase required".to_string())
-                        } else {
-                            match process_unlock(parts[1].to_string()) {
-                                Ok(msg) => {
-                                    set_is_locked.set(false);
-                                    Some(msg)
-                                }
-                                Err(e) => Some(format!("Error: {}", e)),
-                            }
-                        }
-                    }
-                    "lock" => {
-                        match process_lock() {
-                            Ok(msg) => {
-                                set_is_locked.set(true);
-                                Some(msg)
-                            }
-                            Err(e) => Some(format!("Error: {}", e)),
-                        }
-                    }
-                    "list" => {
-                        if is_locked.get() {
-                            Some("Error: Vault is locked. Use 'unlock <password>'".to_string())
-                        } else {
-                            match process_list() {
-                                Ok(msg) => Some(msg),
-                                Err(e) => Some(format!("Error: {}", e)),
-                            }
-                        }
-                    }
-                    "bundle" => {
-                        if is_locked.get() {
-                            Some("Error: Vault is locked. Use 'unlock <password>'".to_string())
-                        } else if parts.len() < 2 {
-                            Some("Error: bundle command requires subcommand (add, generate, show, edit, delete, search, copy)".to_string())
-                        } else {
-                            match parts[1] {
-                                "add" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle add requires name".to_string())
-                                    } else {
-                                        match process_bundle_add(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "generate" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle generate requires name".to_string())
-                                    } else {
-                                        match process_bundle_generate(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "show" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle show requires name".to_string())
-                                    } else {
-                                        match process_bundle_show(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "edit" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle edit requires name".to_string())
-                                    } else {
-                                        match process_bundle_edit(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "delete" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle delete requires name".to_string())
-                                    } else {
-                                        match process_bundle_delete(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "search" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle search requires pattern".to_string())
-                                    } else {
-                                        match process_bundle_search(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                "copy" => {
-                                    if parts.len() < 3 {
-                                        Some("Error: bundle copy requires name".to_string())
-                                    } else {
-                                        match process_bundle_copy(parts[2].to_string()) {
-                                            Ok(msg) => Some(msg),
-                                            Err(e) => Some(format!("Error: {}", e)),
-                                        }
-                                    }
-                                }
-                                _ => Some("Error: Unknown bundle subcommand".to_string()),
-                            }
-                        }
-                    }
-                    "password" => {
-                        if is_locked.get() {
-                            Some("Error: Vault is locked. Use 'unlock <password>'".to_string())
-                        } else if parts.len() < 2 {
-                            Some("Error: password command requires subcommand (generate)".to_string())
-                        } else {
-                            match parts[1] {
-                                "generate" => {
-                                    let length = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(24);
-                                    match process_password_generate(length) {
-                                        Ok(msg) => Some(msg),
-                                        Err(e) => Some(format!("Error: {}", e)),
-                                    }
-                                }
-                                _ => Some("Error: Unknown password subcommand".to_string()),
-                            }
-                        }
-                    }
-                    "version" => {
-                        Some("Baza v2.9.0 (WASM)".to_string())
-                    }
-                    _ => Some("Command not found. Type 'help'.".to_string()),
-                };
-
-                if let Some(response) = response {
-                    add_output(&response);
+                    Ok(false) => {}
                 }
             }
 
-            set_input.set(String::new());
+            let p = if passphrase.get().is_empty() {
+                None
+            } else {
+                Some(passphrase.get())
+            };
+
+            match baza_core::init(p) {
+                Ok(key) => {
+                    set_init_passphrase.set(Some(key));
+                    set_show_init_confirm.set(false);
+                    set_view.set(AppView::Dashboard);
+                    set_error_msg.set(String::new());
+                    set_bundles.set(vec![]);
+                }
+                Err(e) => set_error_msg.set(format!("Init failed: {}", e)),
+            }
+        });
+    };
+
+    let perform_lock = move || {
+        let _ = baza_core::lock();
+        set_view.set(AppView::Login);
+        set_passphrase.set(String::new());
+    };
+
+    let perform_save_bundle = move || {
+        let name = new_bundle_name.get();
+        let pass = new_bundle_pass.get();
+        if name.is_empty() || pass.is_empty() {
+            set_error_msg.set("Name and content are required".to_string());
+            return;
+        }
+        
+        spawn_local(async move {
+            match baza_core::container::add(name.clone(), Some(pass)).await {
+                Ok(_) => {
+                    set_view.set(AppView::Dashboard);
+                    set_new_bundle_name.set(String::new());
+                    set_new_bundle_pass.set(String::new());
+                    set_is_editing.set(false);
+                    set_error_msg.set(String::new());
+                    load_bundles();
+                }
+                Err(e) => set_error_msg.set(format!("Save failed: {}", e)),
+            }
+        });
+    };
+
+    let perform_edit = move |name: String| {
+        let name_clone = name.clone();
+        spawn_local(async move {
+            match baza_core::storage::get_content(name_clone.clone()).await {
+                Ok(content) => {
+                    set_new_bundle_name.set(name_clone);
+                    set_new_bundle_pass.set(content);
+                    set_is_editing.set(true);
+                    set_show_delete_confirm.set(false);
+                    set_view.set(AppView::AddBundle);
+                }
+                Err(e) => set_error_msg.set(format!("Load failed: {}", e)),
+            }
+        });
+    };
+
+    let perform_delete = move || {
+        let name = new_bundle_name.get();
+        spawn_local(async move {
+            match baza_core::storage::delete_by_name(name).await {
+                Ok(_) => {
+                    set_show_delete_confirm.set(false);
+                    set_view.set(AppView::Dashboard);
+                    set_new_bundle_name.set(String::new());
+                    set_new_bundle_pass.set(String::new());
+                    load_bundles();
+                }
+                Err(e) => set_error_msg.set(format!("Delete failed: {}", e)),
+            }
+        });
+    };
+
+    let perform_copy_first_line = move |name: String| {
+        spawn_local(async move {
+            match baza_core::storage::get_content(name).await {
+                Ok(content) => {
+                    let first_line = content.lines().next().unwrap_or("");
+                    // We need a way to copy to clipboard in browser
+                    // Leptos/web_sys approach:
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.navigator().clipboard().write_text(first_line);
+                        set_error_msg.set("COPIED TO CLIPBOARD".to_string());
+                        // Clear message after 2 seconds
+                        spawn_local(async move {
+                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                            set_error_msg.set(String::new());
+                        });
+                    }
+                }
+                Err(e) => set_error_msg.set(format!("Copy failed: {}", e)),
+            }
+        });
+    };
+
+    let generate_password = move |_| {
+        if let Ok(p) = baza_core::generate(24, false, false, false) {
+            set_new_bundle_pass.set(p);
         }
     };
 
-    // Auto-focus input on click anywhere
-    let focus_input = move |_| {
-        if let Some(input) = input_ref.get() {
-            let _ = input.focus();
-        }
+    // Auto-load on mount if already in Dashboard? 
+    // App starts in Login, so we only load after success.
+
+    let filtered_bundles = move || {
+        let query = search_query.get().to_lowercase();
+        bundles.get().into_iter()
+            .filter(|b| b.name.to_lowercase().contains(&query))
+            .collect::<Vec<_>>()
     };
 
     view! {
-        <div class="container" on:click=focus_input>
-            <h1>"Baza Terminal"</h1>
-            <div class={move || if is_locked.get() { "terminal-output locked" } else { "terminal-output" }}>
-                <For
-                    each=move || history.get()
-                    key=|line| (line.content.clone(), line.is_user)
-                    children=move |line| {
-                        view! {
-                            <div class="line">
-                                <Show
-                                    when=move || line.is_user
-                                    fallback=|| view! { <span class="prefix">"  "</span> }
-                                >
-                                    <span class="prompt">"baza>"</span>
-                                </Show>
-                                <span class="content">{line.content}</span>
-                            </div>
-                        }
-                    }
-                />
+        <div class="container">
+            <h1>"BAZA"</h1>
 
-                <div class="input-line">
-                    <span class="prompt">"baza>"</span>
-                    <input
-                        node_ref=input_ref
-                        type="text"
-                        class="terminal-input"
-                        prop:value=input
-                        on:input=move |ev| set_input.set(event_target_value(&ev))
-                        on:keydown=handle_keydown
-                        autofocus
-                        disabled=move || is_locked.get()
-                    />
-                </div>
-            </div>
+            {move || match view.get() {
+                AppView::Login => Either::Left(view! {
+                    <div class="view-login">
+                        {move || show_init_confirm.get().then(|| view! {
+                            <div class="confirm-box">
+                                <p class="warning">"VAULT EXISTS! OVERWRITE?"</p>
+                                <button class="btn btn-danger" on:click=move |_| perform_init(true)>"CONTINUE"</button>
+                                <button class="btn btn-ghost" on:click=move |_| set_show_init_confirm.set(false)>"CANCEL"</button>
+                            </div>
+                        })}
+
+                        <div style:display=move || if show_init_confirm.get() { "none" } else { "block" }>
+                            <div class="form-group">
+                                <label>"PASSPHRASE"</label>
+                                <input
+                                    type="password"
+                                    placeholder="Enter your passphrase"
+                                    prop:value=passphrase
+                                    on:input=move |ev| set_passphrase.set(event_target_value(&ev))
+                                    on:keydown=move |ev| if ev.key() == "Enter" { perform_unlock(); }
+                                />
+                            </div>
+                            <button class="btn" on:click=move |_| perform_unlock()>"UNLOCK"</button>
+                            <button class="btn btn-ghost" on:click=move |_| perform_init(false)>"INITIALIZE NEW VAULT"</button>
+                            
+                            {move || {
+                                let msg = error_msg.get();
+                                (!msg.is_empty()).then(|| view! { <p class="error">{msg}</p> })
+                            }}
+                        </div>
+                    </div>
+                }),
+
+                AppView::Dashboard => Either::Right(Either::Left(view! {
+                    <div class="view-dashboard">
+                        {move || init_passphrase.get().map(|p| view! {
+                            <div class="passphrase-banner">
+                                <p>"YOUR NEW PASSPHRASE:"</p>
+                                <code>{p}</code>
+                                <p class="small">"SAVE IT NOW. IT WILL NOT BE SHOWN AGAIN."</p>
+                            </div>
+                        })}
+
+                        <div class="search-group">
+                            <input
+                                type="text"
+                                placeholder="Search bundles..."
+                                prop:value=search_query
+                                on:input=move |ev| set_search_query.set(event_target_value(&ev))
+                            />
+                            {move || (!search_query.get().is_empty()).then(|| view! {
+                                <button class="search-clear" on:click=move |_| set_search_query.set(String::new())>"×"</button>
+                            })}
+                        </div>
+
+                        <ul class="bundle-list">
+                            <For
+                                each=filtered_bundles
+                                key=|b| b.name.clone()
+                                children=move |b| {
+                                    let name = b.name.clone();
+                                    let name_for_edit = name.clone();
+                                    let name_for_copy = name.clone();
+                                    let name_for_click = name.clone();
+                                    view! {
+                                        <li class="bundle-item" on:click=move |_| perform_edit(name_for_click.clone())>
+                                            <span class="bundle-name">{name}</span>
+                                            <div class="bundle-actions">
+                                                <button class="action-btn" title="Copy First Line" on:click=move |ev| {
+                                                    ev.stop_propagation();
+                                                    perform_copy_first_line(name_for_copy.clone());
+                                                }>"📋"</button>
+                                                <button class="action-btn" title="Edit" on:click=move |ev| {
+                                                    ev.stop_propagation();
+                                                    perform_edit(name_for_edit.clone());
+                                                }>"✏️"</button>
+                                            </div>
+                                        </li>
+                                    }
+                                }
+                            />
+                        </ul>
+
+                        <button class="btn" on:click=move |_| {
+                            set_is_editing.set(false);
+                            set_show_delete_confirm.set(false);
+                            set_new_bundle_name.set(String::new());
+                            set_new_bundle_pass.set(String::new());
+                            set_view.set(AppView::AddBundle);
+                        }>"ADD NEW BUNDLE"</button>
+                        <button class="btn btn-secondary" on:click=move |_| perform_lock()>"LOCK & EXIT"</button>
+
+                        {move || {
+                            let msg = error_msg.get();
+                            (!msg.is_empty()).then(|| view! { <p class="error">{msg}</p> })
+                        }}
+                    </div>
+                })),
+
+                AppView::AddBundle => Either::Right(Either::Right(view! {
+                    <div class="view-add">
+                        <h3>{move || if is_editing.get() { "EDIT BUNDLE" } else { "ADD NEW BUNDLE" }}</h3>
+                        <div class="form-group">
+                            <label>"BUNDLE NAME"</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. some::text::etc"
+                                prop:disabled=move || is_editing.get()
+                                prop:value=new_bundle_name
+                                on:input=move |ev| set_new_bundle_name.set(event_target_value(&ev))
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label>{move || if is_editing.get() { "CONTENT" } else { "PASSWORD / CONTENT" }}</label>
+                            <textarea
+                                rows="5"
+                                placeholder="Enter content or generate"
+                                prop:value=new_bundle_pass
+                                on:input=move |ev| set_new_bundle_pass.set(event_target_value(&ev))
+                            ></textarea>
+                            <button class="btn btn-ghost mt-1" on:click=generate_password>"GENERATE PASSWORD"</button>
+                        </div>
+                        <div style:display=move || if show_delete_confirm.get() { "none" } else { "block" }>
+                            <button class="btn" on:click=move |_| perform_save_bundle()>"SAVE BUNDLE"</button>
+                            {move || is_editing.get().then(|| view! {
+                                <button class="btn btn-danger mt-1" on:click=move |_| set_show_delete_confirm.set(true)>"DELETE BUNDLE"</button>
+                            })}
+                            <button class="btn btn-ghost" on:click=move |_| set_view.set(AppView::Dashboard)>"CANCEL"</button>
+                        </div>
+
+                        {move || show_delete_confirm.get().then(|| view! {
+                            <div class="confirm-box mt-1">
+                                <p class="warning">"DELETE THIS BUNDLE?"</p>
+                                <button class="btn btn-danger" on:click=move |_| perform_delete()>"CONFIRM DELETE"</button>
+                                <button class="btn btn-ghost" on:click=move |_| set_show_delete_confirm.set(false)>"CANCEL"</button>
+                            </div>
+                        })}
+                        
+                        {move || {
+                            let msg = error_msg.get();
+                            (!msg.is_empty()).then(|| view! { <p class="error">{msg}</p> })
+                        }}
+                    </div>
+                })),
+            }}
         </div>
     }
-}
-
-fn process_init(passphrase: Option<String>) -> Result<String, String> {
-    let passphrase = passphrase.unwrap_or_else(|| uuid::Uuid::new_v4().hyphenated().to_string());
-    baza_core::init(Some(passphrase.clone()))
-        .map_err(|e| format!("{}", e))?;
-    Ok(format!("Vault initialized! Passphrase: {}", passphrase))
-}
-
-fn process_unlock(passphrase: String) -> Result<String, String> {
-    baza_core::unlock(Some(passphrase))
-        .map_err(|e| format!("{}", e))?;
-    Ok("Vault unlocked!".to_string())
-}
-
-fn process_lock() -> Result<String, String> {
-    baza_core::lock()
-        .map_err(|e| format!("{}", e))?;
-    Ok("Vault locked!".to_string())
-}
-
-fn process_list() -> Result<String, String> {
-    Ok("Listed all bundles (feature in progress)".to_string())
-}
-
-fn process_bundle_add(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' created (feature in progress)", name))
-}
-
-fn process_bundle_generate(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' generated with random password (feature in progress)", name))
-}
-
-fn process_bundle_show(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' contents (feature in progress)", name))
-}
-
-fn process_bundle_edit(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' edited (feature in progress)", name))
-}
-
-fn process_bundle_delete(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' deleted (feature in progress)", name))
-}
-
-fn process_bundle_search(pattern: String) -> Result<String, String> {
-    Ok(format!("Bundles matching '{}' (feature in progress)", pattern))
-}
-
-fn process_bundle_copy(name: String) -> Result<String, String> {
-    Ok(format!("Bundle '{}' copied to clipboard (feature in progress)", name))
-}
-
-fn process_password_generate(length: usize) -> Result<String, String> {
-    let password = generate(length, false, false, false)
-        .map_err(|e| format!("{}", e))?;
-    Ok(format!("Generated password: {}", password))
 }

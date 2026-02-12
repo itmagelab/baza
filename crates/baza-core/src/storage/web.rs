@@ -139,10 +139,10 @@ impl StorageBackend for WebStorage {
     }
 
     async fn delete(&self, bundle: Bundle) -> BazaR<()> {
-        let ptr = bundle
-            .ptr
-            .ok_or(crate::error::Error::Message("No pointer found".into()))?;
-        let name = ptr.join(&Config::get().main.box_delimiter);
+        let name = match bundle.ptr {
+            Some(ptr) => ptr.join(&Config::get().main.box_delimiter),
+            None => bundle.name.to_string(),
+        };
 
         let transaction = self
             .rexie
@@ -285,5 +285,85 @@ impl StorageBackend for WebStorage {
         });
 
         Ok(())
+    }
+
+    async fn is_initialized(&self) -> BazaR<bool> {
+        let transaction = self
+            .rexie
+            .transaction(&[STORE_NAME], TransactionMode::ReadOnly)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let store = transaction
+            .store(STORE_NAME)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let keys = store
+            .get_all_keys(None, Some(1))
+            .await
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        Ok(!keys.is_empty())
+    }
+
+    async fn get_content(&self, bundle: Bundle) -> BazaR<String> {
+        let name = match bundle.ptr {
+            Some(ptr) => ptr.join(&Config::get().main.box_delimiter),
+            None => bundle.name.to_string(),
+        };
+
+        let transaction = self
+            .rexie
+            .transaction(&[STORE_NAME], TransactionMode::ReadOnly)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let store = transaction
+            .store(STORE_NAME)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let js_key = JsValue::from_str(&name);
+        let js_value = store
+            .get(js_key)
+            .await
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let js_value = js_value.ok_or(crate::error::Error::Message("No such key".into()))?;
+
+        if js_value.is_null() || js_value.is_undefined() {
+            return Err(crate::error::Error::Message("No such key".into()).into());
+        }
+
+        let data: Vec<u8> = serde_wasm_bindgen::from_value(js_value)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let key = crate::key()?;
+        let plaintext = crate::decrypt_data(&data, &key)?;
+
+        String::from_utf8(plaintext)
+            .map_err(|_| crate::error::Error::Message("Failed to decode utf8".into()).into())
+    }
+
+    async fn list_keys(&self) -> BazaR<Vec<String>> {
+        let transaction = self
+            .rexie
+            .transaction(&[STORE_NAME], TransactionMode::ReadOnly)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let store = transaction
+            .store(STORE_NAME)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let keys_js = store
+            .get_all_keys(None, None)
+            .await
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let mut keys = Vec::new();
+        for key_js in keys_js {
+            if let Some(key_str) = key_js.as_string() {
+                keys.push(key_str);
+            }
+        }
+
+        Ok(keys)
     }
 }

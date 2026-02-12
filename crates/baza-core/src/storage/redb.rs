@@ -174,10 +174,10 @@ impl StorageBackend for Redb {
     }
 
     async fn delete(&self, bundle: Bundle) -> BazaR<()> {
-        let ptr = bundle
-            .ptr
-            .ok_or(crate::error::Error::Message("No pointer found".into()))?;
-        let name = ptr.join(&Config::get().main.box_delimiter);
+        let name = match bundle.ptr {
+            Some(ptr) => ptr.join(&Config::get().main.box_delimiter),
+            None => bundle.name.to_string(),
+        };
 
         let db = self.db()?;
         let write_txn = db.begin_write().or_raise(|| {
@@ -279,5 +279,59 @@ impl StorageBackend for Redb {
             .set_text("".to_string())
             .or_raise(|| crate::error::Error::Message("Failed to clear clipboard".into()))?;
         Ok(())
+    }
+
+    async fn is_initialized(&self) -> BazaR<bool> {
+        Ok(std::path::Path::new(&self.path).exists())
+    }
+
+    async fn get_content(&self, bundle: Bundle) -> BazaR<String> {
+        let name = match bundle.ptr {
+            Some(ptr) => ptr.join(&Config::get().main.box_delimiter),
+            None => bundle.name.to_string(),
+        };
+
+        let db = self.db()?;
+        let read_txn = db.begin_read().or_raise(|| {
+            crate::error::Error::Message("Failed to begin read transaction".into())
+        })?;
+        let table = read_txn
+            .open_table(TABLE)
+            .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
+
+        let data = table
+            .get(&*name)
+            .or_raise(|| crate::error::Error::Message("Failed to get value from table".into()))?
+            .ok_or(crate::error::Error::Message("No such key".into()))?
+            .value();
+
+        let key = crate::key()?;
+        let plaintext = crate::decrypt_data(&data, &key)?;
+        String::from_utf8(plaintext)
+            .map_err(|_| crate::error::Error::Message("Failed to decode utf8".into()).into())
+    }
+
+    async fn list_keys(&self) -> BazaR<Vec<String>> {
+        let db = self.db()?;
+        let read_txn = db.begin_read().or_raise(|| {
+            crate::error::Error::Message("Failed to begin read transaction".into())
+        })?;
+        let table = read_txn
+            .open_table(TABLE)
+            .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
+
+        let mut keys = Vec::new();
+        for result in table
+            .iter()
+            .or_raise(|| crate::error::Error::Message("Failed to iterate over table".into()))?
+        {
+            let (key, _): (redb::AccessGuard<&str>, redb::AccessGuard<Vec<u8>>) =
+                result.or_raise(|| {
+                    crate::error::Error::Message("Failed to read entry from table".into())
+                })?;
+            keys.push(key.value().to_string());
+        }
+
+        Ok(keys)
     }
 }
