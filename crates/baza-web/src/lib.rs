@@ -1,6 +1,14 @@
 use leptos::task::spawn_local;
 use leptos::prelude::*;
 use leptos::either::Either;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = encodeURIComponent)]
+    fn uri_encode(s: &str) -> String;
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum AppView {
@@ -28,6 +36,7 @@ pub fn App() -> impl IntoView {
     let (new_bundle_name, set_new_bundle_name) = signal(String::new());
     let (new_bundle_pass, set_new_bundle_pass) = signal(String::new());
     let (is_editing, set_is_editing) = signal(false);
+    let (original_name, set_original_name) = signal(String::new());
     let (show_delete_confirm, set_show_delete_confirm) = signal(false);
 
     let load_bundles = move || {
@@ -106,6 +115,9 @@ pub fn App() -> impl IntoView {
     let perform_save_bundle = move || {
         let name = new_bundle_name.get();
         let pass = new_bundle_pass.get();
+        let old_name = original_name.get();
+        let was_editing = is_editing.get();
+        
         if name.is_empty() || pass.is_empty() {
             set_error_msg.set("Name and content are required".to_string());
             return;
@@ -114,9 +126,15 @@ pub fn App() -> impl IntoView {
         spawn_local(async move {
             match baza_core::container::add(name.clone(), Some(pass)).await {
                 Ok(_) => {
+                    // If renamed, delete the old one
+                    if was_editing && name != old_name {
+                        let _ = baza_core::storage::delete_by_name(old_name).await;
+                    }
+                    
                     set_view.set(AppView::Dashboard);
                     set_new_bundle_name.set(String::new());
                     set_new_bundle_pass.set(String::new());
+                    set_original_name.set(String::new());
                     set_is_editing.set(false);
                     set_error_msg.set(String::new());
                     load_bundles();
@@ -131,7 +149,8 @@ pub fn App() -> impl IntoView {
         spawn_local(async move {
             match baza_core::storage::get_content(name_clone.clone()).await {
                 Ok(content) => {
-                    set_new_bundle_name.set(name_clone);
+                    set_new_bundle_name.set(name_clone.clone());
+                    set_original_name.set(name_clone);
                     set_new_bundle_pass.set(content);
                     set_is_editing.set(true);
                     set_show_delete_confirm.set(false);
@@ -158,21 +177,143 @@ pub fn App() -> impl IntoView {
         });
     };
 
+    let perform_dump = move || {
+        spawn_local(async move {
+            match baza_core::storage::dump().await {
+                Ok(data) => {
+                    match serde_json::to_string(&data) {
+                        Ok(json) => {
+                            if let Some(window) = web_sys::window() {
+                                if let Some(document) = window.document() {
+                                    if let Ok(el) = document.create_element("a") {
+                                        let a = el.unchecked_into::<web_sys::HtmlElement>();
+                                        let timestamp = js_sys::Date::now();
+                                        let filename = format!("baza_dump_{}.json", timestamp);
+                                        let _ = a.set_attribute("href", &format!("data:application/json;charset=utf-8,{}", uri_encode(&json)));
+                                        let _ = a.set_attribute("download", &filename);
+                                        let _ = document.body().unwrap().append_child(&a);
+                                        a.click();
+                                        let _ = document.body().unwrap().remove_child(&a);
+                                        set_error_msg.set("DATABASE DUMPED".to_string());
+                                        spawn_local(async move {
+                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                            set_error_msg.set(String::new());
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => set_error_msg.set(format!("Dump failed: {}", e)),
+                    }
+                }
+                Err(e) => set_error_msg.set(format!("Dump failed: {}", e)),
+            }
+        });
+    };
+
+    let perform_restore = move |ev: leptos::web_sys::Event| {
+        let target = ev.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+        if let Some(files) = target.files() {
+            if let Some(file) = files.get(0) {
+                spawn_local(async move {
+                    let promise = file.text();
+                    match wasm_bindgen_futures::JsFuture::from(promise).await {
+                        Ok(text_js) => {
+                            let text = text_js.as_string().unwrap_or_default();
+                            match serde_json::from_str::<Vec<(String, Vec<u8>)>>(&text) {
+                                Ok(data) => {
+                                    match baza_core::storage::restore(data).await {
+                                        Ok(_) => {
+                                            set_error_msg.set("RESTORE SUCCESSFUL".to_string());
+                                            load_bundles();
+                                            spawn_local(async move {
+                                                gloo_timers::future::TimeoutFuture::new(2000).await;
+                                                set_error_msg.set(String::new());
+                                            });
+                                        }
+                                        Err(e) => set_error_msg.set(format!("Restore failed: {}", e)),
+                                    }
+                                }
+                                Err(e) => set_error_msg.set(format!("Parse failed: {}", e)),
+                            }
+                        }
+                        Err(e) => set_error_msg.set(format!("Read failed: {:?}", e)),
+                    }
+                });
+            }
+        }
+    };
+
     let perform_copy_first_line = move |name: String| {
         spawn_local(async move {
             match baza_core::storage::get_content(name).await {
                 Ok(content) => {
-                    let first_line = content.lines().next().unwrap_or("");
-                    // We need a way to copy to clipboard in browser
-                    // Leptos/web_sys approach:
+                    let first_line = content.lines().next().unwrap_or("").trim().to_string();
+                    
+                    let mut copied = false;
                     if let Some(window) = web_sys::window() {
-                        let _ = window.navigator().clipboard().write_text(first_line);
+                        let is_secure = window.is_secure_context();
+                        
+                        // 1. Try modern Clipboard API (only if secure context)
+                        if is_secure {
+                            let nav = window.navigator();
+                            let promise = nav.clipboard().write_text(&first_line);
+                            if wasm_bindgen_futures::JsFuture::from(promise).await.is_ok() {
+                                copied = true;
+                            }
+                        }
+
+                        // 2. Try execCommand fallback (works in non-secure if gesture is preserved)
+                        if !copied {
+                            if let Some(document) = window.document() {
+                                if let Ok(el) = document.create_element("textarea") {
+                                    let textarea = el.unchecked_into::<web_sys::HtmlTextAreaElement>();
+                                    textarea.set_value(&first_line);
+                                    let style = web_sys::HtmlElement::style(&textarea);
+                                    let _ = style.set_property("position", "fixed");
+                                    let _ = style.set_property("left", "-9999px");
+                                    let _ = style.set_property("top", "0");
+                                    if let Some(body) = document.body() {
+                                        let _ = body.append_child(&textarea);
+                                        textarea.focus().ok();
+                                        textarea.select();
+                                        let html_doc = document.unchecked_into::<web_sys::HtmlDocument>();
+                                        if html_doc.exec_command("copy").unwrap_or(false) {
+                                            copied = true;
+                                        }
+                                        let _ = body.remove_child(&textarea);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Ultimate fallback: window.prompt (always works)
+                        if !copied {
+                            let msg = if is_secure {
+                                "Automatic copy failed. Please copy manually from the field below:"
+                            } else {
+                                "Insecure connection (HTTP). Automatic copy disabled. Use the field below:"
+                            };
+                            let _ = window.prompt_with_message_and_default(msg, &first_line);
+                            // We don't mark as 'copied' because user still has to copy from prompt,
+                            // but we show a different feedback.
+                            set_error_msg.set("USE PROMPT TO COPY".to_string());
+                            spawn_local(async move {
+                                gloo_timers::future::TimeoutFuture::new(3000).await;
+                                set_error_msg.set(String::new());
+                            });
+                            return;
+                        }
+                    }
+
+                    if copied {
                         set_error_msg.set("COPIED TO CLIPBOARD".to_string());
-                        // Clear message after 2 seconds
                         spawn_local(async move {
                             gloo_timers::future::TimeoutFuture::new(2000).await;
                             set_error_msg.set(String::new());
                         });
+                    } else {
+                        set_error_msg.set("COPY FAILED".to_string());
                     }
                 }
                 Err(e) => set_error_msg.set(format!("Copy failed: {}", e)),
@@ -263,15 +404,10 @@ pub fn App() -> impl IntoView {
                                     let name = b.name.clone();
                                     let name_for_edit = name.clone();
                                     let name_for_copy = name.clone();
-                                    let name_for_click = name.clone();
                                     view! {
-                                        <li class="bundle-item" on:click=move |_| perform_edit(name_for_click.clone())>
+                                        <li class="bundle-item" on:click=move |_| perform_copy_first_line(name_for_copy.clone())>
                                             <span class="bundle-name">{name}</span>
                                             <div class="bundle-actions">
-                                                <button class="action-btn" title="Copy First Line" on:click=move |ev| {
-                                                    ev.stop_propagation();
-                                                    perform_copy_first_line(name_for_copy.clone());
-                                                }>"📋"</button>
                                                 <button class="action-btn" title="Edit" on:click=move |ev| {
                                                     ev.stop_propagation();
                                                     perform_edit(name_for_edit.clone());
@@ -290,7 +426,21 @@ pub fn App() -> impl IntoView {
                             set_new_bundle_pass.set(String::new());
                             set_view.set(AppView::AddBundle);
                         }>"ADD NEW BUNDLE"</button>
-                        <button class="btn btn-secondary" on:click=move |_| perform_lock()>"LOCK & EXIT"</button>
+                        
+                        <div class="backup-actions mt-1">
+                            <button class="btn btn-ghost" on:click=move |_| perform_dump()>"DUMP DATABASE"</button>
+                            <label class="btn btn-ghost ml-1">
+                                "RESTORE DATABASE"
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    style:display="none"
+                                    on:change=perform_restore
+                                />
+                            </label>
+                        </div>
+
+                        <button class="btn btn-secondary mt-1" on:click=move |_| perform_lock()>"LOCK & EXIT"</button>
 
                         {move || {
                             let msg = error_msg.get();
@@ -307,7 +457,6 @@ pub fn App() -> impl IntoView {
                             <input
                                 type="text"
                                 placeholder="e.g. some::text::etc"
-                                prop:disabled=move || is_editing.get()
                                 prop:value=new_bundle_name
                                 on:input=move |ev| set_new_bundle_name.set(event_target_value(&ev))
                             />

@@ -4,25 +4,25 @@ members = ["crates/*"]
 default-members = ["crates/baza"]
 
 [workspace.package]
-version = "2.9.0"
+version = "3.0.0"
 edition = "2021"
 authors = ["Andrey Semenov <i@itmage.ru>"]
 license = "Apache-2.0"
 description = "The base password manager"
 
 [workspace.dependencies]
-baza_core = { path = "crates/baza-core", version = "2.6.1" }
+baza_core = { path = "crates/baza-core" }
 thiserror = "2.0.14"
 tracing = "0.1.41"
 log = "0.4"
 simple_logger = "5.0.0"
 walkdir = "2.5.0"
 exn = "0.3.0"
-toml = "0.9.5"
+toml = "0.9.12"
 serde = "1.0.219"
 tempfile = "3.20.0"
-rand = "0.9.2"
-getrandom = { version = "0.3.1", features = ["wasm_js"] }
+rand = "0.10.0"
+getrandom = { version = "0.4.1", features = ["wasm_js"] }
 aes = "0.8.4"
 aes-gcm = { version = "0.10.3", features = ["std"] }
 uuid = { version = "1.18.0", features = ["v4", "js"] }
@@ -35,8 +35,8 @@ pollster = "0.4.0"
 redb = "3.0.2"
 
 [profile.release]
-opt-level = "z"      # Optimize for size
-lto = true           # Enable Link-Time Optimization
-codegen-units = 1    # Maximize optimization at the expense of build speed
-panic = "abort"      # Remove unwinding code
-strip = true         # Strip symbols from the binary
+opt-level = "z"   # Optimize for size
+lto = true        # Enable Link-Time Optimization
+codegen-units = 1 # Maximize optimization at the expense of build speed
+panic = "abort"   # Remove unwinding code
+strip = true      # Strip symbols from the binary

@@ -115,31 +115,40 @@ fn run_command(cmd: Commands) -> BazaR<()> {
 fn main() -> BazaR<()> {
     simple_logger::init_with_level(log::Level::Info).ok();
 
-    let home = std::env::var("HOME").or_raise(|| {
-        baza_core::error::Error::Message("Failed to get HOME environment variable".into())
-    })?;
+    if let Err(err) = run_main() {
+        eprintln!("Error: {}", err);
+        std::process::exit(1);
+    }
+    Ok(())
+}
 
-    let config_paths = [
-        format!("{}/.config/baza/baza.toml", home),
-        format!("{}/.baza/config.toml", home),
-        format!("{}/.Baza.toml", home),
-    ];
+fn run_main() -> BazaR<()> {
+    let config_path = baza_core::Config::default_config_path()?;
 
-    let mut found_config = false;
-    for path in config_paths.iter() {
-        let p = std::path::PathBuf::from(path);
-        if p.exists() {
-            baza_core::Config::build(&p)?;
-            found_config = true;
-            break;
+    if !cfg!(debug_assertions) && !config_path.exists() {
+        // In production, try to find legacy configuration if standard one is missing
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        let legacy_paths = [
+            format!("{}/.baza/config.toml", home),
+            format!("{}/.Baza.toml", home),
+        ];
+
+        for path in legacy_paths.iter() {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                baza_core::Config::build(&p)?;
+                return handle_args();
+            }
         }
     }
 
-    if !found_config {
-        let default_path = std::path::PathBuf::from(&config_paths[0]);
-        baza_core::Config::build(&default_path)?;
-    }
+    // Default or found modern config path
+    baza_core::Config::build(&config_path)?;
 
+    handle_args()
+}
+
+fn handle_args() -> BazaR<()> {
     cleanup_tmp_folder().or_raise(|| {
         baza_core::error::Error::Message("Failed to cleanup temporary folder".into())
     })?;
@@ -201,10 +210,7 @@ fn main() -> BazaR<()> {
 
     match args.command {
         Some(cmd) => {
-            if let Err(err) = run_command(cmd) {
-                tracing::error!(?err);
-                std::process::exit(1);
-            }
+            run_command(cmd)?;
         }
         None => {
             println!("Baza: The base password manager");

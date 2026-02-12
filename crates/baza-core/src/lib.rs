@@ -9,22 +9,21 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use colored::Colorize;
 use core::str;
 use exn::ResultExt;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 #[cfg(target_arch = "wasm32")]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
-use std::fs::{self, File};
+use std::fs;
 #[cfg(target_arch = "wasm32")]
 use std::io;
 #[cfg(not(target_arch = "wasm32"))]
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::io;
+use std::path::Path;
 use std::sync::OnceLock;
 use tracing::instrument;
 use uuid::Uuid;
-
-use rand::Rng;
 
 pub mod r#box;
 pub mod bundle;
@@ -66,13 +65,18 @@ pub enum Type {
 impl Default for Config {
     fn default() -> Self {
         #[cfg(not(target_arch = "wasm32"))]
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        let datadir = if cfg!(debug_assertions) {
+            "./.baza".to_string()
+        } else {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            format!("{home}/.baza")
+        };
         #[cfg(target_arch = "wasm32")]
-        let home = ".".to_string();
+        let datadir = ".".to_string();
 
         Self {
             main: MainConfig {
-                datadir: format!("{home}/.baza"),
+                datadir,
                 box_delimiter: "::".into(),
                 bundle_delimiter: ".".into(),
             },
@@ -92,6 +96,20 @@ pub enum MessageType {
 impl Config {
     pub fn get() -> &'static Config {
         CONFIG.get_or_init(Config::default)
+    }
+
+    pub fn default_config_path() -> BazaR<std::path::PathBuf> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if cfg!(debug_assertions) {
+            return Ok(std::path::PathBuf::from("./.baza/baza.toml"));
+        }
+
+        let home = std::env::var("HOME")
+            .or_raise(|| error::Error::Message("Failed to get HOME environment variable".into()))?;
+
+        Ok(std::path::PathBuf::from(format!(
+            "{home}/.config/baza/baza.toml"
+        )))
     }
 
     pub fn build(path: &Path) -> BazaR<()> {
@@ -142,6 +160,7 @@ pub fn generate(
         .collect())
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 fn as_hash(str: &str) -> [u8; 32] {
     let mut hasher = sha2::Sha256::new();
     hasher.update(str.as_bytes());
@@ -150,9 +169,7 @@ fn as_hash(str: &str) -> [u8; 32] {
 }
 
 pub(crate) fn key_file() -> String {
-    let config = Config::get();
-    let datadir = &config.main.datadir;
-    format!("{datadir}/key.bin")
+    format!("{}/key.txt", &Config::get().main.datadir)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -190,21 +207,43 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
         .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
     *guard = Some(key_bytes.to_vec());
 
-    tracing::info!("WASM Unlock successful");
+    crate::m("WASM Unlock successful", crate::MessageType::Info);
     Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn unlock(_passphrase: Option<String>) -> BazaR<()> {
-    // Для not WASM unlock ничего не делает, ключ читается с диска
+pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
+    let passphrase = match passphrase {
+        Some(p) => p,
+        None => {
+            print!("Enter passphrase: ");
+            std::io::Write::flush(&mut std::io::stdout()).ok();
+            let mut input = String::new();
+            std::io::stdin()
+                .read_line(&mut input)
+                .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
+            input.trim().to_string()
+        }
+    };
+
+    fs::write(key_file(), passphrase.trim())
+        .or_raise(|| error::Error::Message("Failed to write key file".into()))?;
+
+    crate::m("Vault unlocked", crate::MessageType::Info);
     Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn key() -> BazaR<Vec<u8>> {
-    // Здесь должен быть реальный код получения ключа с диска
-    // Для примера: Ok(vec![0; 32])
-    Err(exn::Exn::new(error::Error::Message("key() not implemented for native".into())))
+    let path = key_file();
+    if !std::path::Path::new(&path).exists() {
+        return Err(exn::Exn::new(error::Error::Message(
+            "Vault is locked. Use 'unlock' command first".into(),
+        )));
+    }
+    let content = fs::read_to_string(path)
+        .or_raise(|| error::Error::Message("Failed to read key file".into()))?;
+    Ok(as_hash(content.trim()).to_vec())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -224,13 +263,16 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
 
 pub fn m(msg: &str, _type: MessageType) {
     #[cfg(not(target_arch = "wasm32"))]
-    let msg = match _type {
-        MessageType::Clean => msg,
-        MessageType::Data => &format!("{}", msg.bright_blue()),
-        MessageType::Info => &format!("{}", msg.bright_green()),
-        MessageType::Warning => &format!("{}", msg.bright_yellow()),
-        MessageType::Error => &format!("{}", msg.bright_red()),
-    };
+    {
+        let colored_msg = match _type {
+            MessageType::Clean => msg.to_string(),
+            MessageType::Data => format!("{}", msg.bright_blue()),
+            MessageType::Info => format!("{}", msg.bright_green()),
+            MessageType::Warning => format!("{}", msg.bright_yellow()),
+            MessageType::Error => format!("{}", msg.bright_red()),
+        };
+        println!("{colored_msg}");
+    }
 
     #[cfg(target_arch = "wasm32")]
     let msg = msg; // No coloring for WASM log for now
@@ -269,36 +311,21 @@ pub fn init(passphrase: Option<String>) -> BazaR<String> {
 
     // Initialize the default key
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
-    tracing::info!("Initializing baza in data directory");
-    tracing::warn!(passphrase, "!!! Save this password phrase for future use");
+    crate::m(
+        "Initializing baza in data directory",
+        crate::MessageType::Info,
+    );
+    crate::m(
+        &format!(
+            "!!! Save this password phrase for future use: {}",
+            passphrase
+        ),
+        crate::MessageType::Warning,
+    );
 
     self::unlock(Some(passphrase.clone()))?;
 
     Ok(passphrase)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn encrypt_file(path: &PathBuf) -> BazaR<()> {
-    let data = fs::read(path).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to read file for encryption: {}",
-            path.display()
-        ))
-    })?;
-    let encrypted = encrypt_data(&data, &self::key()?)?;
-    let mut file = File::create(path).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to create file for encryption: {}",
-            path.display()
-        ))
-    })?;
-    file.write_all(&encrypted).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to write encrypted data to: {}",
-            path.display()
-        ))
-    })?;
-    Ok(())
 }
 
 pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
@@ -313,30 +340,6 @@ pub(crate) fn encrypt_data(plaintext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     Ok([nonce_bytes.as_slice(), &ciphertext].concat())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn decrypt_file(path: &PathBuf) -> BazaR<()> {
-    let ciphertext = fs::read(path).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to read file for decryption: {}",
-            path.display()
-        ))
-    })?;
-    let encrypted = decrypt_data(&ciphertext, &self::key()?)?;
-    let mut file = File::create(path).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to create file for decryption: {}",
-            path.display()
-        ))
-    })?;
-    file.write_all(&encrypted).or_raise(|| {
-        error::Error::Message(format!(
-            "Failed to write decrypted data to: {}",
-            path.display()
-        ))
-    })?;
-    Ok(())
-}
-
 #[instrument(skip_all)]
 pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(key)
@@ -348,7 +351,7 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     }
     let (nonce_bytes, actual_ciphertext) = ciphertext.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
-    Ok(cipher
+    cipher
         .decrypt(nonce, actual_ciphertext)
-        .map_err(|e| exn::Exn::new(e.into()))?)
+        .map_err(|e| exn::Exn::new(e.into()))
 }

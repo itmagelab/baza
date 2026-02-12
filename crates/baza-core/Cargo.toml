@@ -17,13 +17,18 @@ arboard = { workspace = true }
 redb.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom_02 = { package = "getrandom", version = "0.2.15", features = ["js"] }
+getrandom_02 = { package = "getrandom", version = "0.2.17", features = ["js"] }
 rexie = "0.6.2"
 serde-wasm-bindgen = "0.6.5"
 wasm-bindgen = "0.2"
 js-sys = "0.3"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard", "console"] }
+web-sys = { version = "0.3", features = [
+  "Window",
+  "Navigator",
+  "Clipboard",
+  "console",
+] }
 
 [dependencies]
 async-trait = "0.1.86"

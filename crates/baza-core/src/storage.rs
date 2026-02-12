@@ -5,7 +5,7 @@ pub mod web;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::Config;
-use crate::{bundle::Bundle, BazaR};
+use crate::BazaR;
 use async_trait::async_trait;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -13,32 +13,23 @@ pub fn storage_dir(dir: &'static str) -> std::path::PathBuf {
     std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, dir))
 }
 
-#[async_trait(?Send)]
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) trait StorageBackend: Sync + Send {
-    async fn create(&self, bundle: Bundle, replace: bool) -> BazaR<()>;
-    async fn read(&self, bundle: Bundle) -> BazaR<()>;
-    async fn update(&self, bundle: Bundle) -> BazaR<()>;
-    async fn delete(&self, bundle: Bundle) -> BazaR<()>;
-    async fn search(&self, pattern: String) -> BazaR<()>;
-    async fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()>;
-    async fn is_initialized(&self) -> BazaR<bool>;
-    async fn get_content(&self, bundle: Bundle) -> BazaR<String>;
-    async fn list_keys(&self) -> BazaR<Vec<String>>;
-}
+pub(crate) trait StorageBounds: Sync + Send {}
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: Sync + Send> StorageBounds for T {}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) trait StorageBounds {}
+#[cfg(target_arch = "wasm32")]
+impl<T> StorageBounds for T {}
 
 #[async_trait(?Send)]
-#[cfg(target_arch = "wasm32")]
-pub(crate) trait StorageBackend {
-    async fn create(&self, bundle: Bundle, replace: bool) -> BazaR<()>;
-    async fn read(&self, bundle: Bundle) -> BazaR<()>;
-    async fn update(&self, bundle: Bundle) -> BazaR<()>;
-    async fn delete(&self, bundle: Bundle) -> BazaR<()>;
-    async fn search(&self, pattern: String) -> BazaR<()>;
-    async fn copy_to_clipboard(&self, bundle: Bundle, ttl: u64) -> BazaR<()>;
+pub(crate) trait StorageBackend: StorageBounds {
     async fn is_initialized(&self) -> BazaR<bool>;
-    async fn get_content(&self, bundle: Bundle) -> BazaR<String>;
     async fn list_keys(&self) -> BazaR<Vec<String>>;
+    async fn get(&self, key: &str) -> BazaR<Vec<u8>>;
+    async fn set(&self, key: &str, value: Vec<u8>) -> BazaR<()>;
+    async fn remove(&self, key: &str) -> BazaR<()>;
 }
 
 pub(crate) async fn with_backend<F, Fut, R>(f: F) -> BazaR<R>
@@ -65,44 +56,104 @@ pub fn initialize() -> BazaR<()> {
     Ok(())
 }
 
+// --- Public Utility Functions (The new "API") ---
+
 pub async fn is_initialized() -> BazaR<bool> {
     with_backend(|backend| backend.is_initialized()).await
-}
-
-pub(crate) async fn create(bundle: Bundle) -> BazaR<()> {
-    with_backend(|backend| backend.create(bundle, true)).await
-}
-
-pub(crate) async fn read(bundle: Bundle) -> BazaR<()> {
-    with_backend(|backend| backend.read(bundle)).await
-}
-
-pub(crate) async fn update(bundle: Bundle) -> BazaR<()> {
-    with_backend(|backend| backend.update(bundle)).await
-}
-
-pub(crate) async fn delete(bundle: Bundle) -> BazaR<()> {
-    with_backend(|backend| backend.delete(bundle)).await
-}
-
-pub async fn search(str: String) -> BazaR<()> {
-    with_backend(|backend| backend.search(str)).await
-}
-
-pub(crate) async fn copy_to_clipboard(bundle: Bundle, ttl: u64) -> BazaR<()> {
-    with_backend(|backend| backend.copy_to_clipboard(bundle, ttl)).await
-}
-
-pub async fn get_content(name: String) -> BazaR<String> {
-    let bundle = crate::bundle::Bundle::new(name)?;
-    with_backend(|backend| backend.get_content(bundle)).await
 }
 
 pub async fn list_all_keys() -> BazaR<Vec<String>> {
     with_backend(|backend| backend.list_keys()).await
 }
 
+pub async fn get_content(name: String) -> BazaR<String> {
+    let encrypted = with_backend(|backend| backend.get(&name)).await?;
+    let key = crate::key()?;
+    let plaintext = crate::decrypt_data(&encrypted, &key)?;
+    String::from_utf8(plaintext)
+        .map_err(|_| crate::error::Error::Message("Failed to decode utf8".into()).into())
+}
+
+pub async fn save_content(name: String, content: String) -> BazaR<()> {
+    let key = crate::key()?;
+    let encrypted = crate::encrypt_data(content.as_bytes(), &key)?;
+    with_backend(|backend| backend.set(&name, encrypted)).await
+}
+
 pub async fn delete_by_name(name: String) -> BazaR<()> {
-    let bundle = crate::bundle::Bundle::new(name)?;
-    with_backend(|backend| backend.delete(bundle)).await
+    with_backend(|backend| backend.remove(&name)).await
+}
+
+pub async fn dump() -> BazaR<Vec<(String, Vec<u8>)>> {
+    with_backend(|backend| async move {
+        let keys = backend.list_keys().await?;
+        let mut data = Vec::with_capacity(keys.len());
+        for key in keys {
+            let value = backend.get(&key).await?;
+            data.push((key, value));
+        }
+        Ok(data)
+    }).await
+}
+
+pub async fn restore(data: Vec<(String, Vec<u8>)>) -> BazaR<()> {
+    with_backend(|backend| async move {
+        // Clear existing data
+        let keys = backend.list_keys().await?;
+        for key in keys {
+            backend.remove(&key).await?;
+        }
+        
+        // Restore new data
+        for (key, value) in data {
+            backend.set(&key, value).await?;
+        }
+        Ok(())
+    }).await
+}
+
+// storage.rs
+
+pub async fn search(pattern: String) -> BazaR<()> {
+    let keys = list_all_keys().await?;
+    let re = regex_lite::Regex::new(&pattern)
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+    
+    for key in keys {
+        if re.is_match(&key) {
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::m(&format!("{}\n", key), crate::MessageType::Clean);
+            #[cfg(target_arch = "wasm32")]
+            tracing::info!("Match: {}", key);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn copy_to_clipboard(name: String, ttl: u64) -> BazaR<()> {
+    use arboard::Clipboard;
+    use colored::Colorize;
+
+    let content = get_content(name).await?;
+    let first_line = content.lines().next().unwrap_or("").trim();
+    
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+    clipboard.set_text(first_line.to_string())
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+    println!("{}", format!("Copied to clipboard. Will clear in {} seconds.", ttl).bright_yellow().bold());
+    
+    std::thread::sleep(std::time::Duration::from_secs(ttl));
+    let _ = clipboard.set_text("".to_string());
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn copy_to_clipboard(_name: String, _ttl: u64) -> BazaR<()> {
+    // In WASM, clipboard management is usually handled by the UI (web-sys)
+    // because of security restrictions (must be triggered by user gesture).
+    // So we just return the content or an error.
+    Err(crate::error::Error::Message("Use browser APIs directly for clipboard".into()).into())
 }

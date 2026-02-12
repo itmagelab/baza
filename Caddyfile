@@ -1,0 +1,11 @@
+:8080 {
+	root * /usr/share/baza
+	file_server
+	try_files {path} /index.html
+	encode gzip
+	
+	log {
+		output stdout
+		format console
+	}
+}
