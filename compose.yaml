@@ -1,7 +1,10 @@
 ---
 services:
   baza:
-    image: wilful/baza:1.0.0
+    image: itmagelab/baza:latest
+    ports:
+      - 8080:8080
     build:
       context: .
       target: final
+    command: web

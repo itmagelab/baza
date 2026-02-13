@@ -5,8 +5,7 @@ ARG RUST_VERSION=1.92.0
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION} AS build
 RUN apt-get update \
   && apt-get install --no-install-recommends -y \
-  nettle-dev \
-  libclang-dev \
+  nettle-dev libclang-dev \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN --mount=type=bind,source=crates,target=crates \
