@@ -2,7 +2,8 @@
 	root * /usr/share/baza
 	file_server
 	try_files {path} /index.html
-	encode gzip
+	encode zstd gzip
+	header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; worker-src 'self' blob:;"
 	
 	log {
 		output stdout

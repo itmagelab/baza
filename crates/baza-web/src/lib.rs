@@ -1,8 +1,8 @@
-use leptos::task::spawn_local;
-use leptos::prelude::*;
 use leptos::either::Either;
-use wasm_bindgen::JsCast;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsCast;
 
 #[wasm_bindgen]
 extern "C" {
@@ -43,9 +43,7 @@ pub fn App() -> impl IntoView {
         spawn_local(async move {
             match baza_core::storage::list_all_keys().await {
                 Ok(keys) => {
-                    let info = keys.into_iter()
-                        .map(|name| BundleInfo { name })
-                        .collect();
+                    let info = keys.into_iter().map(|name| BundleInfo { name }).collect();
                     set_bundles.set(info);
                 }
                 Err(e) => set_error_msg.set(format!("Load failed: {}", e)),
@@ -117,12 +115,12 @@ pub fn App() -> impl IntoView {
         let pass = new_bundle_pass.get();
         let old_name = original_name.get();
         let was_editing = is_editing.get();
-        
+
         if name.is_empty() || pass.is_empty() {
             set_error_msg.set("Name and content are required".to_string());
             return;
         }
-        
+
         spawn_local(async move {
             match baza_core::container::add(name.clone(), Some(pass)).await {
                 Ok(_) => {
@@ -130,7 +128,7 @@ pub fn App() -> impl IntoView {
                     if was_editing && name != old_name {
                         let _ = baza_core::storage::delete_by_name(old_name).await;
                     }
-                    
+
                     set_view.set(AppView::Dashboard);
                     set_new_bundle_name.set(String::new());
                     set_new_bundle_pass.set(String::new());
@@ -180,39 +178,46 @@ pub fn App() -> impl IntoView {
     let perform_dump = move || {
         spawn_local(async move {
             match baza_core::storage::dump().await {
-                Ok(data) => {
-                    match serde_json::to_string(&data) {
-                        Ok(json) => {
-                            if let Some(window) = web_sys::window() {
-                                if let Some(document) = window.document() {
-                                    if let Ok(el) = document.create_element("a") {
-                                        let a = el.unchecked_into::<web_sys::HtmlElement>();
-                                        let timestamp = js_sys::Date::now();
-                                        let filename = format!("baza_dump_{}.json", timestamp);
-                                        let _ = a.set_attribute("href", &format!("data:application/json;charset=utf-8,{}", uri_encode(&json)));
-                                        let _ = a.set_attribute("download", &filename);
-                                        let _ = document.body().unwrap().append_child(&a);
-                                        a.click();
-                                        let _ = document.body().unwrap().remove_child(&a);
-                                        set_error_msg.set("DATABASE DUMPED".to_string());
-                                        spawn_local(async move {
-                                            gloo_timers::future::TimeoutFuture::new(2000).await;
-                                            set_error_msg.set(String::new());
-                                        });
-                                    }
+                Ok(data) => match serde_json::to_string(&data) {
+                    Ok(json) => {
+                        if let Some(window) = web_sys::window() {
+                            if let Some(document) = window.document() {
+                                if let Ok(el) = document.create_element("a") {
+                                    let a = el.unchecked_into::<web_sys::HtmlElement>();
+                                    let timestamp = js_sys::Date::now();
+                                    let filename = format!("baza_dump_{}.json", timestamp);
+                                    let _ = a.set_attribute(
+                                        "href",
+                                        &format!(
+                                            "data:application/json;charset=utf-8,{}",
+                                            uri_encode(&json)
+                                        ),
+                                    );
+                                    let _ = a.set_attribute("download", &filename);
+                                    let _ = document.body().unwrap().append_child(&a);
+                                    a.click();
+                                    let _ = document.body().unwrap().remove_child(&a);
+                                    set_error_msg.set("DATABASE DUMPED".to_string());
+                                    spawn_local(async move {
+                                        gloo_timers::future::TimeoutFuture::new(2000).await;
+                                        set_error_msg.set(String::new());
+                                    });
                                 }
                             }
                         }
-                        Err(e) => set_error_msg.set(format!("Dump failed: {}", e)),
                     }
-                }
+                    Err(e) => set_error_msg.set(format!("Dump failed: {}", e)),
+                },
                 Err(e) => set_error_msg.set(format!("Dump failed: {}", e)),
             }
         });
     };
 
     let perform_restore = move |ev: leptos::web_sys::Event| {
-        let target = ev.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+        let target = ev
+            .target()
+            .unwrap()
+            .unchecked_into::<web_sys::HtmlInputElement>();
         if let Some(files) = target.files() {
             if let Some(file) = files.get(0) {
                 spawn_local(async move {
@@ -221,19 +226,17 @@ pub fn App() -> impl IntoView {
                         Ok(text_js) => {
                             let text = text_js.as_string().unwrap_or_default();
                             match serde_json::from_str::<Vec<(String, Vec<u8>)>>(&text) {
-                                Ok(data) => {
-                                    match baza_core::storage::restore(data).await {
-                                        Ok(_) => {
-                                            set_error_msg.set("RESTORE SUCCESSFUL".to_string());
-                                            load_bundles();
-                                            spawn_local(async move {
-                                                gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                set_error_msg.set(String::new());
-                                            });
-                                        }
-                                        Err(e) => set_error_msg.set(format!("Restore failed: {}", e)),
+                                Ok(data) => match baza_core::storage::restore(data).await {
+                                    Ok(_) => {
+                                        set_error_msg.set("RESTORE SUCCESSFUL".to_string());
+                                        load_bundles();
+                                        spawn_local(async move {
+                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                            set_error_msg.set(String::new());
+                                        });
                                     }
-                                }
+                                    Err(e) => set_error_msg.set(format!("Restore failed: {}", e)),
+                                },
                                 Err(e) => set_error_msg.set(format!("Parse failed: {}", e)),
                             }
                         }
@@ -249,11 +252,11 @@ pub fn App() -> impl IntoView {
             match baza_core::storage::get_content(name).await {
                 Ok(content) => {
                     let first_line = content.lines().next().unwrap_or("").trim().to_string();
-                    
+
                     let mut copied = false;
                     if let Some(window) = web_sys::window() {
                         let is_secure = window.is_secure_context();
-                        
+
                         // 1. Try modern Clipboard API (only if secure context)
                         if is_secure {
                             let nav = window.navigator();
@@ -267,7 +270,8 @@ pub fn App() -> impl IntoView {
                         if !copied {
                             if let Some(document) = window.document() {
                                 if let Ok(el) = document.create_element("textarea") {
-                                    let textarea = el.unchecked_into::<web_sys::HtmlTextAreaElement>();
+                                    let textarea =
+                                        el.unchecked_into::<web_sys::HtmlTextAreaElement>();
                                     textarea.set_value(&first_line);
                                     let style = web_sys::HtmlElement::style(&textarea);
                                     let _ = style.set_property("position", "fixed");
@@ -277,7 +281,8 @@ pub fn App() -> impl IntoView {
                                         let _ = body.append_child(&textarea);
                                         textarea.focus().ok();
                                         textarea.select();
-                                        let html_doc = document.unchecked_into::<web_sys::HtmlDocument>();
+                                        let html_doc =
+                                            document.unchecked_into::<web_sys::HtmlDocument>();
                                         if html_doc.exec_command("copy").unwrap_or(false) {
                                             copied = true;
                                         }
@@ -327,12 +332,14 @@ pub fn App() -> impl IntoView {
         }
     };
 
-    // Auto-load on mount if already in Dashboard? 
+    // Auto-load on mount if already in Dashboard?
     // App starts in Login, so we only load after success.
 
     let filtered_bundles = move || {
         let query = search_query.get().to_lowercase();
-        bundles.get().into_iter()
+        bundles
+            .get()
+            .into_iter()
             .filter(|b| b.name.to_lowercase().contains(&query))
             .collect::<Vec<_>>()
     };
@@ -365,7 +372,7 @@ pub fn App() -> impl IntoView {
                             </div>
                             <button class="btn" on:click=move |_| perform_unlock()>"UNLOCK"</button>
                             <button class="btn btn-ghost" on:click=move |_| perform_init(false)>"INITIALIZE NEW VAULT"</button>
-                            
+
                             {move || {
                                 let msg = error_msg.get();
                                 (!msg.is_empty()).then(|| view! { <p class="error">{msg}</p> })
@@ -426,7 +433,7 @@ pub fn App() -> impl IntoView {
                             set_new_bundle_pass.set(String::new());
                             set_view.set(AppView::AddBundle);
                         }>"ADD NEW BUNDLE"</button>
-                        
+
                         <div class="backup-actions mt-1">
                             <button class="btn btn-ghost" on:click=move |_| perform_dump()>"DUMP DATABASE"</button>
                             <label class="btn btn-ghost ml-1">
@@ -486,7 +493,7 @@ pub fn App() -> impl IntoView {
                                 <button class="btn btn-ghost" on:click=move |_| set_show_delete_confirm.set(false)>"CANCEL"</button>
                             </div>
                         })}
-                        
+
                         {move || {
                             let msg = error_msg.get();
                             (!msg.is_empty()).then(|| view! { <p class="error">{msg}</p> })
