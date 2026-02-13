@@ -44,7 +44,7 @@ RUN apt-get update \
 ARG UID=10001
 RUN useradd \
   --create-home \
-  --home-dir /usr/share/werter \
+  --home-dir /usr/share/baza \
   --shell /sbin/nologin \
   --uid "${UID}" \
   --comment "" \
