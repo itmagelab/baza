@@ -35,8 +35,8 @@ pollster = "0.4.0"
 redb = "3.0.2"
 
 [profile.release]
-opt-level = "z"   # Optimize for size
-lto = true        # Enable Link-Time Optimization
-codegen-units = 1 # Maximize optimization at the expense of build speed
-panic = "abort"   # Remove unwinding code
-strip = true      # Strip symbols from the binary
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
