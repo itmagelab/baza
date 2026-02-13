@@ -522,6 +522,19 @@ pub fn app() -> Html {
                                 if !error_msg.is_empty() {
                                     <p class="error">{(*error_msg).clone()}</p>
                                 }
+
+                                <div class="backup-actions mt-1">
+                                    <button class="btn btn-ghost" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>
+                                    <label class="btn btn-ghost ml-1">
+                                        {"RESTORE DATABASE"}
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            style="display: none"
+                                            onchange={perform_restore}
+                                        />
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     },
@@ -588,18 +601,7 @@ pub fn app() -> Html {
                                 }
                             }>{"ADD NEW BUNDLE"}</button>
 
-                            <div class="backup-actions mt-1">
-                                <button class="btn btn-ghost" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>
-                                <label class="btn btn-ghost ml-1">
-                                    {"RESTORE DATABASE"}
-                                    <input
-                                        type="file"
-                                        accept=".json"
-                                        style="display: none"
-                                        onchange={perform_restore}
-                                    />
-                                </label>
-                            </div>
+
 
                             <button class="btn btn-secondary mt-1" onclick={move |_| perform_lock.emit(())}>{"LOCK & EXIT"}</button>
 
