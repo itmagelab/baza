@@ -59,11 +59,11 @@ COPY --from=web /usr/share/baza /usr/share/baza
 
 # Copy Caddyfile and entrypoint script
 COPY Caddyfile /etc/caddy/Caddyfile
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 USER baza
 WORKDIR /usr/share/baza
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD []
