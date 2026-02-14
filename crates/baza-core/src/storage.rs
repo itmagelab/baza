@@ -123,6 +123,25 @@ pub async fn restore(data: Vec<(String, Vec<u8>)>) -> BazaR<()> {
     .await
 }
 
+/// Restore data without requiring the vault to be unlocked
+/// This is useful for initial database restoration
+pub async fn restore_unlocked(data: Vec<(String, Vec<u8>)>) -> BazaR<()> {
+    with_backend(|backend| async move {
+        // Clear existing data
+        let keys = backend.list_keys().await?;
+        for key in keys {
+            backend.remove(&key).await?;
+        }
+
+        // Restore new data
+        for (key, value) in data {
+            backend.set(&key, value).await?;
+        }
+        Ok(())
+    })
+    .await
+}
+
 // storage.rs
 
 pub async fn search(pattern: String) -> BazaR<()> {

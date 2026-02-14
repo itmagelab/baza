@@ -51,7 +51,14 @@ pub fn app() -> Html {
                         let info = keys.into_iter().map(|name| BundleInfo { name }).collect();
                         bundles.set(info);
                     }
-                    Err(e) => error_msg.set(format!("Load failed: {}", e)),
+                    Err(e) => {
+                        // If vault is locked, don't show error after successful restore
+                        if !e.to_string().contains("Vault is locked") {
+                            error_msg.set(format!("Load failed: {}", e));
+                        }
+                        // Clear bundles list when vault is locked
+                        bundles.set(vec![]);
+                    },
                 }
             });
         })
@@ -363,7 +370,7 @@ pub fn app() -> Html {
                                 let uint8 = js_sys::Uint8Array::new(&buf_js);
                                 let bytes = uint8.to_vec();
                                 match baza_core::dump::restore::<Vec<(String, Vec<u8>)>>(&bytes) {
-                                    Ok(data) => match baza_core::storage::restore(data).await {
+                                    Ok(data) => match baza_core::storage::restore_unlocked(data).await {
                                         Ok(_) => {
                                             error_msg.set("RESTORE SUCCESSFUL".to_string());
                                             load_bundles.emit(());
