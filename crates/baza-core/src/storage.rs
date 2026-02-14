@@ -122,7 +122,7 @@ pub async fn search(pattern: String) -> BazaR<()> {
     for key in keys {
         if re.is_match(&key) {
             #[cfg(not(target_arch = "wasm32"))]
-            crate::m(&format!("{}\n", key), crate::MessageType::Clean);
+            crate::m(&key, crate::MessageType::Clean);
             #[cfg(target_arch = "wasm32")]
             tracing::info!("Match: {}", key);
         }

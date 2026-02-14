@@ -90,3 +90,6 @@ Type "baza bundle delete work::new::login" Sleep 1s Enter Sleep 2s
 Type "baza bundle search new" Sleep 1s Enter
 Type "baza password generate --help" Sleep 1s Enter Sleep 2s
 Type "baza password generate 12 --no-symbols" Sleep 1s Enter Sleep 2s
+Type "baza dump " Sleep 1s Enter Sleep 2s
+Type "baza restore dump.baza " Sleep 1s Enter Sleep 2s
+Type "baza -l " Sleep 1s Enter Sleep 2s
