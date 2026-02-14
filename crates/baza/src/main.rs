@@ -44,6 +44,14 @@ struct Cli {
     #[argh(switch, short = 'l')]
     list: bool,
 
+    /// dump database to file
+    #[argh(switch, short = 'D')]
+    dump: bool,
+
+    /// restore database from file
+    #[argh(option, short = 'R')]
+    restore: Option<String>,
+
     #[argh(subcommand)]
     command: Option<Commands>,
 }
@@ -213,10 +221,51 @@ fn handle_args() -> BazaR<()> {
             run_command(cmd)?;
         }
         None => {
+            if args.dump {
+                return handle_dump();
+            }
+
+            if let Some(path) = args.restore {
+                return handle_restore(path);
+            }
+
             println!("Baza: The base password manager");
             println!("Use --help for usage information");
         }
     }
 
+    Ok(())
+}
+
+fn handle_dump() -> BazaR<()> {
+    use std::fs::File;
+    use std::io::Write;
+    use exn::ResultExt;
+
+    let data = pollster::block_on(baza_core::storage::dump())?;
+    let dumped = baza_core::dump::dump(&data, baza_core::dump::Algorithm::Lz4)
+        .or_raise(|| baza_core::error::Error::Message("Failed to dump database".into()))?;
+    
+    let mut file = File::create("dump.baza")
+        .or_raise(|| baza_core::error::Error::Message("Failed to create dump file".into()))?;
+    file.write_all(&dumped)
+        .or_raise(|| baza_core::error::Error::Message("Failed to write dump file".into()))?;
+    
+    println!("Database dumped to dump.baza");
+    Ok(())
+}
+
+fn handle_restore(path: String) -> BazaR<()> {
+    use std::fs;
+    use exn::ResultExt;
+    
+    let data = fs::read(path)
+        .or_raise(|| baza_core::error::Error::Message("Failed to read dump file".into()))?;
+    let restored = baza_core::dump::restore::<Vec<(String, Vec<u8>)>>(&data)
+        .or_raise(|| baza_core::error::Error::Message("Failed to restore database".into()))?;
+    
+    pollster::block_on(baza_core::storage::restore(restored))?;
+    
+    println!("Database restored from dump");
     Ok(())
 }
