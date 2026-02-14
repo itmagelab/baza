@@ -97,10 +97,7 @@ impl Container {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let name = self.name();
-            let content = match storage::get_content(name.clone()).await {
-                Ok(c) => c,
-                Err(_) => String::new(),
-            };
+            let content = storage::get_content(name.clone()).await.unwrap_or_default();
 
             let temp = tempfile::NamedTempFile::new()
                 .map_err(|e| crate::error::Error::Message(e.to_string()))?;
