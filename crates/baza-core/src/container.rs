@@ -239,36 +239,69 @@ mod tests {
 
     fn create(str: &str) {
         let str = str.to_string();
-        let password = crate::generate(255, false, false, false).unwrap();
-        pollster::block_on(add(str, Some(password))).unwrap();
+        let password = match crate::generate(255, false, false, false) {
+            Ok(p) => p,
+            Err(e) => panic!("generate failed: {}", e),
+        };
+        match pollster::block_on(add(str, Some(password))) {
+            Ok(_) => {}
+            Err(e) => panic!("add failed: {}", e),
+        }
     }
 
     fn read_test(str: &str) {
         let str = str.to_string();
-        pollster::block_on(read(str)).unwrap();
+        match pollster::block_on(read(str)) {
+            Ok(_) => {}
+            Err(e) => panic!("read failed: {}", e),
+        }
     }
 
     fn delete_test(str: &str) {
         let str = str.to_string();
-        pollster::block_on(delete(str)).unwrap();
+        match pollster::block_on(delete(str)) {
+            Ok(_) => {}
+            Err(e) => panic!("delete failed: {}", e),
+        }
     }
 
     #[test]
     fn it_works() {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = match tempfile::tempdir() {
+            Ok(t) => t,
+            Err(e) => panic!("tempdir failed: {}", e),
+        };
         let config_path = temp.path().join("baza.toml");
         let mut config = Config::default();
         config.main.datadir = temp.path().to_string_lossy().to_string();
-        let config_str = toml::to_string(&config).unwrap();
-        std::fs::write(&config_path, config_str).unwrap();
-        Config::build(&config_path).unwrap();
+        let config_str = match toml::to_string(&config) {
+            Ok(s) => s,
+            Err(e) => panic!("toml serialize failed: {}", e),
+        };
+        if let Err(e) = std::fs::write(&config_path, config_str) {
+            panic!("write config failed: {}", e);
+        }
+        if let Err(e) = Config::build(&config_path) {
+            panic!("Config::build failed: {}", e);
+        }
 
-        let password = crate::generate(255, false, false, false).unwrap();
-        init(Some(password.clone())).unwrap();
-        cleanup_tmp_folder().unwrap();
-        lock().unwrap();
+        let password = match crate::generate(255, false, false, false) {
+            Ok(p) => p,
+            Err(e) => panic!("generate failed: {}", e),
+        };
+        if let Err(e) = init(Some(password.clone())) {
+            panic!("init failed: {}", e);
+        }
+        if let Err(e) = cleanup_tmp_folder() {
+            panic!("cleanup failed: {}", e);
+        }
+        if let Err(e) = lock() {
+            panic!("lock failed: {}", e);
+        }
 
-        unlock(Some(password.clone())).unwrap();
+        if let Err(e) = unlock(Some(password.clone())) {
+            panic!("unlock failed: {}", e);
+        }
         let bundles = vec![
             "test::my.test::login.ru",
             "test::my@test::login@ru",

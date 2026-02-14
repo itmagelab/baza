@@ -30,6 +30,7 @@ pub mod bundle;
 pub mod container;
 pub mod error;
 pub mod storage;
+pub mod dump;
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
@@ -122,7 +123,10 @@ impl Config {
             let config = Config::default();
             let config_str = toml::to_string(&config)
                 .or_raise(|| error::Error::Message("Failed to serialize default config".into()))?;
-            fs::create_dir_all(path.parent().unwrap())
+            let parent = path.parent().ok_or_else(|| {
+                exn::Exn::new(error::Error::Message("Failed to determine config parent directory".into()))
+            })?;
+            fs::create_dir_all(parent)
                 .or_raise(|| error::Error::Message("Failed to create config directory".into()))?;
             fs::write(path, config_str)
                 .or_raise(|| error::Error::Message("Failed to write config file".into()))?;
@@ -152,10 +156,10 @@ pub fn generate(
     }
 
     let mut rng = rand::rng();
-    Ok((0..length)
+        Ok((0..length)
         .map(|_| {
             let idx = rng.random_range(0..charset.len());
-            charset.chars().nth(idx).unwrap()
+            charset.chars().nth(idx).unwrap_or('a')
         })
         .collect())
 }

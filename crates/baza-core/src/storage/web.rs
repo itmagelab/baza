@@ -30,7 +30,13 @@ impl WebStorage {
             if STORAGE.is_none() {
                 STORAGE = Some(Self::new().await?);
             }
-            Ok(STORAGE.as_ref().unwrap())
+            if let Some(s) = STORAGE.as_ref() {
+                Ok(s)
+            } else {
+                Err(exn::Exn::new(crate::error::Error::Message(
+                    "WebStorage instance unavailable".into(),
+                )))
+            }
         }
     }
 }
