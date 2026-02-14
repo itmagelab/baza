@@ -64,9 +64,9 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
                 "{}",
                 generate(
                     args.length,
-                    args.no_letters,
-                    args.no_symbols,
-                    args.no_numbers
+                    !args.no_letters,
+                    !args.no_symbols,
+                    !args.no_numbers
                 )?
             )
             .map_err(|e| exn::Exn::new(baza_core::error::Error::Io(e)))?;

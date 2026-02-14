@@ -168,6 +168,8 @@ impl Container {
 }
 
 pub async fn add(str: String, data: Option<String>) -> BazaR<()> {
+    // Check if vault is unlocked before allowing add
+    let _ = crate::key()?;
     let mut container = Container::builder().create_from_str(str)?.build();
     if let Some(content) = data {
         container.commit(Some(content)).await?;
@@ -183,6 +185,8 @@ pub async fn generate(str: String) -> BazaR<()> {
 }
 
 pub async fn read(str: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing read
+    let _ = crate::key()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -192,6 +196,8 @@ pub async fn read(str: String) -> BazaR<()> {
 }
 
 pub async fn update(str: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing update
+    let _ = crate::key()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -201,6 +207,8 @@ pub async fn update(str: String) -> BazaR<()> {
 }
 
 pub async fn delete(str: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing delete
+    let _ = crate::key()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -210,6 +218,8 @@ pub async fn delete(str: String) -> BazaR<()> {
 }
 
 pub async fn copy_to_clipboard(str: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing copy
+    let _ = crate::key()?;
     Container::builder()
         .create_from_str(str)?
         .build()
@@ -219,6 +229,8 @@ pub async fn copy_to_clipboard(str: String) -> BazaR<()> {
 }
 
 pub async fn from_stdin(str: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing stdin input
+    let _ = crate::key()?;
     let mut input = String::new();
     io::stdin()
         .read_to_string(&mut input)

@@ -3,9 +3,9 @@ pub mod redb;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
+use crate::BazaR;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::Config;
-use crate::BazaR;
 use async_trait::async_trait;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -63,28 +63,35 @@ pub async fn is_initialized() -> BazaR<bool> {
 }
 
 pub async fn list_all_keys() -> BazaR<Vec<String>> {
+    // Check if vault is unlocked before allowing access to keys
+    let _ = crate::key()?;
     with_backend(|backend| backend.list_keys()).await
 }
 
 pub async fn get_content(name: String) -> BazaR<String> {
-    let encrypted = with_backend(|backend| backend.get(&name)).await?;
     let key = crate::key()?;
+    let encrypted = with_backend(|backend| backend.get(&name)).await?;
     let plaintext = crate::decrypt_data(&encrypted, &key)?;
     String::from_utf8(plaintext)
         .map_err(|_| crate::error::Error::Message("Failed to decode utf8".into()).into())
 }
 
 pub async fn save_content(name: String, content: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing save
     let key = crate::key()?;
     let encrypted = crate::encrypt_data(content.as_bytes(), &key)?;
     with_backend(|backend| backend.set(&name, encrypted)).await
 }
 
 pub async fn delete_by_name(name: String) -> BazaR<()> {
+    // Check if vault is unlocked before allowing delete
+    let _ = crate::key()?;
     with_backend(|backend| backend.remove(&name)).await
 }
 
 pub async fn dump() -> BazaR<Vec<(String, Vec<u8>)>> {
+    // Check if vault is unlocked before allowing dump
+    let _ = crate::key()?;
     with_backend(|backend| async move {
         let keys = backend.list_keys().await?;
         let mut data = Vec::with_capacity(keys.len());
@@ -93,23 +100,27 @@ pub async fn dump() -> BazaR<Vec<(String, Vec<u8>)>> {
             data.push((key, value));
         }
         Ok(data)
-    }).await
+    })
+    .await
 }
 
 pub async fn restore(data: Vec<(String, Vec<u8>)>) -> BazaR<()> {
+    // Check if vault is unlocked before allowing restore
+    let _ = crate::key()?;
     with_backend(|backend| async move {
         // Clear existing data
         let keys = backend.list_keys().await?;
         for key in keys {
             backend.remove(&key).await?;
         }
-        
+
         // Restore new data
         for (key, value) in data {
             backend.set(&key, value).await?;
         }
         Ok(())
-    }).await
+    })
+    .await
 }
 
 // storage.rs
@@ -118,7 +129,7 @@ pub async fn search(pattern: String) -> BazaR<()> {
     let keys = list_all_keys().await?;
     let re = regex_lite::Regex::new(&pattern)
         .map_err(|e| crate::error::Error::Message(e.to_string()))?;
-    
+
     for key in keys {
         if re.is_match(&key) {
             #[cfg(not(target_arch = "wasm32"))]
@@ -137,14 +148,20 @@ pub async fn copy_to_clipboard(name: String, ttl: u64) -> BazaR<()> {
 
     let content = get_content(name).await?;
     let first_line = content.lines().next().unwrap_or("").trim();
-    
-    let mut clipboard = Clipboard::new()
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
-    clipboard.set_text(first_line.to_string())
+
+    let mut clipboard =
+        Clipboard::new().map_err(|e| crate::error::Error::Message(e.to_string()))?;
+    clipboard
+        .set_text(first_line.to_string())
         .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
-    println!("{}", format!("Copied to clipboard. Will clear in {} seconds.", ttl).bright_yellow().bold());
-    
+    println!(
+        "{}",
+        format!("Copied to clipboard. Will clear in {} seconds.", ttl)
+            .bright_yellow()
+            .bold()
+    );
+
     std::thread::sleep(std::time::Duration::from_secs(ttl));
     let _ = clipboard.set_text("".to_string());
     Ok(())
