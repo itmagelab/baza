@@ -101,21 +101,24 @@ impl Container {
                 Ok(c) => c,
                 Err(_) => String::new(),
             };
-            
-            let temp = tempfile::NamedTempFile::new().map_err(|e| crate::error::Error::Message(e.to_string()))?;
-            std::fs::write(temp.path(), content).map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+            let temp = tempfile::NamedTempFile::new()
+                .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+            std::fs::write(temp.path(), content)
+                .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
             let editor = std::env::var("EDITOR").unwrap_or(String::from("vi"));
             let status = std::process::Command::new(editor)
                 .arg(temp.path())
                 .status()
                 .or_raise(|| crate::error::Error::Message("Failed to launch editor".into()))?;
-            
+
             if !status.success() {
                 std::process::exit(1);
             }
 
-            let new_content = std::fs::read_to_string(temp.path()).map_err(|e| crate::error::Error::Message(e.to_string()))?;
+            let new_content = std::fs::read_to_string(temp.path())
+                .map_err(|e| crate::error::Error::Message(e.to_string()))?;
             storage::save_content(name, new_content).await?;
         }
         Ok(self)
@@ -156,7 +159,7 @@ impl Container {
             .collect();
         // The last part is the bundle name. In create_from_str we add exactly one bundle.
         let bundle_name = self.bundles().pop().unwrap_or_default();
-        name.push(bundle_name); 
+        name.push(bundle_name);
         name.join(&Config::get().main.box_delimiter)
     }
 

@@ -18,7 +18,8 @@ impl Redb {
     }
 
     pub fn new() -> BazaR<Self> {
-        let folder = std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
+        let folder =
+            std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
         std::fs::create_dir_all(&folder).map_err(|e| exn::Exn::new(e.into()))?;
         let path = format!("{}/db.redb", folder.to_string_lossy());
         Ok(Self { path })
@@ -58,9 +59,9 @@ impl StorageBackend for Redb {
 
     async fn list_keys(&self) -> BazaR<Vec<String>> {
         let db = self.db()?;
-        let read_txn = db.begin_read().or_raise(|| {
-            crate::error::Error::Message("Failed to begin read transaction".into())
-        })?;
+        let read_txn = db
+            .begin_read()
+            .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
         let table = read_txn
             .open_table(TABLE)
             .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;
@@ -81,9 +82,9 @@ impl StorageBackend for Redb {
 
     async fn get(&self, key: &str) -> BazaR<Vec<u8>> {
         let db = self.db()?;
-        let read_txn = db.begin_read().or_raise(|| {
-            crate::error::Error::Message("Failed to begin read transaction".into())
-        })?;
+        let read_txn = db
+            .begin_read()
+            .or_raise(|| crate::error::Error::Message("Failed to begin read transaction".into()))?;
         let table = read_txn
             .open_table(TABLE)
             .or_raise(|| crate::error::Error::Message("Failed to open table".into()))?;

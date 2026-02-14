@@ -289,27 +289,39 @@ pub fn app() -> Html {
                                         let u8 = js_sys::Uint8Array::from(bytes.as_slice());
                                         let arr = js_sys::Array::new();
                                         arr.push(&u8);
-                                        if let Ok(blob) = web_sys::Blob::new_with_u8_array_sequence(&arr) {
-                                            if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
-                                                        if let Ok(el) = document.create_element("a") {
-                                                            let a = el.unchecked_into::<web_sys::HtmlElement>();
-                                                            let timestamp = js_sys::Date::now();
-                                                            let filename = format!("baza_dump_{}.baza", timestamp);
-                                                            let _ = a.set_attribute("href", &url);
-                                                            let _ = a.set_attribute("download", &filename);
-                                                            if let Some(body) = document.body() {
-                                                                let _ = body.append_child(&a);
-                                                                a.click();
-                                                                let _ = body.remove_child(&a);
-                                                            } else {
-                                                                error_msg.set("Unable to access document body".to_string());
-                                                            }
+                                        if let Ok(blob) =
+                                            web_sys::Blob::new_with_u8_array_sequence(&arr)
+                                        {
+                                            if let Ok(url) =
+                                                web_sys::Url::create_object_url_with_blob(&blob)
+                                            {
+                                                if let Ok(el) = document.create_element("a") {
+                                                    let a =
+                                                        el.unchecked_into::<web_sys::HtmlElement>();
+                                                    let timestamp = js_sys::Date::now();
+                                                    let filename =
+                                                        format!("baza_dump_{}.baza", timestamp);
+                                                    let _ = a.set_attribute("href", &url);
+                                                    let _ = a.set_attribute("download", &filename);
+                                                    if let Some(body) = document.body() {
+                                                        let _ = body.append_child(&a);
+                                                        a.click();
+                                                        let _ = body.remove_child(&a);
+                                                    } else {
+                                                        error_msg.set(
+                                                            "Unable to access document body"
+                                                                .to_string(),
+                                                        );
+                                                    }
                                                     // Revoke the object URL
                                                     let _ = web_sys::Url::revoke_object_url(&url);
                                                     error_msg.set("DATABASE DUMPED".to_string());
                                                     let error_msg = error_msg.clone();
                                                     spawn_local(async move {
-                                                        gloo_timers::future::TimeoutFuture::new(2000).await;
+                                                        gloo_timers::future::TimeoutFuture::new(
+                                                            2000,
+                                                        )
+                                                        .await;
                                                         error_msg.set(String::new());
                                                     });
                                                 }
@@ -332,14 +344,14 @@ pub fn app() -> Html {
         let load_bundles = load_bundles.clone();
         Callback::from(move |e: Event| {
             let target_opt = e.target_dyn_into::<HtmlInputElement>();
-                let target = match target_opt {
-                    Some(t) => t,
-                    None => {
-                        error_msg.set("Invalid file input event".to_string());
-                        return;
-                    }
-                };
-                if let Some(files) = target.files() {
+            let target = match target_opt {
+                Some(t) => t,
+                None => {
+                    error_msg.set("Invalid file input event".to_string());
+                    return;
+                }
+            };
+            if let Some(files) = target.files() {
                 if let Some(file) = files.get(0) {
                     let error_msg = error_msg.clone();
                     let load_bundles = load_bundles.clone();
