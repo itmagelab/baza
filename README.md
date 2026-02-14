@@ -1,7 +1,7 @@
 # baza
 
 ![RUST](https://github.com/itmagelab/baza/actions/workflows/rust.yaml/badge.svg)
-![DOCKER](https://github.com/itmagelab/baza/actions/workflows/docker.yaml/badge.svg)
+[![Create and publish a Docker image](https://github.com/itmagelab/baza/actions/workflows/docker.yaml/badge.svg)](https://github.com/itmagelab/baza/actions/workflows/docker.yaml)
 
 ![demo](contrib/Baza.gif)
 
@@ -12,6 +12,14 @@ This project is created as an alternative to password-store, but written in a lo
 ## Why should I use baza?
 
 * Because it's very blazzing fast
+
+## Web Interface
+
+![BAZA](contrib/baza-web.png)
+
+Baza also provides a web interface for managing your passwords. The web interface is available at [https://0ae.ru](https://0ae.ru).
+
+The database is stored locally in the user's browser and is not transmitted anywhere. You can create an unlimited number of bundles with passwords, and all of them can be unlocked with different passwords. The database can also be dumped to your cloud storage and then deployed in another location to continue working.
 
 ## Installation
 
@@ -113,11 +121,3 @@ Save the key in a safe place
 
 * Sync from a cloud providers
 * TOTP
-
-## Web Interface
-
-Baza also provides a web interface for managing your passwords. The web interface is available at [https://0ae.ru](https://0ae.ru).
-
-The database is stored locally in the user's browser and is not transmitted anywhere. You can create an unlimited number of bundles with passwords, and all of them can be unlocked with different passwords. The database can also be dumped to your cloud storage and then deployed in another location to continue working.
-
-![LOGO](https://cdn-ru.bitrix24.ru/b21763262/landing/189/1894d6c1c7ce75fed711df492921cfaf/3_1x.png)
