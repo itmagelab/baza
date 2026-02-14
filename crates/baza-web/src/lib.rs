@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{HtmlInputElement, HtmlTextAreaElement};
+use web_sys::{HtmlElement, HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 
 #[wasm_bindgen]
@@ -33,7 +33,7 @@ pub fn app() -> Html {
     let init_passphrase = use_state(|| None::<String>);
 
     // Add Bundle Form State
-    let new_bundle_name = use_state(String::new);
+    let new_bundle_name = use_state(|| vec![String::new(), String::new(), String::new()]);
     let new_bundle_pass = use_state(String::new);
     let is_editing = use_state(|| false);
     let original_name = use_state(String::new);
@@ -157,7 +157,13 @@ pub fn app() -> Html {
         let load_bundles = load_bundles.clone();
 
         Callback::from(move |_| {
-            let name = (*name_state).clone();
+            let parts = (*name_state).clone();
+            let name = parts
+                .iter()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join("::");
             let pass = (*pass_state).clone();
             let old_name = (*old_name_state).clone();
             let was_editing = *is_editing_state;
@@ -181,7 +187,7 @@ pub fn app() -> Html {
                             let _ = baza_core::storage::delete_by_name(old_name).await;
                         }
                         set_view.set(AppView::Dashboard);
-                        name_state.set(String::new());
+                        name_state.set(vec![String::new(), String::new(), String::new()]);
                         pass_state.set(String::new());
                         old_name_state.set(String::new());
                         is_editing_state.set(false);
@@ -216,7 +222,13 @@ pub fn app() -> Html {
             spawn_local(async move {
                 match baza_core::storage::get_content(name_clone.clone()).await {
                     Ok(content) => {
-                        set_name.set(name_clone.clone());
+                        // split existing name into parts and ensure at least 3 input fields
+                        let mut parts: Vec<String> =
+                            name_clone.split("::").map(|s| s.to_string()).collect();
+                        while parts.len() < 3 {
+                            parts.push(String::new());
+                        }
+                        set_name.set(parts);
                         set_orig_name.set(name_clone);
                         set_pass.set(content);
                         set_is_editing.set(true);
@@ -230,7 +242,7 @@ pub fn app() -> Html {
     };
 
     let perform_delete = {
-        let name_state = new_bundle_name.clone();
+        let orig_name_state = original_name.clone();
         let set_view = view.clone();
         let set_pass = new_bundle_pass.clone();
         let load_bundles = load_bundles.clone();
@@ -238,9 +250,9 @@ pub fn app() -> Html {
         let set_show_delete_confirm = show_delete_confirm.clone();
 
         Callback::from(move |_| {
-            let name = (*name_state).clone();
+            let name = (*orig_name_state).clone();
             let set_view = set_view.clone();
-            let name_state = name_state.clone();
+            let orig_name_state = orig_name_state.clone();
             let set_pass = set_pass.clone();
             let load_bundles = load_bundles.clone();
             let error_msg = error_msg.clone();
@@ -251,7 +263,7 @@ pub fn app() -> Html {
                     Ok(_) => {
                         set_show_delete_confirm.set(false);
                         set_view.set(AppView::Dashboard);
-                        name_state.set(String::new());
+                        orig_name_state.set(String::new());
                         set_pass.set(String::new());
                         load_bundles.emit(());
                     }
@@ -366,7 +378,9 @@ pub fn app() -> Html {
                                         let textarea =
                                             el.unchecked_into::<web_sys::HtmlTextAreaElement>();
                                         textarea.set_value(&first_line);
-                                        let style = textarea.unchecked_ref::<web_sys::HtmlElement>().style();
+                                        let style = textarea
+                                            .unchecked_ref::<web_sys::HtmlElement>()
+                                            .style();
                                         let _ = style.set_property("position", "fixed");
                                         let _ = style.set_property("left", "-9999px");
                                         let _ = style.set_property("top", "0");
@@ -452,11 +466,56 @@ pub fn app() -> Html {
         })
     };
 
-    let on_bundle_name_input = {
-        let set_name = new_bundle_name.clone();
-        Callback::from(move |e: InputEvent| {
+    // Bundle name parts input handler factory
+    let on_bundle_part_input = {
+        let parts_state = new_bundle_name.clone();
+        Callback::from(move |(idx, e): (usize, InputEvent)| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            set_name.set(input.value());
+            let mut parts = (*parts_state).clone();
+            if idx >= parts.len() {
+                return;
+            }
+            parts[idx] = input.value();
+
+            // If this is the last part and it's now non-empty, append a new empty part
+            if idx + 1 == parts.len() && !parts[idx].trim().is_empty() {
+                parts.push(String::new());
+            }
+
+            parts_state.set(parts);
+        })
+    };
+
+    // Keydown handler: on Enter/Tab, if current part non-empty, append new part and focus it
+    let on_bundle_part_keydown = {
+        let parts_state = new_bundle_name.clone();
+        Callback::from(move |(idx, e): (usize, KeyboardEvent)| {
+            let key = e.key();
+            if key != "Enter" && key != "Tab" {
+                return;
+            }
+            e.prevent_default();
+            let mut parts = (*parts_state).clone();
+            if idx >= parts.len() {
+                return;
+            }
+            if parts[idx].trim().is_empty() {
+                return;
+            }
+            let next_idx = idx + 1;
+            if next_idx >= parts.len() {
+                parts.push(String::new());
+                parts_state.set(parts.clone());
+            }
+
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    let id = format!("bundle-part-{}", next_idx);
+                    if let Some(el) = document.get_element_by_id(&id) {
+                        let _ = el.unchecked_into::<HtmlElement>().focus();
+                    }
+                }
+            }
         })
     };
 
@@ -475,6 +534,42 @@ pub fn app() -> Html {
                 perform_unlock.emit(());
             }
         })
+    };
+
+    let parts_html = {
+        let cb = on_bundle_part_input.clone();
+        let kd = on_bundle_part_keydown.clone();
+        (*new_bundle_name)
+            .iter()
+            .enumerate()
+            .map(move |(i, part)| {
+                let value = part.clone();
+                let cb = cb.clone();
+                let kd = kd.clone();
+                let id = format!("bundle-part-{}", i);
+                html! {
+                    <input
+                        key={i.to_string()}
+                        id={id}
+                        type="text"
+                        placeholder={
+                            if i == 0 {
+                                "scope (e.g. github, token)".to_string()
+                            } else if i == 1 {
+                                "bundle (e.g. mylogin, my@email.com)".to_string()
+                            } else if part.is_empty() {
+                                "press Enter/Tab to advance".to_string()
+                            } else {
+                                "bundle part".to_string()
+                            }
+                        }
+                        value={value}
+                        oninput={Callback::from(move |e: InputEvent| cb.emit((i, e)))}
+                        onkeydown={Callback::from(move |e: KeyboardEvent| kd.emit((i, e)))}
+                    />
+                }
+            })
+            .collect::<Html>()
     };
 
     html! {
@@ -595,7 +690,7 @@ pub fn app() -> Html {
                                 move |_| {
                                     set_is_editing.set(false);
                                     set_show_delete_confirm.set(false);
-                                    set_new_bundle_name.set(String::new());
+                                    set_new_bundle_name.set(vec![String::new(), String::new(), String::new()]);
                                     set_new_bundle_pass.set(String::new());
                                     set_view.set(AppView::AddBundle);
                                 }
@@ -615,12 +710,7 @@ pub fn app() -> Html {
                             <h3>{if *is_editing { "EDIT BUNDLE" } else { "ADD NEW BUNDLE" }}</h3>
                             <div class="form-group">
                                 <label>{"BUNDLE NAME"}</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. some::text::etc"
-                                    value={(*new_bundle_name).clone()}
-                                    oninput={on_bundle_name_input}
-                                />
+                                { parts_html.clone() }
                             </div>
                             <div class="form-group">
                                 <label>{if *is_editing { "CONTENT" } else { "PASSWORD / CONTENT" }}</label>
