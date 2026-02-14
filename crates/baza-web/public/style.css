@@ -8,6 +8,7 @@
     --yellow: #fabd2f;
     --red: #fb4934;
     --green: #b8bb26;
+    --bg-soft: #3c3836;
 
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -135,6 +136,10 @@ h3 {
     cursor: pointer;
     transition: opacity 0.2s;
     font-size: 1rem;
+}
+
+.btn:hover {
+    opacity: 0.9;
 }
 
 .btn:hover {

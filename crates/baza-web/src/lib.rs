@@ -651,8 +651,7 @@ pub fn app() -> Html {
                                 }
 
                                 <div class="backup-actions mt-1">
-                                    <button class="btn btn-ghost" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>
-                                    <label class="btn btn-ghost ml-1">
+                                    <label class="btn btn-ghost" style="text-align: center; display: block;">
                                         {"RESTORE DATABASE (.baza)"}
                                         <input
                                             type="file"
@@ -730,7 +729,10 @@ pub fn app() -> Html {
 
 
 
-                            <button class="btn btn-secondary mt-1" onclick={move |_| perform_lock.emit(())}>{"LOCK & EXIT"}</button>
+                            <div class="backup-actions mt-1">
+                                <button class="btn btn-secondary" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>
+                                <button class="btn btn-secondary ml-1" onclick={move |_| perform_lock.emit(())}>{"LOCK & EXIT"}</button>
+                            </div>
 
                             if !error_msg.is_empty() {
                                 <p class="error">{(*error_msg).clone()}</p>
