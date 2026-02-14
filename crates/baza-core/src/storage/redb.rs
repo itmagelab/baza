@@ -26,7 +26,7 @@ impl Redb {
     }
 
     fn db(&self) -> BazaR<Database> {
-        Ok(Database::open(&self.path).map_err(|e| exn::Exn::new(e.into()))?)
+        Database::open(&self.path).map_err(|e| exn::Exn::new(e.into()))
     }
 }
 
