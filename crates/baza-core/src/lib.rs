@@ -20,6 +20,7 @@ use std::fs;
 use std::io;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io;
+use std::ops::Not;
 use std::path::Path;
 use std::sync::OnceLock;
 use tracing::instrument;
@@ -28,9 +29,9 @@ use uuid::Uuid;
 pub mod r#box;
 pub mod bundle;
 pub mod container;
+pub mod dump;
 pub mod error;
 pub mod storage;
-pub mod dump;
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
@@ -124,7 +125,9 @@ impl Config {
             let config_str = toml::to_string(&config)
                 .or_raise(|| error::Error::Message("Failed to serialize default config".into()))?;
             let parent = path.parent().ok_or_else(|| {
-                exn::Exn::new(error::Error::Message("Failed to determine config parent directory".into()))
+                exn::Exn::new(error::Error::Message(
+                    "Failed to determine config parent directory".into(),
+                ))
             })?;
             fs::create_dir_all(parent)
                 .or_raise(|| error::Error::Message("Failed to create config directory".into()))?;
@@ -140,23 +143,23 @@ impl Config {
 
 pub fn generate(
     length: usize,
-    use_special: bool,
-    use_numbers: bool,
-    use_uppercase: bool,
+    no_latters: bool,
+    no_numbers: bool,
+    no_symbols: bool,
 ) -> BazaR<String> {
-    let mut charset = "abcdefghijklmnopqrstuvwxyz".to_string();
-    if use_special {
-        charset.push_str("!@#$%^&*()_+-=[]{}|;':\",./<>?");
-    }
-    if use_numbers {
-        charset.push_str("0123456789");
-    }
-    if use_uppercase {
-        charset.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    }
+    let latters = "abcdefghijklmnopqrstuvwxyz\
+                         ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let numbers = "0123456789";
+    let symbols = "!@#$%^&*()_-+=<>?";
+
+    let mut charset: String = Default::default();
+
+    no_latters.not().then(|| charset.push_str(latters));
+    no_numbers.not().then(|| charset.push_str(numbers));
+    no_symbols.not().then(|| charset.push_str(symbols));
 
     let mut rng = rand::rng();
-        Ok((0..length)
+    Ok((0..length)
         .map(|_| {
             let idx = rng.random_range(0..charset.len());
             charset.chars().nth(idx).unwrap_or('a')

@@ -3,14 +3,14 @@ use exn::ResultExt;
 use postcard;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-#[cfg(feature = "lz4")]
-use lz4_flex;
 #[cfg(feature = "flate")]
 use flate2::read::GzDecoder;
 #[cfg(feature = "flate")]
 use flate2::write::GzEncoder;
 #[cfg(feature = "flate")]
 use flate2::Compression;
+#[cfg(feature = "lz4")]
+use lz4_flex;
 #[cfg(feature = "zstd")]
 use zstd;
 
@@ -114,7 +114,9 @@ pub fn dump<T: Serialize>(value: &T, alg: Algorithm) -> BazaR<Vec<u8>> {
 pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
     // minimal header length: 4+1+1+1+8+4 = 19
     if data.len() < 19 {
-        exn::bail!(error::Error::Message("Input too short for dump header".into()));
+        exn::bail!(error::Error::Message(
+            "Input too short for dump header".into()
+        ));
     }
 
     if &data[0..4] != MAGIC {
@@ -129,16 +131,15 @@ pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
     let alg = Algorithm::from(data[5]);
     // data[6] reserved
 
-    let uncompressed_len = u64::from_le_bytes(
-        data[7..15]
-            .try_into()
-            .map_err(|_| exn::Exn::new(crate::error::Error::Message("Invalid header (len)".into())))?,
-    );
-    let checksum = u32::from_le_bytes(
-        data[15..19]
-            .try_into()
-            .map_err(|_| exn::Exn::new(crate::error::Error::Message("Invalid header (checksum)".into())))?,
-    );
+    let uncompressed_len =
+        u64::from_le_bytes(data[7..15].try_into().map_err(|_| {
+            exn::Exn::new(crate::error::Error::Message("Invalid header (len)".into()))
+        })?);
+    let checksum = u32::from_le_bytes(data[15..19].try_into().map_err(|_| {
+        exn::Exn::new(crate::error::Error::Message(
+            "Invalid header (checksum)".into(),
+        ))
+    })?);
 
     let payload = &data[19..];
 
@@ -151,8 +152,12 @@ pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
                 if let Ok(v) = lz4_flex::decompress_size_prepended(payload) {
                     v
                 } else {
-                    lz4_flex::decompress(payload, uncompressed_len as usize)
-                        .map_err(|e| exn::Exn::new(error::Error::Message(format!("LZ4 decompress error: {}", e))))?
+                    lz4_flex::decompress(payload, uncompressed_len as usize).map_err(|e| {
+                        exn::Exn::new(error::Error::Message(format!(
+                            "LZ4 decompress error: {}",
+                            e
+                        )))
+                    })?
                 }
             }
             #[cfg(not(feature = "lz4"))]
@@ -166,7 +171,8 @@ pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
                 use std::io::Read;
                 let mut d = GzDecoder::new(payload);
                 let mut out = Vec::with_capacity(uncompressed_len as usize);
-                d.read_to_end(&mut out).map_err(|e| exn::Exn::new(e.into()))?;
+                d.read_to_end(&mut out)
+                    .map_err(|e| exn::Exn::new(e.into()))?;
                 out
             }
             #[cfg(not(feature = "flate"))]
@@ -212,7 +218,10 @@ mod tests {
 
     #[test]
     fn roundtrip_none() {
-        let s = S { a: 42, b: "hello".into() };
+        let s = S {
+            a: 42,
+            b: "hello".into(),
+        };
         let dumped = match dump(&s, Algorithm::None) {
             Ok(d) => d,
             Err(e) => panic!("dump failed: {}", e),
@@ -226,7 +235,10 @@ mod tests {
 
     #[test]
     fn roundtrip_lz4() {
-        let s = S { a: 123, b: "some longer text to benefit from compression".into() };
+        let s = S {
+            a: 123,
+            b: "some longer text to benefit from compression".into(),
+        };
         #[cfg(feature = "lz4")]
         {
             let dumped = match dump(&s, Algorithm::Lz4) {
