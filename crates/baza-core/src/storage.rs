@@ -193,3 +193,8 @@ pub async fn copy_to_clipboard(_name: String, _ttl: u64) -> BazaR<()> {
     // So we just return the content or an error.
     Err(crate::error::Error::Message("Use browser APIs directly for clipboard".into()).into())
 }
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_database() -> BazaR<()> {
+    self::web::WebStorage::delete_database().await
+}

@@ -38,6 +38,7 @@ pub fn app() -> Html {
     let is_editing = use_state(|| false);
     let original_name = use_state(String::new);
     let show_delete_confirm = use_state(|| false);
+    let show_delete_db_confirm = use_state(|| false);
 
     let load_bundles = {
         let bundles = bundles.clone();
@@ -100,6 +101,7 @@ pub fn app() -> Html {
         let set_init_passphrase = init_passphrase.clone();
         let set_show_init_confirm = show_init_confirm.clone();
         let set_bundles = bundles.clone();
+        let load_bundles = load_bundles.clone();
 
         Callback::from(move |force: bool| {
             let passphrase = passphrase.clone();
@@ -108,6 +110,7 @@ pub fn app() -> Html {
             let set_init_passphrase = set_init_passphrase.clone();
             let set_show_init_confirm = set_show_init_confirm.clone();
             let set_bundles = set_bundles.clone();
+            let load_bundles = load_bundles.clone();
 
             spawn_local(async move {
                 if !force {
@@ -137,6 +140,7 @@ pub fn app() -> Html {
                         set_view.set(AppView::Dashboard);
                         error_msg.set(String::new());
                         set_bundles.set(vec![]);
+                        load_bundles.emit(());
                     }
                     Err(e) => error_msg.set(format!("Init failed: {}", e)),
                 }
@@ -275,6 +279,39 @@ pub fn app() -> Html {
                         load_bundles.emit(());
                     }
                     Err(e) => error_msg.set(format!("Delete failed: {}", e)),
+                }
+            });
+        })
+    };
+
+    let perform_delete_database = {
+        let error_msg = error_msg.clone();
+        let set_view = view.clone();
+        let set_passphrase = passphrase.clone();
+        let set_bundles = bundles.clone();
+        let set_show_delete_db_confirm = show_delete_db_confirm.clone();
+        Callback::from(move |_| {
+            let error_msg = error_msg.clone();
+            let set_view = set_view.clone();
+            let set_passphrase = set_passphrase.clone();
+            let set_bundles = set_bundles.clone();
+            let set_show_delete_db_confirm = set_show_delete_db_confirm.clone();
+            spawn_local(async move {
+                match baza_core::storage::delete_database().await {
+                    Ok(_) => {
+                        set_show_delete_db_confirm.set(false);
+                        set_view.set(AppView::Login);
+                        set_passphrase.set(String::new());
+                        set_bundles.set(vec![]);
+                        let _ = baza_core::lock();
+                        error_msg.set("DATABASE DELETED".to_string());
+                        let error_msg = error_msg.clone();
+                        spawn_local(async move {
+                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                            error_msg.set(String::new());
+                        });
+                    }
+                    Err(e) => error_msg.set(format!("Delete database failed: {}", e)),
                 }
             });
         })
@@ -633,7 +670,18 @@ pub fn app() -> Html {
                                 </div>
                             }
 
-                            <div style={if *show_init_confirm { "display: none" } else { "display: block" }}>
+                            if *show_delete_db_confirm {
+                                <div class="confirm-box">
+                                    <p class="warning">{"DELETE ENTIRE DATABASE? THIS CANNOT BE UNDONE!"}</p>
+                                    <button class="btn btn-danger" onclick={move |_| perform_delete_database.emit(())}>{"CONFIRM DELETE DATABASE"}</button>
+                                    <button class="btn btn-ghost" onclick={
+                                        let set_show_delete_db_confirm = show_delete_db_confirm.clone();
+                                        move |_| set_show_delete_db_confirm.set(false)
+                                    }>{"CANCEL"}</button>
+                                </div>
+                            }
+
+                            <div style={if *show_init_confirm || *show_delete_db_confirm { "display: none" } else { "display: block" }}>
                                 <div class="form-group">
                                     <label>{"PASSPHRASE"}</label>
                                     <input
@@ -667,6 +715,10 @@ pub fn app() -> Html {
                                             onchange={perform_restore}
                                         />
                                     </label>
+                                    <button class="btn btn-danger mt-1" onclick={
+                                        let set_show_delete_db_confirm = show_delete_db_confirm.clone();
+                                        move |_| set_show_delete_db_confirm.set(true)
+                                    }>{"DELETE DATABASE"}</button>
                                 </div>
                             </div>
                         </div>
@@ -733,8 +785,6 @@ pub fn app() -> Html {
                                     set_view.set(AppView::AddBundle);
                                 }
                             }>{"ADD NEW BUNDLE"}</button>
-
-
 
                             <div class="backup-actions mt-1">
                                 <button class="btn btn-secondary" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>

@@ -39,6 +39,40 @@ impl WebStorage {
             }
         }
     }
+
+    pub async fn delete_database() -> BazaR<()> {
+        // Instead of deleting the database (which causes closure issues),
+        // we'll clear all data from it
+        let instance = Self::instance().await?;
+        
+        // Get all keys
+        let keys = instance.list_keys().await?;
+        
+        // Delete all entries
+        let transaction = instance
+            .rexie
+            .transaction(&[STORE_NAME], TransactionMode::ReadWrite)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        let store = transaction
+            .store(STORE_NAME)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        for key in keys {
+            let js_key = JsValue::from_str(&key);
+            store
+                .delete(js_key)
+                .await
+                .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        }
+
+        transaction
+            .done()
+            .await
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 #[async_trait(?Send)]
