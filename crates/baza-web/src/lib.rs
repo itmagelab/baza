@@ -125,6 +125,8 @@ pub fn app() -> Html {
                         }
                         Ok(false) => {}
                     }
+                } else {
+                    let _ = baza_core::storage::delete_database().await;
                 }
 
                 let p = if passphrase.is_empty() {
@@ -847,4 +849,10 @@ pub fn app() -> Html {
             }
         </div>
     }
+}
+
+#[wasm_bindgen]
+pub async fn purge_database() -> Result<(), JsValue> {
+    baza_core::storage::delete_database().await
+        .map_err(|e| JsValue::from_str(&e.to_string()))
 }
