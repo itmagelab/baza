@@ -63,8 +63,6 @@ pub async fn is_initialized() -> BazaR<bool> {
 }
 
 pub async fn list_all_keys() -> BazaR<Vec<String>> {
-    // Check if vault is unlocked before allowing access to keys
-    let _ = crate::key()?;
     with_backend(|backend| backend.list_keys()).await
 }
 
@@ -84,14 +82,10 @@ pub async fn save_content(name: String, content: String) -> BazaR<()> {
 }
 
 pub async fn delete_by_name(name: String) -> BazaR<()> {
-    // Check if vault is unlocked before allowing delete
-    let _ = crate::key()?;
     with_backend(|backend| backend.remove(&name)).await
 }
 
 pub async fn dump() -> BazaR<Vec<(String, Vec<u8>)>> {
-    // Check if vault is unlocked before allowing dump
-    let _ = crate::key()?;
     with_backend(|backend| async move {
         let keys = backend.list_keys().await?;
         let mut data = Vec::with_capacity(keys.len());
@@ -105,8 +99,6 @@ pub async fn dump() -> BazaR<Vec<(String, Vec<u8>)>> {
 }
 
 pub async fn restore(data: Vec<(String, Vec<u8>)>) -> BazaR<()> {
-    // Check if vault is unlocked before allowing restore
-    let _ = crate::key()?;
     with_backend(|backend| async move {
         // Clear existing data
         let keys = backend.list_keys().await?;

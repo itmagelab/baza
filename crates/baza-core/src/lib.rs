@@ -175,24 +175,11 @@ fn as_hash(str: &str) -> [u8; 32] {
     result.into()
 }
 
-pub(crate) fn key_file() -> String {
-    format!("{}/key.txt", &Config::get().main.datadir)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn lock() -> BazaR<()> {
-    fs::remove_file(key_file())
-        .or_raise(|| error::Error::Message("Failed to remove key file".into()))?;
-    Ok(())
-}
-
-#[cfg(target_arch = "wasm32")]
-static WASM_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
+static SESSION_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
     std::sync::OnceLock::new();
 
-#[cfg(target_arch = "wasm32")]
 pub fn lock() -> BazaR<()> {
-    if let Some(mutex) = WASM_KEY.get() {
+    if let Some(mutex) = SESSION_KEY.get() {
         let mut guard = mutex
             .lock()
             .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
@@ -201,61 +188,41 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
-#[cfg(target_arch = "wasm32")]
 pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
-    let passphrase = passphrase.ok_or_else(|| {
-        crate::error::Error::Message("Passphrase required for WASM unlock".into())
-    })?;
+    let passphrase = match passphrase {
+        Some(p) => p,
+        None => {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                print!("Enter passphrase: ");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                let mut input = String::new();
+                std::io::stdin()
+                    .read_line(&mut input)
+                    .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
+                input.trim().to_string()
+            }
+            #[cfg(target_arch = "wasm32")]
+            exn::bail!(crate::error::Error::Message(
+                "Passphrase required for WASM unlock".into()
+            ))
+        }
+    };
+
     let key_bytes = as_hash(passphrase.trim());
 
-    let mutex = WASM_KEY.get_or_init(|| std::sync::Mutex::new(None));
+    let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
     let mut guard = mutex
         .lock()
         .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
     *guard = Some(key_bytes.to_vec());
 
-    crate::m("WASM Unlock successful", crate::MessageType::Info);
-    Ok(())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
-    let passphrase = match passphrase {
-        Some(p) => p,
-        None => {
-            print!("Enter passphrase: ");
-            std::io::Write::flush(&mut std::io::stdout()).ok();
-            let mut input = String::new();
-            std::io::stdin()
-                .read_line(&mut input)
-                .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
-            input.trim().to_string()
-        }
-    };
-
-    fs::write(key_file(), passphrase.trim())
-        .or_raise(|| error::Error::Message("Failed to write key file".into()))?;
-
     crate::m("Vault unlocked", crate::MessageType::Info);
     Ok(())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn key() -> BazaR<Vec<u8>> {
-    let path = key_file();
-    if !std::path::Path::new(&path).exists() {
-        return Err(exn::Exn::new(error::Error::Message(
-            "Vault is locked. Use 'unlock' command first".into(),
-        )));
-    }
-    let content = fs::read_to_string(path)
-        .or_raise(|| error::Error::Message("Failed to read key file".into()))?;
-    Ok(as_hash(content.trim()).to_vec())
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn key() -> BazaR<Vec<u8>> {
-    let mutex = WASM_KEY.get_or_init(|| std::sync::Mutex::new(None));
+    let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
     let guard = mutex
         .lock()
         .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
@@ -263,7 +230,7 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     match &*guard {
         Some(k) => Ok(k.clone()),
         None => exn::bail!(crate::error::Error::Message(
-            "Vault is locked. Use 'unlock <password>'".into()
+            "Vault is locked. Use '--passphrase' or 'BAZA_PASSPHRASE' env var".into()
         )),
     }
 }
