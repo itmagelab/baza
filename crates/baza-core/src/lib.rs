@@ -217,7 +217,7 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
         .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
     *guard = Some(key_bytes.to_vec());
 
-    crate::m("Vault unlocked", crate::MessageType::Info);
+    tracing::debug!("Vault unlocked");
     Ok(())
 }
 
