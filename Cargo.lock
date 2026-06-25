@@ -134,7 +134,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "baza"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "argh",
  "baza_core",
@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "baza_core"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "aes",
  "aes-gcm",
