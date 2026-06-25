@@ -28,7 +28,7 @@ aes-gcm = { version = "0.10.3", features = ["std"] }
 uuid = { version = "1.18.0", features = ["v4", "js"] }
 colored = "3.0.0"
 sha2 = "0.10.9"
-arboard = "3.6.0"
+arboard = { version = "3.6.0", default-features = false }
 argh = "0.1.13"
 regex-lite = "0.1.6"
 pollster = "0.4.0"
