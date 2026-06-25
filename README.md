@@ -69,9 +69,9 @@ This command will generate a password phrase automatically, can be used for auto
 
 #### Create your baza bundles
 
-    baza bundle create full::path::for::login
-    baza bundle create work::depart::ldap::username
-    baza bundle create site::google::username@gmail.com
+    baza bundle add full::path::for::login
+    baza bundle add work::depart::ldap::username
+    baza bundle add site::google::username@gmail.com
 
 #### Delete your baza bundles
 
@@ -82,10 +82,14 @@ This command will generate a password phrase automatically, can be used for auto
     baza bundle search login
     baza bundle edit full::path::for::login
 
-#### Lock and Unlock your database (or bundles) with password phrase
+#### Passphrase usage
 
-    baza lock
-    baza unlock
+Baza no longer stores your passphrase on disk. You must provide it via the `--passphrase` option or the `BAZA_PASSPHRASE` environment variable for each command.
+
+    baza --passphrase my_secret bundle show site::google::username@gmail.com
+    # OR
+    export BAZA_PASSPHRASE=my_secret
+    baza bundle show site::google::username@gmail.com
 
 #### Copy password to clipboard (first line from bundle)
 

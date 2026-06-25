@@ -40,6 +40,10 @@ struct Cli {
     #[argh(option, short = 'p')]
     show: Option<String>,
 
+    /// passphrase for the database
+    #[argh(option)]
+    passphrase: Option<String>,
+
     /// list all containers
     #[argh(switch, short = 'l')]
     list: bool,
@@ -51,8 +55,6 @@ struct Cli {
 #[derive(FromArgs, Debug)]
 #[argh(subcommand)]
 enum Commands {
-    Unlock(UnlockArgs),
-    Lock(LockArgs),
     Init(InitArgs),
     Bundle(bundle::Args),
     Password(password::Args),
@@ -61,16 +63,6 @@ enum Commands {
     Dump(DumpArgs),
     Restore(RestoreArgs),
 }
-
-#[derive(FromArgs, Debug)]
-#[argh(subcommand, name = "unlock")]
-/// Unlock database
-struct UnlockArgs {}
-
-#[derive(FromArgs, Debug)]
-#[argh(subcommand, name = "lock")]
-/// Lock database
-struct LockArgs {}
 
 #[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "init")]
@@ -116,8 +108,6 @@ fn run_command(cmd: Commands) -> BazaR<()> {
             let p = baza_core::init(args.passphrase)?;
             println!("Vault initialized with passphrase: {}", p);
         }
-        Commands::Unlock(_) => baza_core::unlock(None)?,
-        Commands::Lock(_) => baza_core::lock()?,
         Commands::List(_) => {
             pollster::block_on(container::search(String::from(".*")))?;
         }
@@ -176,6 +166,21 @@ fn handle_args() -> BazaR<()> {
     })?;
 
     let args: Cli = argh::from_env();
+
+    // Handle passphrase acquisition
+    let passphrase = args
+        .passphrase
+        .or_else(|| std::env::var("BAZA_PASSPHRASE").ok());
+
+    if let Some(cmd) = &args.command {
+        if matches!(cmd, Commands::Init(_)) {
+            // Init handles its own passphrase
+        } else {
+            baza_core::unlock(passphrase)?;
+        }
+    } else {
+        baza_core::unlock(passphrase)?;
+    }
 
     if let Some(str) = args.stdin {
         pollster::block_on(container::from_stdin(str)).or_raise(|| {
