@@ -186,7 +186,13 @@ pub async fn copy_to_clipboard(_name: String, _ttl: u64) -> BazaR<()> {
     Err(crate::error::Error::Message("Use browser APIs directly for clipboard".into()).into())
 }
 
-#[cfg(target_arch = "wasm32")]
 pub async fn delete_database() -> BazaR<()> {
-    self::web::WebStorage::delete_database().await
+    #[cfg(target_arch = "wasm32")]
+    {
+        self::web::WebStorage::delete_database().await
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Err(crate::error::Error::Message("Not implemented for this platform".into()).into())
+    }
 }
