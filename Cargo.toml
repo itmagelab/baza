@@ -12,28 +12,28 @@ description = "The base password manager"
 
 [workspace.dependencies]
 baza_core = { path = "crates/baza-core" }
-thiserror = "2.0.14"
-tracing = "0.1.41"
+thiserror = "2.0.18"
+tracing = "0.1.44"
 log = "0.4"
-simple_logger = "5.0.0"
+simple_logger = "5.2.0"
 walkdir = "2.5.0"
-exn = "0.3.0"
-toml = "0.9.12"
-serde = "1.0.219"
-tempfile = "3.20.0"
-rand = "0.10.0"
-getrandom = { version = "0.4.1", features = ["wasm_js"] }
-aes = "0.8.4"
+exn = "0.3.1"
+toml = "1.1.2"
+serde = "1.0.228"
+tempfile = "3.27.0"
+rand = "0.10.1"
+getrandom = { version = "0.4.3", features = ["wasm_js"] }
+aes = "0.9.1"
 aes-gcm = { version = "0.10.3", features = ["std"] }
-uuid = { version = "1.18.0", features = ["v4", "js"] }
-colored = "3.0.0"
-sha2 = "0.10.9"
-arboard = { version = "3.6.0", default-features = false }
-argh = "0.1.13"
-regex-lite = "0.1.6"
+uuid = { version = "1.23.4", features = ["v4", "js"] }
+colored = "3.1.1"
+sha2 = "0.11.0"
+arboard = { version = "3.6.1", default-features = false }
+argh = "0.1.19"
+regex-lite = "0.1.9"
 pollster = "0.4.0"
-redb = "3.0.2"
-totp-rs = { version = "5.6", default-features = false, features = ["gen_secret", "otpauth", "qr"] }
+redb = "4.1.0"
+totp-rs = { version = "5.7", default-features = false, features = ["gen_secret", "otpauth", "qr"] }
 
 [profile.release]
 opt-level = "z"
