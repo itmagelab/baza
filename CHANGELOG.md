@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.1] - 2026-06-26
+
+### 🐛 Bug Fixes
+
+- *(wasm)* Enable wasm_js feature for getrandom v0.3 on wasm32 target
+
 ## [3.1.0] - 2026-06-26
 
 ### 🚀 Features
