@@ -168,9 +168,14 @@ fn run_command(cmd: Commands) -> BazaR<()> {
                 println!("OTPAuth URL: {}", url);
                 if enable_args.qr {
                     println!("\nScan this QR code with your authenticator app:\n");
-                    let code = qrcode::QrCode::new(&url)
-                        .map_err(|e| baza_core::error::Error::Message(format!("Failed to generate QR code: {}", e)))?;
-                    let image = code.render::<qrcode::render::unicode::Dense1x2>()
+                    let code = qrcode::QrCode::new(&url).map_err(|e| {
+                        baza_core::error::Error::Message(format!(
+                            "Failed to generate QR code: {}",
+                            e
+                        ))
+                    })?;
+                    let image = code
+                        .render::<qrcode::render::unicode::Dense1x2>()
                         .dark_color(qrcode::render::unicode::Dense1x2::Light)
                         .light_color(qrcode::render::unicode::Dense1x2::Dark)
                         .build();
@@ -189,7 +194,7 @@ fn run_command(cmd: Commands) -> BazaR<()> {
                     println!("TOTP authentication is disabled.");
                 }
             }
-        }
+        },
     };
     Ok(())
 }
@@ -242,9 +247,7 @@ fn handle_args() -> BazaR<()> {
         .passphrase
         .or_else(|| std::env::var("BAZA_PASSPHRASE").ok());
 
-    let totp_code = args
-        .totp
-        .or_else(|| std::env::var("BAZA_TOTP").ok());
+    let totp_code = args.totp.or_else(|| std::env::var("BAZA_TOTP").ok());
 
     let should_unlock = if let Some(cmd) = &args.command {
         !matches!(cmd, Commands::Init(_))
@@ -253,15 +256,17 @@ fn handle_args() -> BazaR<()> {
     };
 
     if should_unlock {
-        let mut result = pollster::block_on(baza_core::unlock(passphrase.clone(), totp_code.clone()));
+        let mut result =
+            pollster::block_on(baza_core::unlock(passphrase.clone(), totp_code.clone()));
         if let Err(ref e) = result {
             if e.to_string().contains("TOTP code required") {
+                eprintln!("{}", e);
                 print!("Enter TOTP code: ");
                 std::io::Write::flush(&mut std::io::stdout()).ok();
                 let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .or_raise(|| baza_core::error::Error::Message("Failed to read TOTP code".into()))?;
+                std::io::stdin().read_line(&mut input).or_raise(|| {
+                    baza_core::error::Error::Message("Failed to read TOTP code".into())
+                })?;
                 let code = input.trim().to_string();
                 result = pollster::block_on(baza_core::unlock(passphrase, Some(code)));
             }

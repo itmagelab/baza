@@ -66,7 +66,7 @@ pub fn app() -> Html {
                         }
                         // Clear bundles list when vault is locked
                         bundles.set(vec![]);
-                    },
+                    }
                 }
             });
         })
@@ -108,9 +108,9 @@ pub fn app() -> Html {
                         let err_str = e.to_string();
                         if err_str.contains("TOTP code required") {
                             show_totp_input.set(true);
-                            error_msg.set("TOTP code required".to_string());
+                            error_msg.set(err_str);
                         } else if err_str.contains("Invalid TOTP code") {
-                            error_msg.set("Invalid TOTP code".to_string());
+                            error_msg.set(err_str);
                         } else {
                             error_msg.set(format!("Unlock failed: {}", e));
                         }
@@ -435,7 +435,9 @@ pub fn app() -> Html {
                                 let uint8 = js_sys::Uint8Array::new(&buf_js);
                                 let bytes = uint8.to_vec();
                                 match baza_core::dump::restore::<Vec<(String, Vec<u8>)>>(&bytes) {
-                                    Ok(data) => match baza_core::storage::restore_unlocked(data).await {
+                                    Ok(data) => match baza_core::storage::restore_unlocked(data)
+                                        .await
+                                    {
                                         Ok(_) => {
                                             error_msg.set("RESTORE SUCCESSFUL".to_string());
                                             load_bundles.emit(());
@@ -979,14 +981,14 @@ pub fn app() -> Html {
                         } else {
                             "TOTP Protection is DISABLED"
                         };
-                        
+
                         html! {
                             <div class="view-totp">
                                 <h3>{"TOTP SETTINGS"}</h3>
                                 <p class={if *is_totp_enabled { "success" } else { "error" }}>
                                     {status_text}
                                 </p>
-                                
+
                                 if !(*is_totp_enabled) {
                                     <button class="btn" onclick={perform_enable_totp}>{"ENABLE TOTP"}</button>
                                 } else {
@@ -1005,7 +1007,7 @@ pub fn app() -> Html {
                                         <p class="small mt-1">{"Scan or enter this code in your authenticator app."}</p>
                                     </div>
                                 }
-                                
+
                                 <button class="btn btn-ghost mt-1" onclick={
                                     let set_view = view.clone();
                                     let set_totp_setup_info = totp_setup_info.clone();
@@ -1014,7 +1016,7 @@ pub fn app() -> Html {
                                         set_view.set(AppView::Dashboard);
                                     }
                                 }>{"BACK TO DASHBOARD"}</button>
-                                
+
                                 if !error_msg.is_empty() {
                                     <p class="error">{(*error_msg).clone()}</p>
                                 }
@@ -1029,6 +1031,7 @@ pub fn app() -> Html {
 
 #[wasm_bindgen]
 pub async fn purge_database() -> Result<(), JsValue> {
-    baza_core::storage::delete_database().await
+    baza_core::storage::delete_database()
+        .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }

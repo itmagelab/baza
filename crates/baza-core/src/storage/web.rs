@@ -44,10 +44,10 @@ impl WebStorage {
         // Instead of deleting the database (which causes closure issues),
         // we'll clear all data from it
         let instance = Self::instance().await?;
-        
+
         // Get all keys
         let keys = instance.list_keys().await?;
-        
+
         // Delete all entries
         let transaction = instance
             .rexie

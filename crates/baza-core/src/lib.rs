@@ -45,7 +45,7 @@ pub fn is_system_key(key: &str) -> bool {
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
 pub const DEFAULT_AUTHOR: &str = "Baza";
-pub const DEFAULT_EMAIL: &str = "baza@itmagelab.com";
+pub const TOTP_UUID_KEY: &str = "__baza__::auth::totp::uuid";
 
 pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 
@@ -301,8 +301,14 @@ pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> Ba
         let code = match totp_code {
             Some(c) => c,
             None => {
+                let uuid = storage::get_content(TOTP_UUID_KEY.to_string())
+                    .await
+                    .unwrap_or_else(|_| "default".to_string());
                 let _ = lock();
-                exn::bail!(crate::error::Error::Message("TOTP code required".into()));
+                exn::bail!(crate::error::Error::Message(format!(
+                    "TOTP code required (ID: {})",
+                    uuid
+                )));
             }
         };
 
@@ -315,8 +321,14 @@ pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> Ba
         };
 
         if !is_valid {
+            let uuid = storage::get_content(TOTP_UUID_KEY.to_string())
+                .await
+                .unwrap_or_else(|_| "default".to_string());
             let _ = lock();
-            exn::bail!(crate::error::Error::Message("Invalid TOTP code".into()));
+            exn::bail!(crate::error::Error::Message(format!(
+                "Invalid TOTP code (ID: {})",
+                uuid
+            )));
         }
     }
 

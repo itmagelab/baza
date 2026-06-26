@@ -1,4 +1,4 @@
-use crate::{BazaR, error::Error, TOTP_KEY};
+use crate::{error::Error, BazaR, TOTP_KEY};
 use exn::ResultExt;
 use totp_rs::{Algorithm, Secret, TOTP};
 
@@ -12,24 +12,30 @@ pub async fn enable() -> BazaR<(String, String, String)> {
     let secret = Secret::generate_secret();
     let secret_base32 = secret.to_encoded().to_string();
 
+    let uuid = uuid::Uuid::new_v4().to_string();
+
     // Verify it generates a valid URL
     let totp = TOTP::new(
         Algorithm::SHA1,
         6,
         1,
         30,
-        secret.to_bytes().or_raise(|| Error::Message("Failed to get secret bytes".into()))?,
+        secret
+            .to_bytes()
+            .or_raise(|| Error::Message("Failed to get secret bytes".into()))?,
         Some("Baza".to_string()),
-        crate::DEFAULT_EMAIL.to_string(),
+        uuid.clone(),
     )
     .or_raise(|| Error::Message("Failed to initialize TOTP".into()))?;
 
     let url = totp.get_url();
-    let qr_base64 = totp.get_qr_base64()
+    let qr_base64 = totp
+        .get_qr_base64()
         .map_err(|e| exn::Exn::new(Error::Message(format!("Failed to generate QR code: {}", e))))?;
 
-    // Save the secret in the database
+    // Save the secret and UUID in the database
     crate::storage::save_content(TOTP_KEY.to_string(), secret_base32.clone()).await?;
+    crate::storage::save_content(crate::TOTP_UUID_KEY.to_string(), uuid).await?;
 
     Ok((secret_base32, url, qr_base64))
 }
@@ -39,7 +45,8 @@ pub async fn disable() -> BazaR<()> {
     // Check if vault is unlocked
     let _ = crate::key()?;
 
-    crate::storage::delete_by_name(TOTP_KEY.to_string()).await
+    crate::storage::delete_by_name(TOTP_KEY.to_string()).await?;
+    crate::storage::delete_by_name(crate::TOTP_UUID_KEY.to_string()).await
 }
 
 /// Check if TOTP is enabled (exists in the database).
@@ -51,7 +58,9 @@ pub async fn is_enabled() -> BazaR<bool> {
 /// Helper function to construct a TOTP verifier from the stored secret base32 string.
 fn get_totp(secret_base32: &str) -> BazaR<TOTP> {
     let secret = Secret::Encoded(secret_base32.to_string());
-    let secret_bytes = secret.to_bytes().or_raise(|| Error::Message("Failed to decode base32 secret".into()))?;
+    let secret_bytes = secret
+        .to_bytes()
+        .or_raise(|| Error::Message("Failed to decode base32 secret".into()))?;
 
     TOTP::new(
         Algorithm::SHA1,
@@ -60,7 +69,7 @@ fn get_totp(secret_base32: &str) -> BazaR<TOTP> {
         30,
         secret_bytes,
         Some("Baza".to_string()),
-        crate::DEFAULT_EMAIL.to_string(),
+        "Baza".to_string(),
     )
     .or_raise(|| Error::Message("Failed to initialize TOTP".into()))
 }
@@ -76,7 +85,7 @@ pub(crate) fn verify_code(secret_base32: &str, code: &str) -> BazaR<bool> {
 #[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use super::*;
-    use crate::{Config, init};
+    use crate::{init, Config};
 
     #[test]
     fn test_totp_flow() {
@@ -93,7 +102,9 @@ mod tests {
         Config::build(&config_path).expect("Failed to build config");
 
         pollster::block_on(async {
-            init(Some("test_passphrase".to_string())).await.expect("Failed to init database");
+            init(Some("test_passphrase".to_string()))
+                .await
+                .expect("Failed to init database");
 
             // 1. Check is_enabled initially (should be false)
             assert!(!is_enabled().await.expect("is_enabled failed"));
@@ -124,4 +135,3 @@ mod tests {
         });
     }
 }
-
