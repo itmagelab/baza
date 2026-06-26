@@ -210,24 +210,30 @@ fn main() -> BazaR<()> {
 }
 
 fn run_main() -> BazaR<()> {
-    let config_path = baza_core::Config::default_config_path()?;
+    let config_path = if let Ok(path) = std::env::var("BAZA_CONFIG") {
+        std::path::PathBuf::from(path)
+    } else {
+        let default_path = baza_core::Config::default_config_path()?;
+        let mut chosen_path = default_path.clone();
 
-    if !cfg!(debug_assertions) && !config_path.exists() {
-        // In production, try to find legacy configuration if standard one is missing
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-        let legacy_paths = [
-            format!("{}/.baza/config.toml", home),
-            format!("{}/.Baza.toml", home),
-        ];
+        if !cfg!(debug_assertions) && !default_path.exists() {
+            // In production, try to find legacy configuration if standard one is missing
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            let legacy_paths = [
+                format!("{}/.baza/config.toml", home),
+                format!("{}/.Baza.toml", home),
+            ];
 
-        for path in legacy_paths.iter() {
-            let p = std::path::PathBuf::from(path);
-            if p.exists() {
-                baza_core::Config::build(&p)?;
-                return handle_args();
+            for path in legacy_paths.iter() {
+                let p = std::path::PathBuf::from(path);
+                if p.exists() {
+                    chosen_path = p;
+                    break;
+                }
             }
         }
-    }
+        chosen_path
+    };
 
     // Default or found modern config path
     baza_core::Config::build(&config_path)?;

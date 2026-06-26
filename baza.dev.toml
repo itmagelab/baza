@@ -1,0 +1,10 @@
+# Файл конфигурации Baza для разработки
+# Запуск с этой конфигурацией: BAZA_CONFIG=baza.dev.toml cargo run --bin baza -- [аргументы]
+
+[main]
+datadir = "./.baza/dev"
+box_delimiter = "::"
+bundle_delimiter = "."
+
+[storage]
+type = "redb"
