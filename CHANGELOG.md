@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] - 2026-06-26
+
+### 🚀 Features
+
+- Support BAZA_CONFIG environment variable and add baza.dev.toml
+- Generate and store random UUID for TOTP identity instead of hardcoded email
+- Add TOTP authorization support to core, CLI, and Web UI
+
+### 🚜 Refactor
+
+- Update Baza.tape and Baza.gif for TOTP and clean database setup
+
+### 📚 Documentation
+
+- Add TOTP authentication instructions and usage examples to README
+
 ## [3.0.1] - 2026-06-25
 
 ### 🐛 Bug Fixes
