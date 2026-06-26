@@ -100,6 +100,45 @@ Baza no longer stores your passphrase on disk. You must provide it via the `--pa
 
     echo '$ecRet' | baza --stdin full::path::for::login
 
+#### TOTP Authentication
+
+Baza supports Two-Factor Authentication (2FA) using Time-based One-time Passwords (TOTP).
+
+##### Enable TOTP
+To enable TOTP protection, run:
+
+    baza totp enable --qr
+
+This will generate a random secret key and display a QR code in your terminal. Scan this QR code with your authenticator app (such as Google Authenticator, Aegis, 2FAS, etc.). It will be registered under a randomly generated UUID representing this specific vault database.
+
+##### Check Status
+To check if TOTP is enabled:
+
+    baza totp status
+
+##### Disable TOTP
+To disable TOTP protection:
+
+    baza totp disable
+
+##### Using TOTP to Unlock
+Once enabled, Baza will require a valid TOTP code to unlock the database for any command:
+
+1. **Interactive Prompt:** If you do not provide the code, Baza will display the database ID and prompt you:
+   ```
+   Error: TOTP code required (ID: a3b5...)
+   Enter TOTP code:
+   ```
+2. **CLI Flag:** Provide the code via `-t` or `--totp`:
+   ```
+   baza --passphrase my_secret -t 123456 bundle show site::google::username@gmail.com
+   ```
+3. **Environment Variable:** Set the `BAZA_TOTP` variable:
+   ```
+   export BAZA_TOTP=123456
+   baza bundle show site::google::username@gmail.com
+   ```
+
 ## How to keep your keys safe
 
     gpg --list-keys
@@ -124,4 +163,3 @@ Save the key in a safe place
 ## TODO
 
 * Sync from a cloud providers
-* TOTP
