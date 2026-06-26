@@ -74,11 +74,26 @@ fn get_totp(secret_base32: &str) -> BazaR<TOTP> {
     .or_raise(|| Error::Message("Failed to initialize TOTP".into()))
 }
 
+/// Get the current UNIX timestamp in seconds, compatible with WASM and native platforms.
+fn get_timestamp() -> u64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        (js_sys::Date::now() / 1000.0) as u64
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+}
+
 /// Internal helper to verify the code against the secret base32 string.
 pub(crate) fn verify_code(secret_base32: &str, code: &str) -> BazaR<bool> {
     let totp = get_totp(secret_base32)?;
-    totp.check_current(code)
-        .or_raise(|| Error::Message("Failed to check TOTP code due to system time error".into()))
+    let timestamp = get_timestamp();
+    Ok(totp.check(code, timestamp))
 }
 
 #[cfg(test)]
