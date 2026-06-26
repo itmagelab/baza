@@ -1,7 +1,6 @@
 use core::convert::TryInto;
-use exn::ResultExt;
 use postcard;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::Serialize;
 
 #[cfg(feature = "flate")]
 use flate2::read::GzDecoder;
@@ -110,6 +109,8 @@ pub fn dump<T: Serialize>(value: &T, alg: Algorithm) -> BazaR<Vec<u8>> {
     Ok(out)
 }
 
+use serde::de::DeserializeOwned;
+
 /// Restore a value from bytes produced by `dump`.
 pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
     // minimal header length: 4+1+1+1+8+4 = 19
@@ -209,6 +210,8 @@ pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use serde::Deserialize;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct S {

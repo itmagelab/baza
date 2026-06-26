@@ -62,6 +62,8 @@ enum Commands {
     Version(VersionArgs),
     Dump(DumpArgs),
     Restore(RestoreArgs),
+    Totp(TotpArgs),
+    Sync(SyncArgs),
 }
 
 #[derive(FromArgs, Debug)]
@@ -97,6 +99,40 @@ struct RestoreArgs {
     path: String,
 }
 
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "totp")]
+/// Generate TOTP code for a bundle
+struct TotpArgs {
+    /// name of the bundle
+    #[argh(positional)]
+    name: String,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "sync")]
+/// Sync database with cloud
+struct SyncArgs {
+    #[argh(subcommand)]
+    command: SyncSubCommands,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
+enum SyncSubCommands {
+    Push(SyncPushArgs),
+    Pull(SyncPullArgs),
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "push")]
+/// Push local database to cloud
+struct SyncPushArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "pull")]
+/// Pull database from cloud
+struct SyncPullArgs {}
+
 fn run_command(cmd: Commands) -> BazaR<()> {
     match cmd {
         Commands::Password(s) => password::handle(s)?,
@@ -120,6 +156,27 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Restore(args) => {
             handle_restore(args.path)?;
         }
+        Commands::Totp(args) => {
+            let code = pollster::block_on(baza_core::totp::get_totp_code(args.name))?;
+            println!("{}", code);
+        }
+        Commands::Sync(args) => match args.command {
+            SyncSubCommands::Push(_) => {
+                pollster::block_on(baza_core::sync::push())?;
+            }
+            SyncSubCommands::Pull(_) => {
+                println!("Warning: pulling from cloud will overwrite your local database.");
+                print!("Are you sure? [y/N]: ");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                if input.trim().to_lowercase() == "y" {
+                    pollster::block_on(baza_core::sync::pull())?;
+                } else {
+                    println!("Aborted.");
+                }
+            }
+        },
     };
     Ok(())
 }

@@ -32,6 +32,8 @@ pub mod container;
 pub mod dump;
 pub mod error;
 pub mod storage;
+pub mod sync;
+pub mod totp;
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
@@ -44,6 +46,8 @@ pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 pub struct Config {
     pub main: MainConfig,
     pub storage: StorageConfig,
+    #[serde(default)]
+    pub sync: Option<SyncConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,6 +66,15 @@ pub struct StorageConfig {
 pub enum Type {
     #[serde(rename = "redb", alias = "Redb")]
     Redb,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncConfig {
+    pub endpoint: String,
+    pub bucket: String,
+    pub region: String,
+    pub access_key: String,
+    pub secret_key: String,
 }
 
 impl Default for Config {
@@ -83,6 +96,7 @@ impl Default for Config {
                 bundle_delimiter: ".".into(),
             },
             storage: StorageConfig { r#type: Type::Redb },
+            sync: None,
         }
     }
 }

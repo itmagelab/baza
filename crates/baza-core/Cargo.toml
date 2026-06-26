@@ -45,6 +45,8 @@ aes-gcm = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 sha2 = { workspace = true }
 regex-lite = { workspace = true }
+totp-rs = { version = "5.7.2", features = ["otpauth"] }
+rust-s3 = { version = "0.35.1", default-features = false, features = ["tokio-rustls-tls"] }
 postcard = { version = "1.1", features = ["use-std"] }
 crc32fast = "1.3"
 
