@@ -33,6 +33,7 @@ argh = "0.1.13"
 regex-lite = "0.1.6"
 pollster = "0.4.0"
 redb = "3.0.2"
+totp-rs = { version = "5.6", default-features = false, features = ["gen_secret", "otpauth", "qr"] }
 
 [profile.release]
 opt-level = "z"

@@ -44,6 +44,10 @@ struct Cli {
     #[argh(option)]
     passphrase: Option<String>,
 
+    /// TOTP code for database unlock
+    #[argh(option, short = 't')]
+    totp: Option<String>,
+
     /// list all containers
     #[argh(switch, short = 'l')]
     list: bool,
@@ -62,6 +66,7 @@ enum Commands {
     Version(VersionArgs),
     Dump(DumpArgs),
     Restore(RestoreArgs),
+    Totp(TotpArgs),
 }
 
 #[derive(FromArgs, Debug)]
@@ -97,6 +102,41 @@ struct RestoreArgs {
     path: String,
 }
 
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "totp")]
+/// Manage TOTP authentication
+struct TotpArgs {
+    #[argh(subcommand)]
+    command: TotpSubCommands,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
+enum TotpSubCommands {
+    Enable(TotpEnableArgs),
+    Disable(TotpDisableArgs),
+    Status(TotpStatusArgs),
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "enable")]
+/// Enable TOTP authentication
+struct TotpEnableArgs {
+    /// print QR code to terminal
+    #[argh(switch, short = 'q')]
+    qr: bool,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "disable")]
+/// Disable TOTP authentication
+struct TotpDisableArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "status")]
+/// Show TOTP status
+struct TotpStatusArgs {}
+
 fn run_command(cmd: Commands) -> BazaR<()> {
     match cmd {
         Commands::Password(s) => password::handle(s)?,
@@ -105,7 +145,7 @@ fn run_command(cmd: Commands) -> BazaR<()> {
             if pollster::block_on(baza_core::storage::is_initialized())? {
                 println!("Warning: Vault already exists.");
             }
-            let p = baza_core::init(args.passphrase)?;
+            let p = pollster::block_on(baza_core::init(args.passphrase))?;
             println!("Vault initialized with passphrase: {}", p);
         }
         Commands::List(_) => {
@@ -119,6 +159,36 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         }
         Commands::Restore(args) => {
             handle_restore(args.path)?;
+        }
+        Commands::Totp(args) => match args.command {
+            TotpSubCommands::Enable(enable_args) => {
+                let (secret, url, _) = pollster::block_on(baza_core::totp::enable())?;
+                println!("TOTP enabled successfully!");
+                println!("Secret key (Base32): {}", secret);
+                println!("OTPAuth URL: {}", url);
+                if enable_args.qr {
+                    println!("\nScan this QR code with your authenticator app:\n");
+                    let code = qrcode::QrCode::new(&url)
+                        .map_err(|e| baza_core::error::Error::Message(format!("Failed to generate QR code: {}", e)))?;
+                    let image = code.render::<qrcode::render::unicode::Dense1x2>()
+                        .dark_color(qrcode::render::unicode::Dense1x2::Light)
+                        .light_color(qrcode::render::unicode::Dense1x2::Dark)
+                        .build();
+                    println!("{}", image);
+                }
+            }
+            TotpSubCommands::Disable(_) => {
+                pollster::block_on(baza_core::totp::disable())?;
+                println!("TOTP authentication disabled.");
+            }
+            TotpSubCommands::Status(_) => {
+                let enabled = pollster::block_on(baza_core::totp::is_enabled())?;
+                if enabled {
+                    println!("TOTP authentication is enabled.");
+                } else {
+                    println!("TOTP authentication is disabled.");
+                }
+            }
         }
     };
     Ok(())
@@ -172,14 +242,31 @@ fn handle_args() -> BazaR<()> {
         .passphrase
         .or_else(|| std::env::var("BAZA_PASSPHRASE").ok());
 
-    if let Some(cmd) = &args.command {
-        if matches!(cmd, Commands::Init(_)) {
-            // Init handles its own passphrase
-        } else {
-            baza_core::unlock(passphrase)?;
-        }
+    let totp_code = args
+        .totp
+        .or_else(|| std::env::var("BAZA_TOTP").ok());
+
+    let should_unlock = if let Some(cmd) = &args.command {
+        !matches!(cmd, Commands::Init(_))
     } else {
-        baza_core::unlock(passphrase)?;
+        true
+    };
+
+    if should_unlock {
+        let mut result = pollster::block_on(baza_core::unlock(passphrase.clone(), totp_code.clone()));
+        if let Err(ref e) = result {
+            if e.to_string().contains("TOTP code required") {
+                print!("Enter TOTP code: ");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                let mut input = String::new();
+                std::io::stdin()
+                    .read_line(&mut input)
+                    .or_raise(|| baza_core::error::Error::Message("Failed to read TOTP code".into()))?;
+                let code = input.trim().to_string();
+                result = pollster::block_on(baza_core::unlock(passphrase, Some(code)));
+            }
+        }
+        result?;
     }
 
     if let Some(str) = args.stdin {

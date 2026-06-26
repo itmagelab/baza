@@ -63,7 +63,8 @@ pub async fn is_initialized() -> BazaR<bool> {
 }
 
 pub async fn list_all_keys() -> BazaR<Vec<String>> {
-    with_backend(|backend| backend.list_keys()).await
+    let keys = with_backend(|backend| backend.list_keys()).await?;
+    Ok(keys.into_iter().filter(|key| !crate::is_system_key(key)).collect())
 }
 
 pub async fn get_content(name: String) -> BazaR<String> {

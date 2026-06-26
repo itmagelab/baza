@@ -32,6 +32,15 @@ pub mod container;
 pub mod dump;
 pub mod error;
 pub mod storage;
+pub mod totp;
+
+pub const SYSTEM_BOX: &str = "__baza__";
+pub const TOTP_KEY: &str = "__baza__::auth::totp";
+
+pub fn is_system_key(key: &str) -> bool {
+    let prefix = format!("{}{}", SYSTEM_BOX, Config::get().main.box_delimiter);
+    key.starts_with(&prefix)
+}
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
@@ -178,6 +187,18 @@ fn as_hash(str: &str) -> [u8; 32] {
 static SESSION_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
     std::sync::OnceLock::new();
 
+#[cfg(test)]
+pub static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub fn test_datadir() -> &'static str {
+    static DIR: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    DIR.get_or_init(|| tempfile::tempdir().expect("Failed to create tempdir"))
+        .path()
+        .to_str()
+        .unwrap()
+}
+
 pub fn lock() -> BazaR<()> {
     if let Some(mutex) = SESSION_KEY.get() {
         let mut guard = mutex
@@ -188,7 +209,39 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
-pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
+pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> BazaR<()> {
+    let initialized = storage::is_initialized().await?;
+    if !initialized {
+        let passphrase = match passphrase {
+            Some(p) => p,
+            None => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    print!("Enter passphrase: ");
+                    std::io::Write::flush(&mut std::io::stdout()).ok();
+                    let mut input = String::new();
+                    std::io::stdin()
+                        .read_line(&mut input)
+                        .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
+                    input.trim().to_string()
+                }
+                #[cfg(target_arch = "wasm32")]
+                exn::bail!(crate::error::Error::Message(
+                    "Passphrase required for WASM unlock".into()
+                ))
+            }
+        };
+
+        let key_bytes = as_hash(passphrase.trim());
+
+        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
+        let mut guard = mutex
+            .lock()
+            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+        *guard = Some(key_bytes.to_vec());
+        return Ok(());
+    }
+
     let passphrase = match passphrase {
         Some(p) => p,
         None => {
@@ -211,11 +264,61 @@ pub fn unlock(passphrase: Option<String>) -> BazaR<()> {
 
     let key_bytes = as_hash(passphrase.trim());
 
+    // Temporarily unlock by setting the SESSION_KEY so we can read the database
     let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
-    let mut guard = mutex
-        .lock()
-        .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-    *guard = Some(key_bytes.to_vec());
+    {
+        let mut guard = mutex
+            .lock()
+            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+        *guard = Some(key_bytes.to_vec());
+    }
+
+    // Determine if TOTP is enabled.
+    let keys = match storage::with_backend(|backend| backend.list_keys()).await {
+        Ok(k) => k,
+        Err(e) => {
+            let _ = lock();
+            return Err(e);
+        }
+    };
+
+    let has_totp = keys.contains(&TOTP_KEY.to_string());
+
+    if has_totp {
+        let secret_res = storage::get_content(TOTP_KEY.to_string()).await;
+        let secret_base32 = match secret_res {
+            Ok(s) => s,
+            Err(e) => {
+                let _ = lock();
+                if e.to_string().contains("aes") || e.to_string().contains("decrypt") {
+                    exn::bail!(crate::error::Error::Message("Invalid passphrase".into()));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+
+        let code = match totp_code {
+            Some(c) => c,
+            None => {
+                let _ = lock();
+                exn::bail!(crate::error::Error::Message("TOTP code required".into()));
+            }
+        };
+
+        let is_valid = match totp::verify_code(&secret_base32, &code) {
+            Ok(v) => v,
+            Err(e) => {
+                let _ = lock();
+                return Err(e);
+            }
+        };
+
+        if !is_valid {
+            let _ = lock();
+            exn::bail!(crate::error::Error::Message("Invalid TOTP code".into()));
+        }
+    }
 
     tracing::debug!("Vault unlocked");
     Ok(())
@@ -273,7 +376,7 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
     Ok(())
 }
 
-pub fn init(passphrase: Option<String>) -> BazaR<String> {
+pub async fn init(passphrase: Option<String>) -> BazaR<String> {
     // Create common folders
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -297,7 +400,7 @@ pub fn init(passphrase: Option<String>) -> BazaR<String> {
         crate::MessageType::Warning,
     );
 
-    self::unlock(Some(passphrase.clone()))?;
+    self::unlock(Some(passphrase.clone()), None).await?;
 
     Ok(passphrase)
 }

@@ -267,13 +267,14 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let temp = match tempfile::tempdir() {
-            Ok(t) => t,
-            Err(e) => panic!("tempdir failed: {}", e),
-        };
-        let config_path = temp.path().join("baza.toml");
+        let _lock = crate::TEST_MUTEX.lock().unwrap();
+        let test_dir = std::path::PathBuf::from(crate::test_datadir());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).expect("Failed to create test dir");
+
+        let config_path = test_dir.join("baza.toml");
         let mut config = Config::default();
-        config.main.datadir = temp.path().to_string_lossy().to_string();
+        config.main.datadir = test_dir.to_string_lossy().to_string();
         let config_str = match toml::to_string(&config) {
             Ok(s) => s,
             Err(e) => panic!("toml serialize failed: {}", e),
@@ -289,7 +290,7 @@ mod tests {
             Ok(p) => p,
             Err(e) => panic!("generate failed: {}", e),
         };
-        if let Err(e) = init(Some(password.clone())) {
+        if let Err(e) = pollster::block_on(init(Some(password.clone()))) {
             panic!("init failed: {}", e);
         }
         if let Err(e) = cleanup_tmp_folder() {
@@ -299,7 +300,7 @@ mod tests {
             panic!("lock failed: {}", e);
         }
 
-        if let Err(e) = unlock(Some(password.clone())) {
+        if let Err(e) = pollster::block_on(unlock(Some(password.clone()), None)) {
             panic!("unlock failed: {}", e);
         }
         let bundles = vec![

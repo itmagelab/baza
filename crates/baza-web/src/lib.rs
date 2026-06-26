@@ -15,6 +15,7 @@ enum AppView {
     Login,
     Dashboard,
     AddBundle,
+    TotpSettings,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -39,6 +40,12 @@ pub fn app() -> Html {
     let original_name = use_state(String::new);
     let show_delete_confirm = use_state(|| false);
     let show_delete_db_confirm = use_state(|| false);
+
+    // TOTP state
+    let show_totp_input = use_state(|| false);
+    let totp_code = use_state(String::new);
+    let is_totp_enabled = use_state(|| false);
+    let totp_setup_info = use_state(|| None::<(String, String, String)>);
 
     let load_bundles = {
         let bundles = bundles.clone();
@@ -67,6 +74,8 @@ pub fn app() -> Html {
 
     let perform_unlock = {
         let passphrase = passphrase.clone();
+        let totp_code = totp_code.clone();
+        let show_totp_input = show_totp_input.clone();
         let set_view = view.clone();
         let error_msg = error_msg.clone();
         let set_init_passphrase = init_passphrase.clone();
@@ -77,20 +86,37 @@ pub fn app() -> Html {
                 error_msg.set("Passphrase cannot be empty".to_string());
                 return;
             }
+            let t = (*totp_code).clone();
+            let t_opt = if t.is_empty() { None } else { Some(t) };
+
             let set_view = set_view.clone();
             let error_msg = error_msg.clone();
             let set_init_passphrase = set_init_passphrase.clone();
             let load_bundles = load_bundles.clone();
+            let show_totp_input = show_totp_input.clone();
 
-            match baza_core::unlock(Some(p)) {
-                Ok(_) => {
-                    set_init_passphrase.set(None);
-                    set_view.set(AppView::Dashboard);
-                    error_msg.set(String::new());
-                    load_bundles.emit(());
+            spawn_local(async move {
+                match baza_core::unlock(Some(p), t_opt).await {
+                    Ok(_) => {
+                        set_init_passphrase.set(None);
+                        set_view.set(AppView::Dashboard);
+                        error_msg.set(String::new());
+                        show_totp_input.set(false);
+                        load_bundles.emit(());
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        if err_str.contains("TOTP code required") {
+                            show_totp_input.set(true);
+                            error_msg.set("TOTP code required".to_string());
+                        } else if err_str.contains("Invalid TOTP code") {
+                            error_msg.set("Invalid TOTP code".to_string());
+                        } else {
+                            error_msg.set(format!("Unlock failed: {}", e));
+                        }
+                    }
                 }
-                Err(e) => error_msg.set(format!("Unlock failed: {}", e)),
-            }
+            });
         })
     };
 
@@ -135,7 +161,7 @@ pub fn app() -> Html {
                     Some((*passphrase).clone())
                 };
 
-                match baza_core::init(p) {
+                match baza_core::init(p).await {
                     Ok(key) => {
                         set_init_passphrase.set(Some(key));
                         set_show_init_confirm.set(false);
@@ -614,6 +640,88 @@ pub fn app() -> Html {
         })
     };
 
+    let on_totp_input = {
+        let set_totp = totp_code.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            set_totp.set(input.value());
+        })
+    };
+
+    let on_totp_keydown = {
+        let perform_unlock = perform_unlock.clone();
+        Callback::from(move |e: KeyboardEvent| {
+            if e.key() == "Enter" {
+                perform_unlock.emit(());
+            }
+        })
+    };
+
+    let load_totp_status = {
+        let is_totp_enabled = is_totp_enabled.clone();
+        let error_msg = error_msg.clone();
+        Callback::from(move |_| {
+            let is_totp_enabled = is_totp_enabled.clone();
+            let error_msg = error_msg.clone();
+            spawn_local(async move {
+                match baza_core::totp::is_enabled().await {
+                    Ok(enabled) => {
+                        is_totp_enabled.set(enabled);
+                    }
+                    Err(e) => {
+                        error_msg.set(format!("Failed to load TOTP status: {}", e));
+                    }
+                }
+            });
+        })
+    };
+
+    let perform_enable_totp = {
+        let is_totp_enabled = is_totp_enabled.clone();
+        let totp_setup_info = totp_setup_info.clone();
+        let error_msg = error_msg.clone();
+        Callback::from(move |_| {
+            let is_totp_enabled = is_totp_enabled.clone();
+            let totp_setup_info = totp_setup_info.clone();
+            let error_msg = error_msg.clone();
+            spawn_local(async move {
+                match baza_core::totp::enable().await {
+                    Ok((secret, url, qr)) => {
+                        totp_setup_info.set(Some((secret, url, qr)));
+                        is_totp_enabled.set(true);
+                        error_msg.set(String::new());
+                    }
+                    Err(e) => {
+                        error_msg.set(format!("Failed to enable TOTP: {}", e));
+                    }
+                }
+            });
+        })
+    };
+
+    let perform_disable_totp = {
+        let is_totp_enabled = is_totp_enabled.clone();
+        let totp_setup_info = totp_setup_info.clone();
+        let error_msg = error_msg.clone();
+        Callback::from(move |_| {
+            let is_totp_enabled = is_totp_enabled.clone();
+            let totp_setup_info = totp_setup_info.clone();
+            let error_msg = error_msg.clone();
+            spawn_local(async move {
+                match baza_core::totp::disable().await {
+                    Ok(_) => {
+                        totp_setup_info.set(None);
+                        is_totp_enabled.set(false);
+                        error_msg.set(String::new());
+                    }
+                    Err(e) => {
+                        error_msg.set(format!("Failed to disable TOTP: {}", e));
+                    }
+                }
+            });
+        })
+    };
+
     let parts_html = {
         let cb = on_bundle_part_input.clone();
         let kd = on_bundle_part_keydown.clone();
@@ -694,6 +802,18 @@ pub fn app() -> Html {
                                         onkeydown={on_passphrase_keydown}
                                     />
                                 </div>
+                                if *show_totp_input {
+                                    <div class="form-group">
+                                        <label>{"TOTP CODE"}</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter 6-digit code"
+                                            value={(*totp_code).clone()}
+                                            oninput={on_totp_input}
+                                            onkeydown={on_totp_keydown}
+                                        />
+                                    </div>
+                                }
                                 <button class="btn" onclick={
                                     let perform_unlock = perform_unlock.clone();
                                     move |_| perform_unlock.emit(())
@@ -790,6 +910,14 @@ pub fn app() -> Html {
 
                             <div class="backup-actions mt-1">
                                 <button class="btn btn-secondary" onclick={move |_| perform_dump.emit(())}>{"DUMP DATABASE"}</button>
+                                <button class="btn btn-secondary ml-1" onclick={
+                                    let set_view = view.clone();
+                                    let load_totp_status = load_totp_status.clone();
+                                    move |_| {
+                                        load_totp_status.emit(());
+                                        set_view.set(AppView::TotpSettings);
+                                    }
+                                }>{"TOTP SETTINGS"}</button>
                                 <button class="btn btn-secondary ml-1" onclick={move |_| perform_lock.emit(())}>{"LOCK & EXIT"}</button>
                             </div>
 
@@ -844,6 +972,54 @@ pub fn app() -> Html {
                                 <p class="error">{(*error_msg).clone()}</p>
                             }
                         </div>
+                    },
+                    AppView::TotpSettings => {
+                        let status_text = if *is_totp_enabled {
+                            "TOTP Protection is ENABLED"
+                        } else {
+                            "TOTP Protection is DISABLED"
+                        };
+                        
+                        html! {
+                            <div class="view-totp">
+                                <h3>{"TOTP SETTINGS"}</h3>
+                                <p class={if *is_totp_enabled { "success" } else { "error" }}>
+                                    {status_text}
+                                </p>
+                                
+                                if !(*is_totp_enabled) {
+                                    <button class="btn" onclick={perform_enable_totp}>{"ENABLE TOTP"}</button>
+                                } else {
+                                    <button class="btn btn-danger" onclick={perform_disable_totp}>{"DISABLE TOTP"}</button>
+                                }
+
+                                if let Some((secret, url, qr_base64)) = (*totp_setup_info).clone() {
+                                    <div class="passphrase-banner mt-1" style="word-break: break-all;">
+                                        <p>{"TOTP SECRET (BASE32):"}</p>
+                                        <code>{secret}</code>
+                                        <p class="mt-1">{"OTPAuth URL:"}</p>
+                                        <code style="font-size: 0.75rem;">{url}</code>
+                                        <div class="mt-1" style="display: flex; justify-content: center; background: white; padding: 10px; border-radius: 4px; width: 140px; margin: 10px auto;">
+                                            <img src={format!("data:image/png;base64,{}", qr_base64)} width="120" height="120" />
+                                        </div>
+                                        <p class="small mt-1">{"Scan or enter this code in your authenticator app."}</p>
+                                    </div>
+                                }
+                                
+                                <button class="btn btn-ghost mt-1" onclick={
+                                    let set_view = view.clone();
+                                    let set_totp_setup_info = totp_setup_info.clone();
+                                    move |_| {
+                                        set_totp_setup_info.set(None);
+                                        set_view.set(AppView::Dashboard);
+                                    }
+                                }>{"BACK TO DASHBOARD"}</button>
+                                
+                                if !error_msg.is_empty() {
+                                    <p class="error">{(*error_msg).clone()}</p>
+                                }
+                            </div>
+                        }
                     }
                 }
             }

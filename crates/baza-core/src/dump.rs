@@ -1,7 +1,6 @@
 use core::convert::TryInto;
-use exn::ResultExt;
 use postcard;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(feature = "flate")]
 use flate2::read::GzDecoder;
@@ -209,6 +208,7 @@ pub fn restore<T: DeserializeOwned>(data: &[u8]) -> BazaR<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct S {
