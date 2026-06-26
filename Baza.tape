@@ -68,6 +68,13 @@ Set Width 1024
 Set Height 768
 Set TypingSpeed 100ms
 
+Hide
+Type "export BAZA_CONFIG=baza.dev.toml" Enter Sleep 200ms
+Type "export BAZA_PASSPHRASE=MyPasswordPhrase" Enter Sleep 200ms
+Type "rm -rf ./.baza/dev/data" Enter Sleep 200ms
+Type "clear" Enter Sleep 500ms
+Show
+
 Type "# Get started with Baza!" Enter Sleep 1s Ctrl+l
 Type "# Initialize your new storage..." Enter Sleep 1s Ctrl+l
 Type "baza init -p MyPasswordPhrase" Sleep 1s Enter Sleep 3s
@@ -76,20 +83,33 @@ Type "baza -a work::new::login" Sleep 1s Enter Sleep 2s
 Insert Type "My$ecreTPa$$w0rd" Enter Sleep 1s
 Enter Type "This is example of description" Sleep 1s
 Enter Type "site: https://domain.ltd" Sleep 1s
-Escape Type ":wq" Sleep 1s Enter
+Escape Type ":wq" Sleep 1s Enter Sleep 2s
 Type "baza bundle search new" Sleep 1s Enter Sleep 2s
 Type "baza --show work::new::login" Sleep 1s Enter Sleep 2s
 Type "echo '$eCret' | baza --stdin other::new::password" Sleep 1s Enter Sleep 2s Ctrl+l
-Type "# You can lock your Baza for display and editing" Sleep 1s Enter Sleep 1s
-Type "baza lock" Sleep 1s Enter Sleep 3s
-Type "baza bundle edit work::new::login" Sleep 1s Enter Sleep 3s
-Type "baza unlock" Sleep 1s Enter Sleep 3s
-Type "MyPasswordPhrase" Sleep 1s Enter Sleep 3s
+
+Type "# Edit an existing password bundle" Sleep 1s Enter Sleep 1s
+Type "baza bundle edit work::new::login" Sleep 1s Enter Sleep 2s
+Escape Type ":q!" Sleep 1s Enter Sleep 2s
+
 Type "baza bundle copy work::new::login" Sleep 1s Enter Sleep 2s Ctrl+C Enter
 Type "baza bundle delete work::new::login" Sleep 1s Enter Sleep 2s
-Type "baza bundle search new" Sleep 1s Enter
+Type "baza bundle search new" Sleep 1s Enter Sleep 2s
 Type "baza password generate --help" Sleep 1s Enter Sleep 2s
 Type "baza password generate --length 12 --no-symbols" Sleep 1s Enter Sleep 2s
-Type "baza dump " Sleep 1s Enter Sleep 2s
-Type "baza restore dump.baza " Sleep 1s Enter Sleep 2s
-Type "baza -l " Sleep 1s Enter Sleep 2s
+Type "baza dump" Sleep 1s Enter Sleep 2s
+Type "baza restore dump.baza" Sleep 1s Enter Sleep 2s
+Type "baza -l" Sleep 1s Enter Sleep 2s Ctrl+l
+
+Type "# Manage TOTP authentication" Sleep 1s Enter Sleep 1s
+Type "baza totp status" Sleep 1s Enter Sleep 2s
+Type "baza totp enable --qr" Sleep 1s Enter Sleep 3s
+Type "baza totp status" Sleep 1s Enter Sleep 2s
+Type "# Accessing the database now requires a TOTP code" Sleep 1s Enter Sleep 1s
+Type "baza -l" Sleep 1s Enter Sleep 2s
+Type "123456" Sleep 1s Enter Sleep 3s
+
+Hide
+Type "rm -rf ./.baza/dev/data" Enter Sleep 200ms
+Type "clear" Enter Sleep 200ms
+Show
