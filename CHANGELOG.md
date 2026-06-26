@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.2] - 2026-06-26
+
+### 🐛 Bug Fixes
+
+- *(web)* Reset totp state when locking database or deleting database
+- *(wasm)* Avoid unsupported system time panic on wasm32 targets during TOTP check
+
 ## [3.1.1] - 2026-06-26
 
 ### 🐛 Bug Fixes
