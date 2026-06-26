@@ -179,10 +179,14 @@ pub fn app() -> Html {
     let perform_lock = {
         let set_view = view.clone();
         let set_passphrase = passphrase.clone();
+        let set_totp_code = totp_code.clone();
+        let set_show_totp_input = show_totp_input.clone();
         Callback::from(move |_| {
             let _ = baza_core::lock();
             set_view.set(AppView::Login);
             set_passphrase.set(String::new());
+            set_totp_code.set(String::new());
+            set_show_totp_input.set(false);
         })
     };
 
@@ -318,18 +322,24 @@ pub fn app() -> Html {
         let set_passphrase = passphrase.clone();
         let set_bundles = bundles.clone();
         let set_show_delete_db_confirm = show_delete_db_confirm.clone();
+        let set_totp_code = totp_code.clone();
+        let set_show_totp_input = show_totp_input.clone();
         Callback::from(move |_| {
             let error_msg = error_msg.clone();
             let set_view = set_view.clone();
             let set_passphrase = set_passphrase.clone();
             let set_bundles = set_bundles.clone();
             let set_show_delete_db_confirm = set_show_delete_db_confirm.clone();
+            let set_totp_code = set_totp_code.clone();
+            let set_show_totp_input = set_show_totp_input.clone();
             spawn_local(async move {
                 match baza_core::storage::delete_database().await {
                     Ok(_) => {
                         set_show_delete_db_confirm.set(false);
                         set_view.set(AppView::Login);
                         set_passphrase.set(String::new());
+                        set_totp_code.set(String::new());
+                        set_show_totp_input.set(false);
                         set_bundles.set(vec![]);
                         let _ = baza_core::lock();
                         error_msg.set("DATABASE DELETED".to_string());
