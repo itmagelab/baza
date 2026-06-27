@@ -15,7 +15,7 @@ tempfile = { workspace = true }
 colored = { workspace = true }
 arboard = { workspace = true }
 redb.workspace = true
-rust-s3.workspace = true
+rust-s3 = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom_02 = { package = "getrandom", version = "0.2.17", features = ["js"] }
@@ -62,3 +62,4 @@ default = ["lz4"]
 lz4 = ["dep:lz4_flex"]
 flate = ["dep:flate2"]
 zstd = ["dep:zstd"]
+s3 = ["dep:rust-s3"]

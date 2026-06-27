@@ -67,7 +67,9 @@ enum Commands {
     Dump(DumpArgs),
     Restore(RestoreArgs),
     Totp(TotpArgs),
+    #[cfg(feature = "s3")]
     Push(PushArgs),
+    #[cfg(feature = "s3")]
     Pull(PullArgs),
 }
 
@@ -104,11 +106,13 @@ struct RestoreArgs {
     path: String,
 }
 
+#[cfg(feature = "s3")]
 #[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "push")]
 /// Push database to S3
 struct PushArgs {}
 
+#[cfg(feature = "s3")]
 #[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "pull")]
 /// Pull database from S3
@@ -171,9 +175,11 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Restore(args) => {
             handle_restore(args.path)?;
         }
+        #[cfg(feature = "s3")]
         Commands::Push(_) => {
             baza_core::s3::push()?;
         }
+        #[cfg(feature = "s3")]
         Commands::Pull(_) => {
             baza_core::s3::pull()?;
         }
@@ -273,10 +279,12 @@ fn handle_args() -> BazaR<()> {
     let totp_code = args.totp.or_else(|| std::env::var("BAZA_TOTP").ok());
 
     let should_unlock = if let Some(cmd) = &args.command {
-        !matches!(
-            cmd,
-            Commands::Init(_) | Commands::Version(_) | Commands::Push(_) | Commands::Pull(_)
-        )
+        #[cfg(feature = "s3")]
+        let is_s3 = matches!(cmd, Commands::Push(_) | Commands::Pull(_));
+        #[cfg(not(feature = "s3"))]
+        let is_s3 = false;
+
+        !matches!(cmd, Commands::Init(_) | Commands::Version(_)) && !is_s3
     } else {
         true
     };

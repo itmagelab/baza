@@ -21,3 +21,7 @@ tracing = { workspace = true }
 toml = { workspace = true }
 exn.workspace = true
 qrcode = { version = "0.14.1", default-features = false }
+
+[features]
+default = []
+s3 = ["baza_core/s3"]
