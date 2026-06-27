@@ -122,9 +122,9 @@ enum TotpSubCommands {
 #[argh(subcommand, name = "enable")]
 /// Enable TOTP authentication
 struct TotpEnableArgs {
-    /// print QR code to terminal
-    #[argh(switch, short = 'q')]
-    qr: bool,
+    /// do not print QR code to terminal
+    #[argh(switch)]
+    no_qr: bool,
 }
 
 #[derive(FromArgs, Debug)]
@@ -136,7 +136,6 @@ struct TotpDisableArgs {}
 #[argh(subcommand, name = "status")]
 /// Show TOTP status
 struct TotpStatusArgs {}
-
 fn run_command(cmd: Commands) -> BazaR<()> {
     match cmd {
         Commands::Password(s) => password::handle(s)?,
@@ -166,7 +165,7 @@ fn run_command(cmd: Commands) -> BazaR<()> {
                 println!("TOTP enabled successfully!");
                 println!("Secret key (Base32): {}", secret);
                 println!("OTPAuth URL: {}", url);
-                if enable_args.qr {
+                if !enable_args.no_qr {
                     println!("\nScan this QR code with your authenticator app:\n");
                     let code = qrcode::QrCode::new(&url).map_err(|e| {
                         baza_core::error::Error::Message(format!(
