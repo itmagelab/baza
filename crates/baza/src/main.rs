@@ -67,6 +67,8 @@ enum Commands {
     Dump(DumpArgs),
     Restore(RestoreArgs),
     Totp(TotpArgs),
+    Push(PushArgs),
+    Pull(PullArgs),
 }
 
 #[derive(FromArgs, Debug)]
@@ -101,6 +103,16 @@ struct RestoreArgs {
     #[argh(positional)]
     path: String,
 }
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "push")]
+/// Push database to S3
+struct PushArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "pull")]
+/// Pull database from S3
+struct PullArgs {}
 
 #[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "totp")]
@@ -158,6 +170,12 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         }
         Commands::Restore(args) => {
             handle_restore(args.path)?;
+        }
+        Commands::Push(_) => {
+            baza_core::s3::push()?;
+        }
+        Commands::Pull(_) => {
+            baza_core::s3::pull()?;
         }
         Commands::Totp(args) => match args.command {
             TotpSubCommands::Enable(enable_args) => {
@@ -255,7 +273,10 @@ fn handle_args() -> BazaR<()> {
     let totp_code = args.totp.or_else(|| std::env::var("BAZA_TOTP").ok());
 
     let should_unlock = if let Some(cmd) = &args.command {
-        !matches!(cmd, Commands::Init(_))
+        !matches!(
+            cmd,
+            Commands::Init(_) | Commands::Version(_) | Commands::Push(_) | Commands::Pull(_)
+        )
     } else {
         true
     };
@@ -269,11 +290,9 @@ fn handle_args() -> BazaR<()> {
                 print!("Enter passphrase: ");
                 std::io::Write::flush(&mut std::io::stdout()).ok();
                 let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .or_raise(|| {
-                        baza_core::error::Error::Message("Failed to read passphrase".into())
-                    })?;
+                std::io::stdin().read_line(&mut input).or_raise(|| {
+                    baza_core::error::Error::Message("Failed to read passphrase".into())
+                })?;
                 input.trim().to_string()
             }
         };
@@ -288,11 +307,9 @@ fn handle_args() -> BazaR<()> {
                     print!("Enter TOTP code: ");
                     std::io::Write::flush(&mut std::io::stdout()).ok();
                     let mut input = String::new();
-                    std::io::stdin()
-                        .read_line(&mut input)
-                        .or_raise(|| {
-                            baza_core::error::Error::Message("Failed to read TOTP code".into())
-                        })?;
+                    std::io::stdin().read_line(&mut input).or_raise(|| {
+                        baza_core::error::Error::Message("Failed to read TOTP code".into())
+                    })?;
                     Some(input.trim().to_string())
                 }
             }

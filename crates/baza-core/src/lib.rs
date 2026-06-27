@@ -31,6 +31,8 @@ pub mod bundle;
 pub mod container;
 pub mod dump;
 pub mod error;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod s3;
 pub mod storage;
 pub mod totp;
 
@@ -53,6 +55,8 @@ pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 pub struct Config {
     pub main: MainConfig,
     pub storage: StorageConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub s3: Option<S3Config>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,6 +69,21 @@ pub struct MainConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
     pub r#type: Type,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct S3Config {
+    pub endpoint: String,
+    pub bucket: String,
+    pub region: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret_access_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_style: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -92,6 +111,7 @@ impl Default for Config {
                 bundle_delimiter: ".".into(),
             },
             storage: StorageConfig { r#type: Type::Redb },
+            s3: None,
         }
     }
 }

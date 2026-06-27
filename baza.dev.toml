@@ -8,3 +8,12 @@ bundle_delimiter = "."
 
 [storage]
 type = "redb"
+
+[s3]
+endpoint = "http://localhost:9000"
+bucket = "baza-test"
+region = "us-east-1"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+key = "db.redb"
+path_style = true

@@ -34,6 +34,7 @@ regex-lite = "0.1.9"
 pollster = "0.4.0"
 redb = "4.1.0"
 totp-rs = { version = "5.7", default-features = false, features = ["gen_secret", "otpauth", "qr"] }
+rust-s3 = { version = "0.37.2", default-features = false, features = ["sync", "sync-rustls-tls"] }
 
 [profile.release]
 opt-level = "z"
