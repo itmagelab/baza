@@ -7,6 +7,7 @@ use crate::BazaR;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::Config;
 use async_trait::async_trait;
+use exn::ResultExt;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn storage_dir(dir: &'static str) -> std::path::PathBuf {
@@ -83,6 +84,16 @@ pub async fn save_content(name: String, content: String) -> BazaR<()> {
     let key = crate::key()?;
     let encrypted = crate::encrypt_data(content.as_bytes(), &key)?;
     with_backend(|backend| backend.set(&name, encrypted)).await
+}
+
+pub async fn get_raw(name: String) -> BazaR<String> {
+    let raw = with_backend(|backend| backend.get(&name)).await?;
+    String::from_utf8(raw)
+        .or_raise(|| crate::error::Error::Message("Failed to decode UTF-8".into()))
+}
+
+pub async fn save_raw(name: String, content: String) -> BazaR<()> {
+    with_backend(|backend| backend.set(&name, content.into_bytes())).await
 }
 
 pub async fn delete_by_name(name: String) -> BazaR<()> {

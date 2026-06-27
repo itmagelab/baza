@@ -35,7 +35,7 @@ pub async fn enable() -> BazaR<(String, String, String)> {
 
     // Save the secret and UUID in the database
     crate::storage::save_content(TOTP_KEY.to_string(), secret_base32.clone()).await?;
-    crate::storage::save_content(crate::TOTP_UUID_KEY.to_string(), uuid).await?;
+    crate::storage::save_raw(crate::TOTP_UUID_KEY.to_string(), uuid).await?;
 
     Ok((secret_base32, url, qr_base64))
 }
@@ -53,6 +53,11 @@ pub async fn disable() -> BazaR<()> {
 pub async fn is_enabled() -> BazaR<bool> {
     let keys = crate::storage::with_backend(|backend| backend.list_keys()).await?;
     Ok(keys.contains(&TOTP_KEY.to_string()))
+}
+
+/// Get the unencrypted TOTP UUID.
+pub async fn get_uuid() -> BazaR<String> {
+    crate::storage::get_raw(crate::TOTP_UUID_KEY.to_string()).await
 }
 
 /// Helper function to construct a TOTP verifier from the stored secret base32 string.

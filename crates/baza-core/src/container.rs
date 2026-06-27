@@ -300,7 +300,7 @@ mod tests {
             panic!("lock failed: {}", e);
         }
 
-        if let Err(e) = pollster::block_on(unlock(Some(password.clone()), None)) {
+        if let Err(e) = pollster::block_on(unlock(password.clone(), None)) {
             panic!("unlock failed: {}", e);
         }
         let bundles = vec![

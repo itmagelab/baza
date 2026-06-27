@@ -262,22 +262,46 @@ fn handle_args() -> BazaR<()> {
     };
 
     if should_unlock {
-        let mut result =
-            pollster::block_on(baza_core::unlock(passphrase.clone(), totp_code.clone()));
-        if let Err(ref e) = result {
-            if e.to_string().contains("TOTP code required") {
-                eprintln!("{}", e);
-                print!("Enter TOTP code: ");
+        let totp_enabled = pollster::block_on(baza_core::totp::is_enabled()).unwrap_or(false);
+
+        let passphrase = match passphrase {
+            Some(p) => p,
+            None => {
+                print!("Enter passphrase: ");
                 std::io::Write::flush(&mut std::io::stdout()).ok();
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).or_raise(|| {
-                    baza_core::error::Error::Message("Failed to read TOTP code".into())
-                })?;
-                let code = input.trim().to_string();
-                result = pollster::block_on(baza_core::unlock(passphrase, Some(code)));
+                std::io::stdin()
+                    .read_line(&mut input)
+                    .or_raise(|| {
+                        baza_core::error::Error::Message("Failed to read passphrase".into())
+                    })?;
+                input.trim().to_string()
             }
-        }
-        result?;
+        };
+
+        let totp_code = if totp_enabled {
+            match totp_code {
+                Some(c) => Some(c),
+                None => {
+                    let uuid = pollster::block_on(baza_core::totp::get_uuid())
+                        .unwrap_or_else(|_| "default".to_string());
+                    println!("TOTP code required (ID: {})", uuid);
+                    print!("Enter TOTP code: ");
+                    std::io::Write::flush(&mut std::io::stdout()).ok();
+                    let mut input = String::new();
+                    std::io::stdin()
+                        .read_line(&mut input)
+                        .or_raise(|| {
+                            baza_core::error::Error::Message("Failed to read TOTP code".into())
+                        })?;
+                    Some(input.trim().to_string())
+                }
+            }
+        } else {
+            totp_code
+        };
+
+        pollster::block_on(baza_core::unlock(passphrase, totp_code))?;
     }
 
     if let Some(str) = args.stdin {

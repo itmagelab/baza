@@ -209,29 +209,9 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
-pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> BazaR<()> {
+pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> {
     let initialized = storage::is_initialized().await?;
     if !initialized {
-        let passphrase = match passphrase {
-            Some(p) => p,
-            None => {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    print!("Enter passphrase: ");
-                    std::io::Write::flush(&mut std::io::stdout()).ok();
-                    let mut input = String::new();
-                    std::io::stdin()
-                        .read_line(&mut input)
-                        .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
-                    input.trim().to_string()
-                }
-                #[cfg(target_arch = "wasm32")]
-                exn::bail!(crate::error::Error::Message(
-                    "Passphrase required for WASM unlock".into()
-                ))
-            }
-        };
-
         let key_bytes = as_hash(passphrase.trim());
 
         let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
@@ -241,26 +221,6 @@ pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> Ba
         *guard = Some(key_bytes.to_vec());
         return Ok(());
     }
-
-    let passphrase = match passphrase {
-        Some(p) => p,
-        None => {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                print!("Enter passphrase: ");
-                std::io::Write::flush(&mut std::io::stdout()).ok();
-                let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .or_raise(|| error::Error::Message("Failed to read passphrase".into()))?;
-                input.trim().to_string()
-            }
-            #[cfg(target_arch = "wasm32")]
-            exn::bail!(crate::error::Error::Message(
-                "Passphrase required for WASM unlock".into()
-            ))
-        }
-    };
 
     let key_bytes = as_hash(passphrase.trim());
 
@@ -301,7 +261,7 @@ pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> Ba
         let code = match totp_code {
             Some(c) => c,
             None => {
-                let uuid = storage::get_content(TOTP_UUID_KEY.to_string())
+                let uuid = storage::get_raw(TOTP_UUID_KEY.to_string())
                     .await
                     .unwrap_or_else(|_| "default".to_string());
                 let _ = lock();
@@ -321,7 +281,7 @@ pub async fn unlock(passphrase: Option<String>, totp_code: Option<String>) -> Ba
         };
 
         if !is_valid {
-            let uuid = storage::get_content(TOTP_UUID_KEY.to_string())
+            let uuid = storage::get_raw(TOTP_UUID_KEY.to_string())
                 .await
                 .unwrap_or_else(|_| "default".to_string());
             let _ = lock();
@@ -412,7 +372,7 @@ pub async fn init(passphrase: Option<String>) -> BazaR<String> {
         crate::MessageType::Warning,
     );
 
-    self::unlock(Some(passphrase.clone()), None).await?;
+    self::unlock(passphrase.clone(), None).await?;
 
     Ok(passphrase)
 }

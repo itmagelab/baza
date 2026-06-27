@@ -47,6 +47,22 @@ pub fn app() -> Html {
     let is_totp_enabled = use_state(|| false);
     let totp_setup_info = use_state(|| None::<(String, String, String)>);
 
+    {
+        let show_totp_input = show_totp_input.clone();
+        let view_val = *view;
+        use_effect_with(view_val, move |current_view| {
+            if *current_view == AppView::Login {
+                let show_totp_input = show_totp_input.clone();
+                spawn_local(async move {
+                    if let Ok(enabled) = baza_core::totp::is_enabled().await {
+                        show_totp_input.set(enabled);
+                    }
+                });
+            }
+            || ()
+        });
+    }
+
     let load_bundles = {
         let bundles = bundles.clone();
         let error_msg = error_msg.clone();
@@ -96,7 +112,7 @@ pub fn app() -> Html {
             let show_totp_input = show_totp_input.clone();
 
             spawn_local(async move {
-                match baza_core::unlock(Some(p), t_opt).await {
+                match baza_core::unlock(p, t_opt).await {
                     Ok(_) => {
                         set_init_passphrase.set(None);
                         set_view.set(AppView::Dashboard);
