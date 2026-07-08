@@ -64,8 +64,8 @@ This command will generate a password phrase automatically, can be used for auto
 
 #### Generate a new password by baza
 
-    baza password generate 10
-    baza password generate 30 --no-latters --no-symbols
+    baza password generate --length 10
+    baza password generate --length 30 --no-letters --no-symbols
 
 #### Create your baza bundles
 
@@ -82,14 +82,30 @@ This command will generate a password phrase automatically, can be used for auto
     baza bundle search login
     baza bundle edit full::path::for::login
 
-#### Passphrase usage
+#### Passphrase usage & Session caching
 
-Baza no longer stores your passphrase on disk. You must provide it via the `--passphrase` option or the `BAZA_PASSPHRASE` environment variable for each command.
+Baza does not store your passphrase on disk. You must provide it for each command, or cache it temporarily for your terminal session.
+
+##### Option 1: Provide passphrase per command
+Specify it via the `--passphrase` option or set the `BAZA_PASSPHRASE` environment variable:
 
     baza --passphrase my_secret bundle show site::google::username@gmail.com
     # OR
     export BAZA_PASSPHRASE=my_secret
     baza bundle show site::google::username@gmail.com
+
+##### Option 2: Session caching (Unlock / Lock)
+You can unlock your database for the current terminal session. The `baza unlock` command verifies your credentials and outputs an export command for `BAZA_PASSPHRASE`.
+
+To unlock the session:
+
+    eval $(baza unlock)
+
+*(You will be prompted for your passphrase and TOTP code if enabled)*
+
+To lock the session and clear the cached passphrase:
+
+    eval $(baza lock)
 
 #### Copy password to clipboard (first line from bundle)
 
@@ -135,9 +151,19 @@ Once enabled, Baza will require a valid TOTP code to unlock the database for any
    ```
 3. **Environment Variable:** Set the `BAZA_TOTP` variable:
    ```
-   export BAZA_TOTP=123456
-   baza bundle show site::google::username@gmail.com
-   ```
+    export BAZA_TOTP=123456
+    baza bundle show site::google::username@gmail.com
+    ```
+
+## Configuration
+
+By default, Baza looks for its configuration file at:
+- **Release mode:** `~/.config/baza/baza.toml`
+- **Debug mode:** `./.baza/baza.toml` (within the project folder)
+
+You can override the configuration path using the `BAZA_CONFIG` environment variable:
+
+    BAZA_CONFIG=/path/to/my/baza.toml baza list
 
 ## How to keep your keys safe
 
