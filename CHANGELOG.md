@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-07-08
+
+### 🚀 Features
+
+- *(cli)* Add unlock and lock subcommands to manage BAZA_PASSPHRASE environment variable
+- *(cli)* Bypass vault unlock for password generate command
+- Gate S3 push/pull sync support behind cargo feature to maintain small default binary size
+- Implement baza push and pull commands for S3 sync
+- Render TOTP QR code by default, adding --no-qr flag
+
+### 🚜 Refactor
+
+- Introduce metadata-driven pre-flight TOTP check and single-pass unlock
+- Remove redundant restore_unlocked function
+
 ## [3.1.2] - 2026-06-26
 
 ### 🐛 Bug Fixes
