@@ -79,6 +79,7 @@ Before writing any code or making workspace modifications:
 4. **Implement Step-by-Step:** Work on exactly one subtask at a time. Run tests and verify the code continuously.
 5. **Commit Messages:** Commits must be written **strictly in English**.
 6. **Update Progress:** Mark tasks as completed in [doc/tasklist.md](file:///Users/wilful/Git/baza/doc/tasklist.md) upon verification.
+7. **Changelog Updates (Crucial!):** Never edit `CHANGELOG.md` manually. It must be updated strictly using `git cliff` (e.g., `git cliff --tag v<version> -o CHANGELOG.md`).
 
 ---
 
