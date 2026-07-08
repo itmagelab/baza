@@ -372,28 +372,26 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
 }
 
 pub async fn init(passphrase: Option<String>) -> BazaR<String> {
+    crate::m("* Initializing Baza database...", crate::MessageType::Info);
+
     // Create common folders
     #[cfg(not(target_arch = "wasm32"))]
     {
         let datadir = &Config::get().main.datadir;
+        crate::m(
+            &format!("  [+] Creating directories at: {}", datadir),
+            crate::MessageType::Clean,
+        );
         fs::create_dir_all(format!("{datadir}/data"))
             .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
     }
+    
+    crate::m("  [+] Initializing database storage...", crate::MessageType::Clean);
     storage::initialize()?;
 
     // Initialize the default key
+    crate::m("  [+] Generating master passphrase...", crate::MessageType::Clean);
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
-    crate::m(
-        "Initializing baza in data directory",
-        crate::MessageType::Info,
-    );
-    crate::m(
-        &format!(
-            "!!! Save this password phrase for future use: {}",
-            passphrase
-        ),
-        crate::MessageType::Warning,
-    );
 
     self::unlock(passphrase.clone(), None).await?;
 

@@ -34,6 +34,9 @@ pub fn initialize() -> BazaR<()> {
     let folder = std::path::PathBuf::from(format!("{}/data/{}", &Config::get().main.datadir, DIR));
     std::fs::create_dir_all(&folder).map_err(|e| exn::Exn::new(e.into()))?;
     let path = format!("{}/db.redb", folder.to_string_lossy());
+    if std::path::Path::new(&path).exists() {
+        std::fs::remove_file(&path).map_err(|e| exn::Exn::new(e.into()))?;
+    }
     let db = Database::create(path).map_err(|e| exn::Exn::new(e.into()))?;
     let write_txn = db.begin_write().or_raise(|| {
         crate::error::Error::Message("Failed to begin write transaction for initialization".into())

@@ -82,6 +82,10 @@ struct InitArgs {
     /// passphrase for the database
     #[argh(option, short = 'p')]
     passphrase: Option<String>,
+
+    /// force overwrite of existing database without confirmation prompt
+    #[argh(switch, short = 'f')]
+    force: bool,
 }
 
 #[derive(FromArgs, Debug)]
@@ -177,11 +181,39 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Password(s) => password::handle(s)?,
         Commands::Bundle(s) => bundle::handle(s)?,
         Commands::Init(args) => {
+            use colored::Colorize;
             if pollster::block_on(baza_core::storage::is_initialized())? {
-                println!("Warning: Vault already exists.");
+                if !args.force {
+                    let datadir = &baza_core::Config::get().main.datadir;
+                    eprint!(
+                        "Warning: A Baza vault already exists at: {}\nDo you really want to overwrite it and delete all existing data? [y/N]: ",
+                        datadir
+                    );
+                    std::io::Write::flush(&mut std::io::stderr()).ok();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).or_raise(|| {
+                        baza_core::error::Error::Message("Failed to read input".into())
+                    })?;
+                    let input = input.trim().to_lowercase();
+                    if input != "y" && input != "yes" {
+                        println!("Initialization aborted.");
+                        return Ok(());
+                    }
+                }
             }
             let p = pollster::block_on(baza_core::init(args.passphrase))?;
-            println!("Vault initialized with passphrase: {}", p);
+
+            println!("\n{}", "=============================================================".bright_yellow());
+            println!("{}", "             CRITICAL SECURITY WARNING".bright_red().bold());
+            println!("{}", "=============================================================".bright_yellow());
+            println!(" Please save the following master passphrase.");
+            println!(" You will need it to unlock your vault in the future.");
+            println!(" Baza does not store this key, so it CANNOT be recovered!");
+            println!("");
+            println!(" Master Passphrase:");
+            println!(" *  {}", p.bright_green().bold());
+            println!("{}", "=============================================================".bright_yellow());
+            println!(" {}\n", "Vault initialized successfully!".bright_green());
         }
         Commands::List(_) => {
             pollster::block_on(container::search(String::from(".*")))?;
