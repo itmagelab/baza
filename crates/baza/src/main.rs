@@ -304,8 +304,8 @@ fn acquire_credentials(
     let passphrase = match passphrase_opt {
         Some(p) => p,
         None => {
-            print!("Enter passphrase: ");
-            std::io::Write::flush(&mut std::io::stdout()).ok();
+            eprint!("Enter passphrase: ");
+            std::io::Write::flush(&mut std::io::stderr()).ok();
             let mut input = String::new();
             std::io::stdin().read_line(&mut input).or_raise(|| {
                 baza_core::error::Error::Message("Failed to read passphrase".into())
@@ -321,9 +321,9 @@ fn acquire_credentials(
             None => {
                 let uuid = pollster::block_on(baza_core::totp::get_uuid())
                     .unwrap_or_else(|_| "default".to_string());
-                println!("TOTP code required (ID: {})", uuid);
-                print!("Enter TOTP code: ");
-                std::io::Write::flush(&mut std::io::stdout()).ok();
+                eprintln!("TOTP code required (ID: {})", uuid);
+                eprint!("Enter TOTP code: ");
+                std::io::Write::flush(&mut std::io::stderr()).ok();
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input).or_raise(|| {
                     baza_core::error::Error::Message("Failed to read TOTP code".into())
