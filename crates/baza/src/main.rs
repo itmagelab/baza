@@ -284,7 +284,14 @@ fn handle_args() -> BazaR<()> {
         #[cfg(not(feature = "s3"))]
         let is_s3 = false;
 
-        !matches!(cmd, Commands::Init(_) | Commands::Version(_)) && !is_s3
+        let is_password_generate = match cmd {
+            Commands::Password(p_args) => {
+                matches!(p_args.command, password::SubCommands::Generate(_))
+            }
+            _ => false,
+        };
+
+        !matches!(cmd, Commands::Init(_) | Commands::Version(_)) && !is_s3 && !is_password_generate
     } else {
         true
     };
