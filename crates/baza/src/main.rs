@@ -67,6 +67,8 @@ enum Commands {
     Dump(DumpArgs),
     Restore(RestoreArgs),
     Totp(TotpArgs),
+    Unlock(UnlockArgs),
+    Lock(LockArgs),
     #[cfg(feature = "s3")]
     Push(PushArgs),
     #[cfg(feature = "s3")]
@@ -105,6 +107,24 @@ struct RestoreArgs {
     #[argh(positional)]
     path: String,
 }
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "unlock")]
+/// Verify credentials and print export command for BAZA_PASSPHRASE
+struct UnlockArgs {
+    /// passphrase for the database
+    #[argh(option, short = 'p')]
+    passphrase: Option<String>,
+
+    /// TOTP code for database unlock
+    #[argh(option, short = 't')]
+    totp: Option<String>,
+}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "lock")]
+/// Print unset command for BAZA_PASSPHRASE
+struct LockArgs {}
 
 #[cfg(feature = "s3")]
 #[derive(FromArgs, Debug)]
@@ -218,6 +238,19 @@ fn run_command(cmd: Commands) -> BazaR<()> {
                 }
             }
         },
+        Commands::Unlock(args) => {
+            let passphrase_opt = args
+                .passphrase
+                .or_else(|| std::env::var("BAZA_PASSPHRASE").ok());
+            let totp_opt = args.totp.or_else(|| std::env::var("BAZA_TOTP").ok());
+
+            let (passphrase, totp_code) = acquire_credentials(passphrase_opt, totp_opt)?;
+            pollster::block_on(baza_core::unlock(passphrase.clone(), totp_code))?;
+            println!("export BAZA_PASSPHRASE=\"{}\"", passphrase);
+        }
+        Commands::Lock(_) => {
+            println!("unset BAZA_PASSPHRASE");
+        }
     };
     Ok(())
 }
@@ -264,6 +297,47 @@ fn run_main() -> BazaR<()> {
     handle_args()
 }
 
+fn acquire_credentials(
+    passphrase_opt: Option<String>,
+    totp_opt: Option<String>,
+) -> BazaR<(String, Option<String>)> {
+    let passphrase = match passphrase_opt {
+        Some(p) => p,
+        None => {
+            print!("Enter passphrase: ");
+            std::io::Write::flush(&mut std::io::stdout()).ok();
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).or_raise(|| {
+                baza_core::error::Error::Message("Failed to read passphrase".into())
+            })?;
+            input.trim().to_string()
+        }
+    };
+
+    let totp_enabled = pollster::block_on(baza_core::totp::is_enabled()).unwrap_or(false);
+    let totp_code = if totp_enabled {
+        match totp_opt {
+            Some(c) => Some(c),
+            None => {
+                let uuid = pollster::block_on(baza_core::totp::get_uuid())
+                    .unwrap_or_else(|_| "default".to_string());
+                println!("TOTP code required (ID: {})", uuid);
+                print!("Enter TOTP code: ");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).or_raise(|| {
+                    baza_core::error::Error::Message("Failed to read TOTP code".into())
+                })?;
+                Some(input.trim().to_string())
+            }
+        }
+    } else {
+        totp_opt
+    };
+
+    Ok((passphrase, totp_code))
+}
+
 fn handle_args() -> BazaR<()> {
     cleanup_tmp_folder().or_raise(|| {
         baza_core::error::Error::Message("Failed to cleanup temporary folder".into())
@@ -291,47 +365,17 @@ fn handle_args() -> BazaR<()> {
             _ => false,
         };
 
-        !matches!(cmd, Commands::Init(_) | Commands::Version(_)) && !is_s3 && !is_password_generate
+        !matches!(
+            cmd,
+            Commands::Init(_) | Commands::Version(_) | Commands::Unlock(_) | Commands::Lock(_)
+        ) && !is_s3
+            && !is_password_generate
     } else {
         true
     };
 
     if should_unlock {
-        let totp_enabled = pollster::block_on(baza_core::totp::is_enabled()).unwrap_or(false);
-
-        let passphrase = match passphrase {
-            Some(p) => p,
-            None => {
-                print!("Enter passphrase: ");
-                std::io::Write::flush(&mut std::io::stdout()).ok();
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).or_raise(|| {
-                    baza_core::error::Error::Message("Failed to read passphrase".into())
-                })?;
-                input.trim().to_string()
-            }
-        };
-
-        let totp_code = if totp_enabled {
-            match totp_code {
-                Some(c) => Some(c),
-                None => {
-                    let uuid = pollster::block_on(baza_core::totp::get_uuid())
-                        .unwrap_or_else(|_| "default".to_string());
-                    println!("TOTP code required (ID: {})", uuid);
-                    print!("Enter TOTP code: ");
-                    std::io::Write::flush(&mut std::io::stdout()).ok();
-                    let mut input = String::new();
-                    std::io::stdin().read_line(&mut input).or_raise(|| {
-                        baza_core::error::Error::Message("Failed to read TOTP code".into())
-                    })?;
-                    Some(input.trim().to_string())
-                }
-            }
-        } else {
-            totp_code
-        };
-
+        let (passphrase, totp_code) = acquire_credentials(passphrase, totp_code)?;
         pollster::block_on(baza_core::unlock(passphrase, totp_code))?;
     }
 
