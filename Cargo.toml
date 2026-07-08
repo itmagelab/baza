@@ -35,6 +35,7 @@ pollster = "0.4.0"
 redb = "4.1.0"
 totp-rs = { version = "5.7", default-features = false, features = ["gen_secret", "otpauth", "qr"] }
 rust-s3 = { version = "0.37.2", default-features = false, features = ["sync", "sync-rustls-tls"] }
+rpassword = "7.3"
 
 [profile.release]
 opt-level = "z"

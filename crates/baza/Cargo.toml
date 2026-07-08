@@ -22,6 +22,7 @@ toml = { workspace = true }
 exn.workspace = true
 colored = { workspace = true }
 qrcode = { version = "0.14.1", default-features = false }
+rpassword = { workspace = true }
 
 [features]
 default = []

@@ -335,15 +335,9 @@ fn acquire_credentials(
 ) -> BazaR<(String, Option<String>)> {
     let passphrase = match passphrase_opt {
         Some(p) => p,
-        None => {
-            eprint!("Enter passphrase: ");
-            std::io::Write::flush(&mut std::io::stderr()).ok();
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).or_raise(|| {
-                baza_core::error::Error::Message("Failed to read passphrase".into())
-            })?;
-            input.trim().to_string()
-        }
+        None => rpassword::prompt_password("Enter passphrase: ")
+            .map(|p| p.trim().to_string())
+            .or_raise(|| baza_core::error::Error::Message("Failed to read passphrase".into()))?,
     };
 
     let totp_enabled = pollster::block_on(baza_core::totp::is_enabled()).unwrap_or(false);
