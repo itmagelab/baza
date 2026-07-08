@@ -316,4 +316,36 @@ mod tests {
             delete_test(name);
         }
     }
+
+    #[test]
+    fn test_create_from_str() {
+        let _lock = crate::TEST_MUTEX.lock().unwrap();
+        // Ensure Config is initialized
+        let _ = Config::get();
+
+        // Case 1: Multiple boxes and a bundle
+        let builder = ContainerBuilder::new()
+            .create_from_str("box1::box2::bundle1".to_string())
+            .unwrap();
+        let container = builder.build();
+        assert_eq!(container.boxes.len(), 2);
+        assert_eq!(&*container.boxes[0].borrow().name, "box1");
+        assert_eq!(&*container.boxes[1].borrow().name, "box2");
+        assert_eq!(container.bundles(), vec!["bundle1".to_string()]);
+
+        // Case 2: Only bundle (no boxes) -> should fail
+        let builder_res = ContainerBuilder::new()
+            .create_from_str("bundle_only".to_string());
+        assert!(builder_res.is_err());
+
+        // Case 3: Trim spaces from name but keep spaces inside delimiter-separated parts
+        let builder = ContainerBuilder::new()
+            .create_from_str("  spaced_box :: spaced_bundle  ".to_string())
+            .unwrap();
+        let container = builder.build();
+        assert_eq!(container.boxes.len(), 1);
+        assert_eq!(&*container.boxes[0].borrow().name, "spaced_box ");
+        assert_eq!(container.bundles(), vec![" spaced_bundle".to_string()]);
+    }
 }
+
