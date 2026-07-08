@@ -116,28 +116,32 @@ To lock the session and clear the cached passphrase:
 
     echo '$ecRet' | baza --stdin full::path::for::login
 
-#### TOTP Authentication
+## 🔐 Two-Factor Authentication (2FA / TOTP)
 
-Baza supports Two-Factor Authentication (2FA) using Time-based One-time Passwords (TOTP).
+> [!IMPORTANT]
+> **Built-in 2FA Protection (Killer Feature!):**
+> Unlike classic password store tools, Baza provides built-in support for securing your entire vault with Two-Factor Authentication (2FA) using Time-based One-time Passwords (TOTP). Even if your passphrase is leaked, the database remains locked without your authenticator token.
 
-##### Enable TOTP
-To enable TOTP protection, run:
+You can scan the QR code generated directly in your terminal using any standard authenticator app (such as Google Authenticator, Aegis, 2FAS, etc.).
 
-    baza totp enable --qr
+### Enable TOTP
+To enable TOTP protection:
 
-This will generate a random secret key and display a QR code in your terminal. Scan this QR code with your authenticator app (such as Google Authenticator, Aegis, 2FAS, etc.). It will be registered under a randomly generated UUID representing this specific vault database.
+    baza totp enable
 
-##### Check Status
+*(Use `baza totp enable --no-qr` if you only want to see the secret key without printing the QR code)*
+
+### Check Status
 To check if TOTP is enabled:
 
     baza totp status
 
-##### Disable TOTP
+### Disable TOTP
 To disable TOTP protection:
 
     baza totp disable
 
-##### Using TOTP to Unlock
+### Using TOTP to Unlock
 Once enabled, Baza will require a valid TOTP code to unlock the database for any command:
 
 1. **Interactive Prompt:** If you do not provide the code, Baza will display the database ID and prompt you:
@@ -151,9 +155,9 @@ Once enabled, Baza will require a valid TOTP code to unlock the database for any
    ```
 3. **Environment Variable:** Set the `BAZA_TOTP` variable:
    ```
-    export BAZA_TOTP=123456
-    baza bundle show site::google::username@gmail.com
-    ```
+   export BAZA_TOTP=123456
+   baza bundle show site::google::username@gmail.com
+   ```
 
 ## Configuration
 
