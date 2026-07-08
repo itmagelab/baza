@@ -12,9 +12,11 @@ pub(crate) type BundleRef = Rc<RefCell<Bundle>>;
 pub(crate) struct Bundle {
     pub(crate) name: Arc<str>,
     #[cfg(target_arch = "wasm32")]
+    #[allow(dead_code)]
     pub(crate) data: RefCell<Vec<u8>>,
     pub(crate) parent: Option<BoxRef>,
 }
+
 
 impl fmt::Display for Bundle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

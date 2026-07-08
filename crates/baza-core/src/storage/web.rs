@@ -7,7 +7,12 @@ use wasm_bindgen::JsValue;
 const DB_NAME: &str = "baza";
 const STORE_NAME: &str = "passwords";
 
-static mut STORAGE: Option<WebStorage> = None;
+struct SafeWebStorage(WebStorage);
+unsafe impl Send for SafeWebStorage {}
+unsafe impl Sync for SafeWebStorage {}
+
+use std::sync::OnceLock;
+static STORAGE: OnceLock<SafeWebStorage> = OnceLock::new();
 
 pub struct WebStorage {
     rexie: Rexie,
@@ -26,19 +31,20 @@ impl WebStorage {
     }
 
     pub(crate) async fn instance() -> BazaR<&'static Self> {
-        unsafe {
-            if STORAGE.is_none() {
-                STORAGE = Some(Self::new().await?);
-            }
-            if let Some(s) = STORAGE.as_ref() {
-                Ok(s)
-            } else {
-                Err(exn::Exn::new(crate::error::Error::Message(
+        if let Some(s) = STORAGE.get() {
+            Ok(&s.0)
+        } else {
+            let s = Self::new().await?;
+            let _ = STORAGE.set(SafeWebStorage(s));
+            STORAGE.get().map(|s| &s.0).ok_or_else(|| {
+                exn::Exn::new(crate::error::Error::Message(
                     "WebStorage instance unavailable".into(),
-                )))
-            }
+                ))
+            })
         }
     }
+
+
 
     pub async fn delete_database() -> BazaR<()> {
         // Instead of deleting the database (which causes closure issues),
