@@ -39,8 +39,7 @@ impl ContainerBuilder {
                 crate::error::Error::Message("Failed to parse container name".into()).into(),
             );
         };
-        pack.reverse();
-        while let Some(r#box) = pack.pop() {
+        for r#box in pack {
             let r#box = r#box::r#Box::new(r#box.to_string(), None);
             self.add_box(r#box);
         }
