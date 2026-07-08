@@ -7,11 +7,18 @@
 
 ## Description
 
-This project is created as an alternative to password-store, but written in a low-level language with additional features
+**Baza** is a high-performance, secure command-line (CLI) password manager and vault. Written in Rust for maximum speed and memory safety, it serves as a modern, feature-rich alternative to the traditional `pass` (password-store).
 
-## Why should I use baza?
+All passwords and sensitive data are encrypted locally using robust AES-256-GCM encryption, ensuring complete sovereignty over your credentials.
 
-* Because it's very blazzing fast
+## Why Baza?
+
+- ⚡ **Blazing Fast:** Built in Rust, offering near-instant execution and minimal resource footprint.
+- 🔐 **Built-in 2FA / TOTP:** Secure your entire vault with Time-based One-time Passwords.
+- 🍪 **Session Caching:** Cache your credentials temporarily in the terminal session via `baza unlock`.
+- 🗄️ **Embedded Key-Value DB:** Powered by `Redb` for fast, lightweight local storage.
+- 🌐 **Web Interface:** Fully client-side WebAssembly (WASM) UI that stores passwords in browser IndexedDB.
+- 📦 **Docker Ready:** Run seamlessly inside isolated container environments.
 
 ## Web Interface
 
