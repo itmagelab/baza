@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.1] - 2026-07-08
+
+### 🐛 Bug Fixes
+
+- *(cli)* Redesign init command output and add overwrite confirmation prompt
+- Print password and TOTP prompts to stderr instead of stdout
+
+### 📚 Documentation
+
+- Enrich project description and why-baza sections in README
+- Highlight 2FA/TOTP feature and fix switch options in README
+- Update README with correct CLI options and session caching
+- Update CHANGELOG for version 3.2.0 via git-cliff
+
 ## [3.2.0] - 2026-07-08
 
 ### 🚀 Features
