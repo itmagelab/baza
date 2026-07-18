@@ -1,5 +1,5 @@
 use argh::FromArgs;
-use baza_core::{container, generate, BazaR};
+use baza_core::{container, BazaR, Password};
 use std::io::{self, Write};
 
 #[derive(FromArgs, Debug)]
@@ -62,12 +62,13 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
             writeln!(
                 stdout,
                 "{}",
-                generate(
+                Password::generate(
                     args.length,
                     args.no_letters,
                     args.no_numbers,
                     args.no_symbols,
-                )?
+                )
+                .as_str()
             )
             .map_err(|e| exn::Exn::new(baza_core::error::Error::Io(e)))?;
             Ok(())

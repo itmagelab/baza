@@ -46,6 +46,7 @@ pub fn is_system_key(key: &str) -> bool {
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const TTL_SECONDS: u64 = 15;
+pub const PASSWORD_DEFAULT_LEN: usize = 12;
 pub const DEFAULT_AUTHOR: &str = "Baza";
 pub const TOTP_UUID_KEY: &str = "__baza__::auth::totp::uuid";
 
@@ -173,20 +174,23 @@ impl Config {
     }
 }
 
-struct Password {
-    pub(crate) name: std::sync::Arc<str>,
+pub struct Password {
+    pub inner: std::sync::Arc<str>,
 }
 
 impl Default for Password {
     fn default() -> Self {
-        Password::generate(12, false, false, false)
+        Password::generate(PASSWORD_DEFAULT_LEN, false, false, false)
     }
 }
 
 impl Password {
-    pub(crate) fn new(s: &str) -> Self {
-        Self { name: Arc::from(s) }
+    pub fn new(s: &str) -> Self {
+        Self {
+            inner: Arc::from(s),
+        }
     }
+
     pub fn generate(length: usize, no_latters: bool, no_numbers: bool, no_symbols: bool) -> Self {
         let latters = "abcdefghijklmnopqrstuvwxyz\
                          ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -208,32 +212,10 @@ impl Password {
             .collect();
         Self::new(&password)
     }
-}
 
-pub fn generate(
-    length: usize,
-    no_latters: bool,
-    no_numbers: bool,
-    no_symbols: bool,
-) -> BazaR<String> {
-    let latters = "abcdefghijklmnopqrstuvwxyz\
-                         ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let numbers = "0123456789";
-    let symbols = "!@#$%^&*()_-+=<>?";
-
-    let mut charset: String = Default::default();
-
-    no_latters.not().then(|| charset.push_str(latters));
-    no_numbers.not().then(|| charset.push_str(numbers));
-    no_symbols.not().then(|| charset.push_str(symbols));
-
-    let mut rng = rand::rng();
-    Ok((0..length)
-        .map(|_| {
-            let idx = rng.random_range(0..charset.len());
-            charset.chars().nth(idx).unwrap_or('a')
-        })
-        .collect())
+    pub fn as_str(&self) -> String {
+        self.inner.to_string()
+    }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]

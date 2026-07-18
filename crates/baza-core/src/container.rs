@@ -177,8 +177,8 @@ pub async fn add(str: String, data: Option<String>) -> BazaR<()> {
 }
 
 pub async fn generate(str: String) -> BazaR<()> {
-    let data = crate::generate(12, false, false, false)?;
-    add(str, Some(data)).await
+    let password = Password::default();
+    add(str, Some(password.inner.to_string())).await
 }
 
 pub async fn read(str: String) -> BazaR<()> {
@@ -238,10 +238,7 @@ mod tests {
 
     fn create(str: &str) {
         let str = str.to_string();
-        let password = match crate::generate(255, false, false, false) {
-            Ok(p) => p,
-            Err(e) => panic!("generate failed: {}", e),
-        };
+        let password = crate::Password::generate(255, false, false, false).as_str();
         match pollster::block_on(add(str, Some(password))) {
             Ok(_) => {}
             Err(e) => panic!("add failed: {}", e),
@@ -285,10 +282,7 @@ mod tests {
             panic!("Config::build failed: {}", e);
         }
 
-        let password = match crate::generate(255, false, false, false) {
-            Ok(p) => p,
-            Err(e) => panic!("generate failed: {}", e),
-        };
+        let password = crate::Password::generate(255, false, false, false).as_str();
         if let Err(e) = pollster::block_on(init(Some(password.clone()))) {
             panic!("init failed: {}", e);
         }

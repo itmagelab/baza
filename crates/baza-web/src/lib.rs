@@ -565,9 +565,8 @@ pub fn app() -> Html {
     let generate_password = {
         let set_pass = new_bundle_pass.clone();
         Callback::from(move |_| {
-            if let Ok(p) = baza_core::generate(24, false, false, false) {
-                set_pass.set(p);
-            }
+            let p = baza_core::Password::generate(24, false, false, false).as_str();
+            set_pass.set(p);
         })
     };
 
