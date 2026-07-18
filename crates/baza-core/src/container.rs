@@ -84,7 +84,7 @@ impl Container {
 
     async fn read(&mut self) -> BazaR<()> {
         let name = self.name();
-        let content = storage::get_content(name).await?;
+        let content = storage::get_content(&name).await?;
         #[cfg(not(target_arch = "wasm32"))]
         crate::m(&content, crate::MessageType::Clean);
         #[cfg(target_arch = "wasm32")]
@@ -96,7 +96,7 @@ impl Container {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let name = self.name();
-            let content = storage::get_content(name.clone()).await.unwrap_or_default();
+            let content = storage::get_content(&name).await.unwrap_or_default();
 
             let temp = tempfile::NamedTempFile::new()
                 .map_err(|e| crate::error::Error::Message(e.to_string()))?;
@@ -333,8 +333,7 @@ mod tests {
         assert_eq!(container.bundles(), vec!["bundle1".to_string()]);
 
         // Case 2: Only bundle (no boxes) -> should fail
-        let builder_res = ContainerBuilder::new()
-            .create_from_str("bundle_only".to_string());
+        let builder_res = ContainerBuilder::new().create_from_str("bundle_only".to_string());
         assert!(builder_res.is_err());
 
         // Case 3: Trim spaces from name but keep spaces inside delimiter-separated parts
@@ -347,4 +346,3 @@ mod tests {
         assert_eq!(container.bundles(), vec![" spaced_bundle".to_string()]);
     }
 }
-

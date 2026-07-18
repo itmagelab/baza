@@ -71,9 +71,9 @@ pub async fn list_all_keys() -> BazaR<Vec<String>> {
         .collect())
 }
 
-pub async fn get_content(name: String) -> BazaR<String> {
+pub async fn get_content(name: &str) -> BazaR<String> {
     let key = crate::key()?;
-    let encrypted = with_backend(|backend| backend.get(&name)).await?;
+    let encrypted = with_backend(|backend| backend.get(name)).await?;
     let plaintext = crate::decrypt_data(&encrypted, &key)?;
     String::from_utf8(plaintext)
         .map_err(|_| crate::error::Error::Message("Failed to decode utf8".into()).into())
@@ -153,7 +153,7 @@ pub async fn copy_to_clipboard(name: String, ttl: u64) -> BazaR<()> {
     use arboard::Clipboard;
     use colored::Colorize;
 
-    let content = get_content(name).await?;
+    let content = get_content(&name).await?;
     let first_line = content.lines().next().unwrap_or("").trim();
 
     let mut clipboard =

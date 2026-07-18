@@ -268,7 +268,7 @@ pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> 
     let has_totp = keys.contains(&TOTP_KEY.to_string());
 
     if has_totp {
-        let secret_res = storage::get_content(TOTP_KEY.to_string()).await;
+        let secret_res = storage::get_content(TOTP_KEY).await;
         let secret_base32 = match secret_res {
             Ok(s) => s,
             Err(e) => {
@@ -385,12 +385,18 @@ pub async fn init(passphrase: Option<String>) -> BazaR<String> {
         fs::create_dir_all(format!("{datadir}/data"))
             .or_raise(|| error::Error::Message("Failed to create data directory".into()))?;
     }
-    
-    crate::m("  [+] Initializing database storage...", crate::MessageType::Clean);
+
+    crate::m(
+        "  [+] Initializing database storage...",
+        crate::MessageType::Clean,
+    );
     storage::initialize()?;
 
     // Initialize the default key
-    crate::m("  [+] Generating master passphrase...", crate::MessageType::Clean);
+    crate::m(
+        "  [+] Generating master passphrase...",
+        crate::MessageType::Clean,
+    );
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
 
     self::unlock(passphrase.clone(), None).await?;

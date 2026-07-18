@@ -279,7 +279,7 @@ pub fn app() -> Html {
             let error_msg = error_msg.clone();
 
             spawn_local(async move {
-                match baza_core::storage::get_content(name_clone.clone()).await {
+                match baza_core::storage::get_content(&name_clone).await {
                     Ok(content) => {
                         // split existing name into parts and ensure at least 3 input fields
                         let mut parts: Vec<String> =
@@ -489,7 +489,7 @@ pub fn app() -> Html {
         Callback::from(move |name: String| {
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::storage::get_content(name).await {
+                match baza_core::storage::get_content(&name).await {
                     Ok(content) => {
                         let first_line = content.lines().next().unwrap_or("").trim().to_string();
                         let mut copied = false;
