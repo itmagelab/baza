@@ -22,7 +22,7 @@ use std::io;
 use std::io;
 use std::ops::Not;
 use std::path::Path;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -170,6 +170,43 @@ impl Config {
 
         let _ = CONFIG.set(config);
         Ok(())
+    }
+}
+
+struct Password {
+    pub(crate) name: std::sync::Arc<str>,
+}
+
+impl Default for Password {
+    fn default() -> Self {
+        Password::generate(12, false, false, false)
+    }
+}
+
+impl Password {
+    pub(crate) fn new(s: &str) -> Self {
+        Self { name: Arc::from(s) }
+    }
+    pub fn generate(length: usize, no_latters: bool, no_numbers: bool, no_symbols: bool) -> Self {
+        let latters = "abcdefghijklmnopqrstuvwxyz\
+                         ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let numbers = "0123456789";
+        let symbols = "!@#$%^&*()_-+=<>?";
+
+        let mut charset: String = Default::default();
+
+        no_latters.not().then(|| charset.push_str(latters));
+        no_numbers.not().then(|| charset.push_str(numbers));
+        no_symbols.not().then(|| charset.push_str(symbols));
+
+        let mut rng = rand::rng();
+        let password: String = (0..length)
+            .map(|_| {
+                let idx = rng.random_range(0..charset.len());
+                charset.chars().nth(idx).unwrap_or('a')
+            })
+            .collect();
+        Self::new(&password)
     }
 }
 
