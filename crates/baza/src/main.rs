@@ -313,7 +313,7 @@ fn run_main() -> BazaR<()> {
     let config_path = if let Ok(path) = std::env::var("BAZA_CONFIG") {
         std::path::PathBuf::from(path)
     } else {
-        let default_path = baza_core::Config::default_config_path()?;
+        let default_path = baza_core::Config::default_path()?;
         let mut chosen_path = default_path.clone();
 
         if !cfg!(debug_assertions) && !default_path.exists() {

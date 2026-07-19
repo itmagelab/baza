@@ -3,15 +3,14 @@
 //! The core library for crate Baza crate
 //!
 
+use crate::prelude::*;
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 #[cfg(not(target_arch = "wasm32"))]
-use colored::Colorize;
 use core::str;
 use exn::ResultExt;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 #[cfg(target_arch = "wasm32")]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
@@ -22,7 +21,7 @@ use std::io;
 use std::io;
 use std::ops::Not;
 use std::path::Path;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -36,25 +35,22 @@ pub mod prelude;
 pub mod s3;
 pub mod storage;
 pub mod totp;
+pub mod utils;
 
 pub const SYSTEM_BOX: &str = "__baza__";
 pub const TOTP_KEY: &str = "__baza__::auth::totp";
+pub const TTL_SECONDS: u64 = 15;
+pub const PASSWORD_DEFAULT_LEN: usize = 12;
+pub const DEFAULT_AUTHOR: &str = "Baza";
+pub const TOTP_UUID_KEY: &str = "__baza__::auth::totp::uuid";
+pub static CONFIG: OnceLock<Config> = OnceLock::new();
+static SESSION_KEY: OnceLock<Mutex<Option<Vec<u8>>>> = OnceLock::new();
+pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 
 pub fn is_system_key(key: &str) -> bool {
     let prefix = format!("{}{}", SYSTEM_BOX, Config::get().main.box_delimiter);
     key.starts_with(&prefix)
 }
-
-pub static CONFIG: OnceLock<Config> = OnceLock::new();
-pub const TTL_SECONDS: u64 = 15;
-pub const PASSWORD_DEFAULT_LEN: usize = 12;
-pub const DEFAULT_AUTHOR: &str = "Baza";
-pub const TOTP_UUID_KEY: &str = "__baza__::auth::totp::uuid";
-
-static SESSION_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
-    std::sync::OnceLock::new();
-
-pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -124,20 +120,12 @@ impl Default for Config {
     }
 }
 
-pub enum MessageType {
-    Clean,
-    Data,
-    Info,
-    Warning,
-    Error,
-}
-
 impl Config {
     pub fn get() -> &'static Config {
         CONFIG.get_or_init(Config::default)
     }
 
-    pub fn default_config_path() -> BazaR<std::path::PathBuf> {
+    pub fn default_path() -> BazaR<std::path::PathBuf> {
         #[cfg(not(target_arch = "wasm32"))]
         if cfg!(debug_assertions) {
             return Ok(std::path::PathBuf::from("./.baza/baza.toml"));
@@ -220,26 +208,6 @@ impl Password {
     pub fn as_str(&self) -> String {
         self.inner.to_string()
     }
-}
-
-#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-fn as_hash(str: &str) -> [u8; 32] {
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(str.as_bytes());
-    let result = hasher.finalize();
-    result.into()
-}
-
-#[cfg(test)]
-pub static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[cfg(test)]
-pub fn test_datadir() -> &'static str {
-    static DIR: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
-    DIR.get_or_init(|| tempfile::tempdir().expect("Failed to create tempdir"))
-        .path()
-        .to_str()
-        .unwrap()
 }
 
 pub fn lock() -> BazaR<()> {
@@ -353,39 +321,6 @@ pub(crate) fn key() -> BazaR<Vec<u8>> {
     }
 }
 
-pub fn m(msg: &str, _type: MessageType) {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let colored_msg = match _type {
-            MessageType::Clean => msg.to_string(),
-            MessageType::Data => format!("{}", msg.bright_blue()),
-            MessageType::Info => format!("{}", msg.bright_green()),
-            MessageType::Warning => format!("{}", msg.bright_yellow()),
-            MessageType::Error => format!("{}", msg.bright_red()),
-        };
-        println!("{colored_msg}");
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    let msg = msg; // No coloring for WASM log for now
-
-    tracing::info!("{msg}");
-}
-
-// TODO: Make with NamedTmpFolder
-/// Cleanup temporary files
-#[cfg(not(target_arch = "wasm32"))]
-pub fn cleanup_tmp_folder() -> BazaR<()> {
-    let datadir = &Config::get().main.datadir;
-    let tmpdir = format!("{datadir}/tmp");
-    if std::fs::remove_dir_all(&tmpdir).is_err() {
-        tracing::debug!("Tmp folder already cleaned");
-    };
-    std::fs::create_dir_all(format!("{datadir}/tmp"))
-        .or_raise(|| error::Error::Message("Failed to create tmp directory".into()))?;
-    Ok(())
-}
-
 #[cfg(target_arch = "wasm32")]
 pub fn cleanup_tmp_folder() -> BazaR<()> {
     Ok(())
@@ -450,4 +385,16 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     cipher
         .decrypt(nonce, actual_ciphertext)
         .map_err(|e| exn::Exn::new(e.into()))
+}
+
+#[cfg(test)]
+pub static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub fn test_datadir() -> &'static str {
+    static DIR: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    DIR.get_or_init(|| tempfile::tempdir().expect("Failed to create tempdir"))
+        .path()
+        .to_str()
+        .unwrap()
 }
