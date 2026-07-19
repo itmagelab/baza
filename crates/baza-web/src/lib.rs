@@ -1,3 +1,4 @@
+use baza_core::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
@@ -54,7 +55,7 @@ pub fn app() -> Html {
             if *current_view == AppView::Login {
                 let show_totp_input = show_totp_input.clone();
                 spawn_local(async move {
-                    if let Ok(enabled) = baza_core::totp::is_enabled().await {
+                    if let Ok(enabled) = totp::is_enabled().await {
                         show_totp_input.set(enabled);
                     }
                 });
@@ -70,7 +71,7 @@ pub fn app() -> Html {
             let bundles = bundles.clone();
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::storage::list_all_keys().await {
+                match storage::list_all_keys().await {
                     Ok(keys) => {
                         let info = keys.into_iter().map(|name| BundleInfo { name }).collect();
                         bundles.set(info);
@@ -112,7 +113,7 @@ pub fn app() -> Html {
             let show_totp_input = show_totp_input.clone();
 
             spawn_local(async move {
-                match baza_core::unlock(p, t_opt).await {
+                match unlock(p, t_opt).await {
                     Ok(_) => {
                         set_init_passphrase.set(None);
                         set_view.set(AppView::Dashboard);
@@ -156,7 +157,7 @@ pub fn app() -> Html {
 
             spawn_local(async move {
                 if !force {
-                    match baza_core::storage::is_initialized().await {
+                    match storage::is_initialized().await {
                         Ok(true) => {
                             set_show_init_confirm.set(true);
                             return;
@@ -168,7 +169,7 @@ pub fn app() -> Html {
                         Ok(false) => {}
                     }
                 } else {
-                    let _ = baza_core::storage::delete_database().await;
+                    let _ = storage::delete_database().await;
                 }
 
                 let p = if passphrase.is_empty() {
@@ -177,7 +178,7 @@ pub fn app() -> Html {
                     Some((*passphrase).clone())
                 };
 
-                match baza_core::init(p).await {
+                match init(p).await {
                     Ok(key) => {
                         set_init_passphrase.set(Some(key));
                         set_show_init_confirm.set(false);
@@ -198,7 +199,7 @@ pub fn app() -> Html {
         let set_totp_code = totp_code.clone();
         let set_show_totp_input = show_totp_input.clone();
         Callback::from(move |_| {
-            let _ = baza_core::lock();
+            let _ = lock();
             set_view.set(AppView::Login);
             set_passphrase.set(String::new());
             set_totp_code.set(String::new());
@@ -240,10 +241,10 @@ pub fn app() -> Html {
             }
 
             spawn_local(async move {
-                match baza_core::container::add(name.clone(), Some(pass)).await {
+                match container::add(name.clone(), Some(pass)).await {
                     Ok(_) => {
                         if was_editing && name != old_name {
-                            let _ = baza_core::storage::delete_by_name(old_name).await;
+                            let _ = storage::delete_by_name(old_name).await;
                         }
                         set_view.set(AppView::Dashboard);
                         name_state.set(vec![String::new(), String::new(), String::new()]);
@@ -279,7 +280,7 @@ pub fn app() -> Html {
             let error_msg = error_msg.clone();
 
             spawn_local(async move {
-                match baza_core::storage::get_content(&name_clone).await {
+                match storage::get_content(&name_clone).await {
                     Ok(content) => {
                         // split existing name into parts and ensure at least 3 input fields
                         let mut parts: Vec<String> =
@@ -318,7 +319,7 @@ pub fn app() -> Html {
             let set_show_delete_confirm = set_show_delete_confirm.clone();
 
             spawn_local(async move {
-                match baza_core::storage::delete_by_name(name).await {
+                match storage::delete_by_name(name).await {
                     Ok(_) => {
                         set_show_delete_confirm.set(false);
                         set_view.set(AppView::Dashboard);
@@ -349,7 +350,7 @@ pub fn app() -> Html {
             let set_totp_code = set_totp_code.clone();
             let set_show_totp_input = set_show_totp_input.clone();
             spawn_local(async move {
-                match baza_core::storage::delete_database().await {
+                match storage::delete_database().await {
                     Ok(_) => {
                         set_show_delete_db_confirm.set(false);
                         set_view.set(AppView::Login);
@@ -357,7 +358,7 @@ pub fn app() -> Html {
                         set_totp_code.set(String::new());
                         set_show_totp_input.set(false);
                         set_bundles.set(vec![]);
-                        let _ = baza_core::lock();
+                        let _ = lock();
                         error_msg.set("DATABASE DELETED".to_string());
                         let error_msg = error_msg.clone();
                         spawn_local(async move {
@@ -376,10 +377,10 @@ pub fn app() -> Html {
         Callback::from(move |_| {
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::storage::dump().await {
+                match storage::dump().await {
                     Ok(data) => {
                         // Serialize+compress into custom .baza binary format
-                        match baza_core::dump::dump(&data, baza_core::dump::Algorithm::Lz4) {
+                        match dump::dump(&data, dump::Algorithm::Lz4) {
                             Ok(bytes) => {
                                 if let Some(window) = web_sys::window() {
                                     if let Some(document) = window.document() {
@@ -460,8 +461,8 @@ pub fn app() -> Html {
                             Ok(buf_js) => {
                                 let uint8 = js_sys::Uint8Array::new(&buf_js);
                                 let bytes = uint8.to_vec();
-                                match baza_core::dump::restore::<Vec<(String, Vec<u8>)>>(&bytes) {
-                                    Ok(data) => match baza_core::storage::restore(data).await {
+                                match dump::restore::<Vec<(String, Vec<u8>)>>(&bytes) {
+                                    Ok(data) => match storage::restore(data).await {
                                         Ok(_) => {
                                             error_msg.set("RESTORE SUCCESSFUL".to_string());
                                             load_bundles.emit(());
@@ -489,7 +490,7 @@ pub fn app() -> Html {
         Callback::from(move |name: String| {
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::storage::get_content(&name).await {
+                match storage::get_content(&name).await {
                     Ok(content) => {
                         let first_line = content.lines().next().unwrap_or("").trim().to_string();
                         let mut copied = false;
@@ -565,7 +566,7 @@ pub fn app() -> Html {
     let generate_password = {
         let set_pass = new_bundle_pass.clone();
         Callback::from(move |_| {
-            let p = baza_core::Password::generate(24, false, false, false).as_str();
+            let p = Password::generate(24, false, false, false).as_str();
             set_pass.set(p);
         })
     };
@@ -689,7 +690,7 @@ pub fn app() -> Html {
             let is_totp_enabled = is_totp_enabled.clone();
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::totp::is_enabled().await {
+                match totp::is_enabled().await {
                     Ok(enabled) => {
                         is_totp_enabled.set(enabled);
                     }
@@ -710,7 +711,7 @@ pub fn app() -> Html {
             let totp_setup_info = totp_setup_info.clone();
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::totp::enable().await {
+                match totp::enable().await {
                     Ok((secret, url, qr)) => {
                         totp_setup_info.set(Some((secret, url, qr)));
                         is_totp_enabled.set(true);
@@ -733,7 +734,7 @@ pub fn app() -> Html {
             let totp_setup_info = totp_setup_info.clone();
             let error_msg = error_msg.clone();
             spawn_local(async move {
-                match baza_core::totp::disable().await {
+                match totp::disable().await {
                     Ok(_) => {
                         totp_setup_info.set(None);
                         is_totp_enabled.set(false);
@@ -1054,7 +1055,7 @@ pub fn app() -> Html {
 
 #[wasm_bindgen]
 pub async fn purge_database() -> Result<(), JsValue> {
-    baza_core::storage::delete_database()
+    storage::delete_database()
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }

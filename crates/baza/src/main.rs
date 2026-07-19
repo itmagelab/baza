@@ -1,5 +1,5 @@
 use argh::FromArgs;
-use baza_core::{cleanup_tmp_folder, container, BazaR};
+use baza_core::prelude::*;
 use exn::ResultExt;
 
 mod bundle;
@@ -203,16 +203,28 @@ fn run_command(cmd: Commands) -> BazaR<()> {
             }
             let p = pollster::block_on(baza_core::init(args.passphrase))?;
 
-            println!("\n{}", "=============================================================".bright_yellow());
-            println!("{}", "             CRITICAL SECURITY WARNING".bright_red().bold());
-            println!("{}", "=============================================================".bright_yellow());
+            println!(
+                "\n{}",
+                "=============================================================".bright_yellow()
+            );
+            println!(
+                "{}",
+                "             CRITICAL SECURITY WARNING".bright_red().bold()
+            );
+            println!(
+                "{}",
+                "=============================================================".bright_yellow()
+            );
             println!(" Please save the following master passphrase.");
             println!(" You will need it to unlock your vault in the future.");
             println!(" Baza does not store this key, so it CANNOT be recovered!");
             println!("");
             println!(" Master Passphrase:");
             println!(" *  {}", p.bright_green().bold());
-            println!("{}", "=============================================================".bright_yellow());
+            println!(
+                "{}",
+                "=============================================================".bright_yellow()
+            );
             println!(" {}\n", "Vault initialized successfully!".bright_green());
         }
         Commands::List(_) => {

@@ -1,5 +1,5 @@
 use argh::FromArgs;
-use baza_core::{container, BazaR, Password};
+use baza_core::prelude::*;
 use std::io::{self, Write};
 
 #[derive(FromArgs, Debug)]

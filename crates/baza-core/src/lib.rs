@@ -31,6 +31,7 @@ pub mod bundle;
 pub mod container;
 pub mod dump;
 pub mod error;
+pub mod prelude;
 #[cfg(all(not(target_arch = "wasm32"), feature = "s3"))]
 pub mod s3;
 pub mod storage;
@@ -49,6 +50,9 @@ pub const TTL_SECONDS: u64 = 15;
 pub const PASSWORD_DEFAULT_LEN: usize = 12;
 pub const DEFAULT_AUTHOR: &str = "Baza";
 pub const TOTP_UUID_KEY: &str = "__baza__::auth::totp::uuid";
+
+static SESSION_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
+    std::sync::OnceLock::new();
 
 pub type BazaR<T> = Result<T, exn::Exn<error::Error>>;
 
@@ -225,9 +229,6 @@ fn as_hash(str: &str) -> [u8; 32] {
     let result = hasher.finalize();
     result.into()
 }
-
-static SESSION_KEY: std::sync::OnceLock<std::sync::Mutex<Option<Vec<u8>>>> =
-    std::sync::OnceLock::new();
 
 #[cfg(test)]
 pub static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());

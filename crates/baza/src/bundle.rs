@@ -1,5 +1,5 @@
 use argh::FromArgs;
-use baza_core::{container, BazaR};
+use baza_core::prelude::*;
 
 #[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "bundle")]
