@@ -398,3 +398,4 @@ pub fn test_datadir() -> &'static str {
         .to_str()
         .unwrap()
 }
+pub mod qr;

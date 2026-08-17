@@ -36,6 +36,10 @@ struct Cli {
     #[argh(option, short = 'c')]
     copy: Option<String>,
 
+    /// show QR code of bundle
+    #[argh(option, short = 'q')]
+    qr: Option<String>,
+
     /// show content of bundle
     #[argh(option, short = 'p')]
     show: Option<String>,
@@ -431,6 +435,12 @@ fn handle_args() -> BazaR<()> {
     if let Some(name) = args.copy {
         return bundle::handle(bundle::Args {
             command: bundle::SubCommands::Copy(bundle::CopyArgs { name }),
+        });
+    }
+
+    if let Some(name) = args.qr {
+        return bundle::handle(bundle::Args {
+            command: bundle::SubCommands::Qr(bundle::QrArgs { name }),
         });
     }
 

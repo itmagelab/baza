@@ -134,7 +134,7 @@ version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16e2cdb6d5ed835199484bb92bb8b3edd526effe995c61732580439c1a67e2e9"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "http 1.4.2",
  "log",
  "rustls",
@@ -211,6 +211,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "baza"
 version = "3.2.1"
 dependencies = [
@@ -231,10 +237,12 @@ dependencies = [
 name = "baza-web"
 version = "0.1.0"
 dependencies = [
+ "base64 0.23.1",
  "baza_core",
  "console_error_panic_hook",
  "gloo-timers 0.3.0",
  "js-sys",
+ "qrcodegen",
  "serde",
  "serde_json",
  "tracing",
@@ -266,6 +274,7 @@ dependencies = [
  "lz4_flex",
  "pollster",
  "postcard",
+ "qrcode",
  "rand 0.10.1",
  "redb",
  "regex-lite",
@@ -1979,11 +1988,11 @@ checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
 
 [[package]]
 name = "qrcodegen-image"
-version = "1.5.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99530e45ded4640c0eab5420fc60f9a0ec1be51a22e49cc8578b9a0d8be70712"
+checksum = "2e3dd60f5b603f72c307455fc52deec52ada1ba53c7580918bb2a8e3247d4fe7"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "image",
  "qrcodegen",
 ]
@@ -2164,7 +2173,7 @@ dependencies = [
  "attohttpc",
  "aws-creds",
  "aws-region",
- "base64",
+ "base64 0.22.1",
  "bytes",
  "cfg-if",
  "hex",
