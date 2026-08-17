@@ -1,5 +1,7 @@
 pub(crate) use crate::utils::as_hash;
-pub use crate::utils::{cleanup_tmp_folder, m, MessageType};
+#[cfg(not(target_arch = "wasm32"))]
+pub use crate::utils::cleanup_tmp_folder;
+pub use crate::utils::{m, MessageType};
 pub use crate::Password;
 pub use crate::{container, error, BazaR, Config};
 pub use crate::{dump, init, lock, storage, totp, unlock};

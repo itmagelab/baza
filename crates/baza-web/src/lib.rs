@@ -48,6 +48,9 @@ pub fn app() -> Html {
     let is_totp_enabled = use_state(|| false);
     let totp_setup_info = use_state(|| None::<(String, String, String)>);
 
+    // QR State
+    let qr_code_to_show = use_state(|| None::<(String, String)>);
+
     {
         let show_totp_input = show_totp_input.clone();
         let view_val = *view;
@@ -485,6 +488,53 @@ pub fn app() -> Html {
         })
     };
 
+    let perform_qr_first_line = {
+        let qr_code_to_show = qr_code_to_show.clone();
+        let error_msg = error_msg.clone();
+        Callback::from(move |name: String| {
+            let qr_code_to_show = qr_code_to_show.clone();
+            let error_msg = error_msg.clone();
+            spawn_local(async move {
+                match storage::get_content(&name).await {
+                    Ok(content) => {
+                        let first_line = content.lines().next().unwrap_or("").trim().to_string();
+                        if first_line.is_empty() {
+                            error_msg.set("Content is empty".to_string());
+                            return;
+                        }
+
+                        match qrcodegen::QrCode::encode_text(&first_line, qrcodegen::QrCodeEcc::Low) {
+                            Ok(qr) => {
+                                let size = qr.size();
+                                let mut svg = String::new();
+                                svg.push_str(&format!(
+                                    "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" viewBox=\"0 0 {0} {0}\" stroke=\"none\">\n", size + 8
+                                ));
+                                svg.push_str("\t<rect width=\"100%\" height=\"100%\" fill=\"#FFFFFF\"/>\n");
+                                svg.push_str("\t<path d=\"");
+                                for y in 0..size {
+                                    for x in 0..size {
+                                        if qr.get_module(x, y) {
+                                            svg.push_str(&format!("M{},{}h1v1h-1z ", x + 4, y + 4));
+                                        }
+                                    }
+                                }
+                                svg.push_str("\" fill=\"#000000\"/>\n</svg>\n");
+                                use base64::Engine;
+                                let svg_base64 = base64::engine::general_purpose::STANDARD.encode(svg.as_bytes());
+                                qr_code_to_show.set(Some((name, svg_base64)));
+                            }
+                            Err(_) => {
+                                error_msg.set("Failed to generate QR code".to_string());
+                            }
+                        }
+                    }
+                    Err(e) => error_msg.set(format!("Failed to load content for QR: {}", e)),
+                }
+            });
+        })
+    };
+
     let perform_copy_first_line = {
         let error_msg = error_msg.clone();
         Callback::from(move |name: String| {
@@ -902,12 +952,18 @@ pub fn app() -> Html {
                                         let name = b.name.clone();
                                         let name_for_edit = name.clone();
                                         let name_for_copy = name.clone();
+                                        let name_for_qr = name.clone();
                                         let perform_edit = perform_edit.clone();
                                         let perform_copy = perform_copy_first_line.clone();
+                                        let perform_qr = perform_qr_first_line.clone();
                                         html! {
                                             <li class="bundle-item" onclick={move |_| perform_copy.emit(name_for_copy.clone())}>
                                                 <span class="bundle-name">{&name}</span>
                                                 <div class="bundle-actions">
+                                                    <button class="action-btn" title="QR Code" onclick={move |e: MouseEvent| {
+                                                        e.stop_propagation();
+                                                        perform_qr.emit(name_for_qr.clone());
+                                                    }}>{"📱"}</button>
                                                     <button class="action-btn" title="Edit" onclick={move |e: MouseEvent| {
                                                         e.stop_propagation();
                                                         perform_edit.emit(name_for_edit.clone());
@@ -918,6 +974,24 @@ pub fn app() -> Html {
                                     })
                                 }
                             </ul>
+
+                            if let Some((qr_name, qr_svg_base64)) = (*qr_code_to_show).clone() {
+                                <div class="modal-overlay" onclick={
+                                    let qr_code_to_show = qr_code_to_show.clone();
+                                    move |_| qr_code_to_show.set(None)
+                                }>
+                                    <div class="modal-content" onclick={|e: MouseEvent| e.stop_propagation()}>
+                                        <h3 style="text-align: center; margin-top: 0;">{format!("QR Code: {}", qr_name)}</h3>
+                                        <div style="display: flex; justify-content: center; background: white; padding: 15px; border-radius: 8px; margin: 10px auto;">
+                                            <img src={format!("data:image/svg+xml;base64,{}", qr_svg_base64)} width="250" height="250" />
+                                        </div>
+                                        <button class="btn btn-secondary mt-1" style="width: 100%" onclick={
+                                            let qr_code_to_show = qr_code_to_show.clone();
+                                            move |_| qr_code_to_show.set(None)
+                                        }>{"CLOSE"}</button>
+                                    </div>
+                                </div>
+                            }
 
                             <button class="btn" onclick={
                                 let set_is_editing = is_editing.clone();
