@@ -274,6 +274,7 @@ dependencies = [
  "lz4_flex",
  "pollster",
  "postcard",
+ "qrcode",
  "rand 0.10.1",
  "redb",
  "regex-lite",

@@ -18,6 +18,7 @@ pub(crate) enum SubCommands {
     Delete(DeleteArgs),
     Search(SearchArgs),
     Copy(CopyArgs),
+    Qr(QrArgs),
     Show(ShowArgs),
 }
 
@@ -70,6 +71,14 @@ pub(crate) struct CopyArgs {
 }
 
 #[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "qr")]
+/// Show QR code of bundle
+pub(crate) struct QrArgs {
+    #[argh(positional)]
+    pub(crate) name: String,
+}
+
+#[derive(FromArgs, Debug)]
 #[argh(subcommand, name = "show")]
 /// Show content of bundle
 pub(crate) struct ShowArgs {
@@ -99,6 +108,9 @@ pub(crate) fn handle(args: Args) -> BazaR<()> {
         }
         SubCommands::Copy(args) => {
             pollster::block_on(container::copy_to_clipboard(args.name))?;
+        }
+        SubCommands::Qr(args) => {
+            pollster::block_on(container::print_qr(args.name))?;
         }
     };
     Ok(())

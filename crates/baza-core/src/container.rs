@@ -164,6 +164,12 @@ impl Container {
         storage::copy_to_clipboard(name, ttl).await?;
         Ok(())
     }
+
+    async fn print_qr(self) -> BazaR<()> {
+        let name = self.name();
+        crate::qr::print_qr(name).await?;
+        Ok(())
+    }
 }
 
 pub async fn add(str: String, data: Option<String>) -> BazaR<()> {
@@ -186,6 +192,15 @@ pub async fn read(str: String) -> BazaR<()> {
         .create_from_str(str)?
         .build()
         .read()
+        .await?;
+    Ok(())
+}
+
+pub async fn print_qr(str: String) -> BazaR<()> {
+    Container::builder()
+        .create_from_str(str)?
+        .build()
+        .print_qr()
         .await?;
     Ok(())
 }
