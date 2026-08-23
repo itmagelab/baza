@@ -1,0 +1,72 @@
+name: Publish to crates.io and GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm pkg-config nettle-dev
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Publish baza-core
+        run: cargo publish -p baza-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true # In case it's already published
+      - name: Publish baza
+        run: cargo publish -p baza --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true # In case it's already published
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: baza
+            asset_name: baza-linux-amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: baza
+            asset_name: baza-macos-amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: baza.exe
+            asset_name: baza-windows-amd64.exe
+
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm pkg-config nettle-dev
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} -p baza
+      - name: Prepare binary for release
+        shell: bash
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/${{ matrix.binary_name }} release/${{ matrix.asset_name }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/${{ matrix.asset_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
