@@ -17,7 +17,6 @@ pub(crate) struct Bundle {
     pub(crate) parent: Option<BoxRef>,
 }
 
-
 impl fmt::Display for Bundle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.ptr().join(&Config::get().main.box_delimiter))

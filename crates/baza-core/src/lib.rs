@@ -38,6 +38,7 @@ pub mod totp;
 pub mod utils;
 
 pub const SYSTEM_BOX: &str = "__baza__";
+pub const SALT_KEY: &str = "__baza__::auth::salt";
 pub const TOTP_KEY: &str = "__baza__::auth::totp";
 pub const TTL_SECONDS: u64 = 15;
 pub const PASSWORD_DEFAULT_LEN: usize = 12;
@@ -221,7 +222,7 @@ pub fn lock() -> BazaR<()> {
 }
 
 pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> {
-    let salt = match storage::with_backend(|backend| backend.get("sys_salt")).await {
+    let salt = match storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await {
         Ok(s) => Some(s),
         Err(_) => None,
     };
@@ -234,7 +235,7 @@ pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> 
     };
     let initialized = storage::is_initialized().await?;
     if !initialized {
-    let key_bytes = key_bytes_resolved.clone();
+        let key_bytes = key_bytes_resolved.clone();
 
         let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
         let mut guard = mutex
@@ -344,7 +345,7 @@ pub async fn migrate(passphrase: String) -> BazaR<()> {
     }
 
     // Check if we are already using argon2
-    if storage::with_backend(|backend| backend.get("sys_salt")).await.is_ok() {
+    if storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await.is_ok() {
         return Err(crate::error::Error::Message("Database is already migrated to Argon2".into()).into());
     }
 
@@ -380,7 +381,7 @@ pub async fn migrate(passphrase: String) -> BazaR<()> {
     }
 
     // Add salt to the migrated data
-    migrated_data.push(("sys_salt".to_string(), salt.to_vec()));
+    migrated_data.push((crate::SALT_KEY.to_string(), salt.to_vec()));
 
     storage::restore(migrated_data).await?;
 
@@ -424,11 +425,11 @@ pub async fn init(passphrase: Option<String>) -> BazaR<String> {
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
 
     // Make sure we generate salt and store it before unlocking so that it uses argon2
-    let is_migrated = storage::with_backend(|backend| backend.get("sys_salt")).await.is_ok();
+    let is_migrated = storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await.is_ok();
     if !is_migrated {
         let mut salt = [0u8; 16];
         rand::rng().fill(&mut salt);
-        if let Err(e) = storage::with_backend(|backend| backend.set("sys_salt", salt.to_vec())).await {
+        if let Err(e) = storage::with_backend(|backend| backend.set(crate::SALT_KEY, salt.to_vec())).await {
              tracing::warn!("Failed to save sys_salt: {}", e);
         }
     }

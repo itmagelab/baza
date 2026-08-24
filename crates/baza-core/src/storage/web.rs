@@ -44,8 +44,6 @@ impl WebStorage {
         }
     }
 
-
-
     pub async fn delete_database() -> BazaR<()> {
         // Instead of deleting the database (which causes closure issues),
         // we'll clear all data from it
