@@ -221,9 +221,20 @@ pub fn lock() -> BazaR<()> {
 }
 
 pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> {
+    let salt = match storage::with_backend(|backend| backend.get("sys_salt")).await {
+        Ok(s) => Some(s),
+        Err(_) => None,
+    };
+
+    let key_bytes_resolved = if let Some(ref s) = salt {
+        crate::utils::derive_key_argon2(passphrase.trim(), s)?.to_vec()
+    } else {
+        tracing::warn!("Weak security: salt not found, falling back to SHA256 key derivation. Please migrate your database.");
+        as_hash(passphrase.trim()).to_vec()
+    };
     let initialized = storage::is_initialized().await?;
     if !initialized {
-        let key_bytes = as_hash(passphrase.trim());
+    let key_bytes = key_bytes_resolved.clone();
 
         let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
         let mut guard = mutex
@@ -233,7 +244,7 @@ pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> 
         return Ok(());
     }
 
-    let key_bytes = as_hash(passphrase.trim());
+    let key_bytes = key_bytes_resolved.clone();
 
     // Temporarily unlock by setting the SESSION_KEY so we can read the database
     let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
@@ -326,6 +337,64 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
     Ok(())
 }
 
+pub async fn migrate(passphrase: String) -> BazaR<()> {
+    let initialized = storage::is_initialized().await?;
+    if !initialized {
+        return Err(crate::error::Error::Message("Database not initialized".into()).into());
+    }
+
+    // Check if we are already using argon2
+    if storage::with_backend(|backend| backend.get("sys_salt")).await.is_ok() {
+        return Err(crate::error::Error::Message("Database is already migrated to Argon2".into()).into());
+    }
+
+    let key_bytes_old = as_hash(passphrase.trim());
+    {
+        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
+        let mut guard = mutex
+            .lock()
+            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+        *guard = Some(key_bytes_old.clone().to_vec());
+    }
+
+    let dump_data = storage::dump().await?;
+
+    let mut salt = [0u8; 16];
+    rand::rng().fill(&mut salt);
+    let key_bytes_new = crate::utils::derive_key_argon2(passphrase.trim(), &salt)?;
+
+    let mut migrated_data = Vec::new();
+    for (key, encrypted_val) in dump_data {
+        if crate::is_system_key(&key) {
+            migrated_data.push((key, encrypted_val));
+            continue;
+        }
+        let plaintext = match crate::decrypt_data(&encrypted_val, &key_bytes_old) {
+             Ok(pt) => pt,
+             Err(_) => {
+                 return Err(crate::error::Error::Message(format!("Failed to decrypt key: {}", key)).into());
+             }
+        };
+        let new_encrypted_val = crate::encrypt_data(&plaintext, &key_bytes_new)?;
+        migrated_data.push((key, new_encrypted_val));
+    }
+
+    // Add salt to the migrated data
+    migrated_data.push(("sys_salt".to_string(), salt.to_vec()));
+
+    storage::restore(migrated_data).await?;
+
+    {
+        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
+        let mut guard = mutex
+            .lock()
+            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+        *guard = Some(key_bytes_new.to_vec());
+    }
+
+    Ok(())
+}
+
 pub async fn init(passphrase: Option<String>) -> BazaR<String> {
     crate::m("* Initializing Baza database...", crate::MessageType::Info);
 
@@ -354,6 +423,15 @@ pub async fn init(passphrase: Option<String>) -> BazaR<String> {
     );
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
 
+    // Make sure we generate salt and store it before unlocking so that it uses argon2
+    let is_migrated = storage::with_backend(|backend| backend.get("sys_salt")).await.is_ok();
+    if !is_migrated {
+        let mut salt = [0u8; 16];
+        rand::rng().fill(&mut salt);
+        if let Err(e) = storage::with_backend(|backend| backend.set("sys_salt", salt.to_vec())).await {
+             tracing::warn!("Failed to save sys_salt: {}", e);
+        }
+    }
     self::unlock(passphrase.clone(), None).await?;
 
     Ok(passphrase)

@@ -44,6 +44,16 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn derive_key_argon2(passphrase: &str, salt: &[u8]) -> crate::BazaR<[u8; 32]> {
+    use argon2::Argon2;
+    let argon2 = Argon2::default();
+    let mut key = [0u8; 32];
+    argon2
+        .hash_password_into(passphrase.as_bytes(), salt, &mut key)
+        .map_err(|e| crate::error::Error::Message(format!("Argon2 error: {}", e)))?;
+    Ok(key)
+}
+
 pub(crate) fn as_hash(str: &str) -> [u8; 32] {
     let mut hasher = sha2::Sha256::new();
     hasher.update(str.as_bytes());
