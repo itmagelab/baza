@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2026-08-26
+
+### 🚀 Features
+
+- Add QR code generation for both CLI and web UI
+- Generate QR code from passphrase in web UI
+- *(cli)* Implement hidden passphrase entry
+
+### 🐛 Bug Fixes
+
+- Upgrade master key derivation from SHA-256 to Argon2id
+- Upgrade master key derivation from SHA-256 to Argon2id
+- Upgrade master key derivation from SHA-256 to Argon2
+- *(core)* Resolve compilation warnings under wasm32 target
+
+### 🚜 Refactor
+
+- Clean up Argon2 key derivation, add migrate CLI command and tests
+- Added utils module
+- Added prelude file
+- Implementation for Password struct
+- Added Password struct
+- Replace string copies
+- Simplify ContainerBuilder::create_from_str with an idiomatic for loop
+
+### 📚 Documentation
+
+- Document git-cliff rule for changelog updates in GEMINI.md
+
+### 🧪 Testing
+
+- Add unit tests for ContainerBuilder::create_from_str
+
 ## [3.2.1] - 2026-07-08
 
 ### 🐛 Bug Fixes
