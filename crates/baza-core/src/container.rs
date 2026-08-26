@@ -10,7 +10,7 @@ use super::*;
 // cover, container, box, bundle
 #[derive(Debug, Clone)]
 pub struct Container {
-    boxes: Vec<BoxRef>,
+    pub boxes: Vec<BoxRef>,
 }
 
 impl fmt::Display for Container {
@@ -134,7 +134,7 @@ impl Container {
         Ok(())
     }
 
-    fn bundles(&self) -> Vec<String> {
+    pub fn bundles(&self) -> Vec<String> {
         if let Some(r#box) = self.boxes.last() {
             let bundles = &r#box.borrow().bundles;
             if !bundles.is_empty() {
@@ -243,115 +243,4 @@ pub async fn from_stdin(str: String) -> BazaR<()> {
 pub async fn search(str: String) -> BazaR<()> {
     storage::search(str).await?;
     Ok(())
-}
-
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
-mod tests {
-    use super::*;
-    use crate::unlock;
-
-    fn create(str: &str) {
-        let str = str.to_string();
-        let password = crate::Password::generate(255, false, false, false).as_str();
-        match pollster::block_on(add(str, Some(password))) {
-            Ok(_) => {}
-            Err(e) => panic!("add failed: {}", e),
-        }
-    }
-
-    fn read_test(str: &str) {
-        let str = str.to_string();
-        match pollster::block_on(read(str)) {
-            Ok(_) => {}
-            Err(e) => panic!("read failed: {}", e),
-        }
-    }
-
-    fn delete_test(str: &str) {
-        let str = str.to_string();
-        match pollster::block_on(delete(str)) {
-            Ok(_) => {}
-            Err(e) => panic!("delete failed: {}", e),
-        }
-    }
-
-    #[test]
-    fn it_works() {
-        let _lock = crate::TEST_MUTEX.lock().unwrap();
-        let test_dir = std::path::PathBuf::from(crate::test_datadir());
-        let _ = std::fs::remove_dir_all(&test_dir);
-        std::fs::create_dir_all(&test_dir).expect("Failed to create test dir");
-
-        let config_path = test_dir.join("baza.toml");
-        let mut config = Config::default();
-        config.main.datadir = test_dir.to_string_lossy().to_string();
-        let config_str = match toml::to_string(&config) {
-            Ok(s) => s,
-            Err(e) => panic!("toml serialize failed: {}", e),
-        };
-        if let Err(e) = std::fs::write(&config_path, config_str) {
-            panic!("write config failed: {}", e);
-        }
-        if let Err(e) = Config::build(&config_path) {
-            panic!("Config::build failed: {}", e);
-        }
-
-        let password = crate::Password::generate(255, false, false, false).as_str();
-        if let Err(e) = pollster::block_on(init(Some(password.clone()))) {
-            panic!("init failed: {}", e);
-        }
-        if let Err(e) = cleanup_tmp_folder() {
-            panic!("cleanup failed: {}", e);
-        }
-        if let Err(e) = lock() {
-            panic!("lock failed: {}", e);
-        }
-
-        if let Err(e) = pollster::block_on(unlock(password.clone(), None)) {
-            panic!("unlock failed: {}", e);
-        }
-        let bundles = vec![
-            "test::my.test::login.ru",
-            "test::my@test::login@ru",
-            "test::my/test::login/ru",
-            "test::my-test::login-ru",
-            "test::my_test::login_ru",
-        ];
-        for name in bundles {
-            create(name);
-            read_test(name);
-            delete_test(name);
-        }
-    }
-
-    #[test]
-    fn test_create_from_str() {
-        let _lock = crate::TEST_MUTEX.lock().unwrap();
-        // Ensure Config is initialized
-        let _ = Config::get();
-
-        // Case 1: Multiple boxes and a bundle
-        let builder = ContainerBuilder::new()
-            .create_from_str("box1::box2::bundle1".to_string())
-            .unwrap();
-        let container = builder.build();
-        assert_eq!(container.boxes.len(), 2);
-        assert_eq!(&*container.boxes[0].borrow().name, "box1");
-        assert_eq!(&*container.boxes[1].borrow().name, "box2");
-        assert_eq!(container.bundles(), vec!["bundle1".to_string()]);
-
-        // Case 2: Only bundle (no boxes) -> should fail
-        let builder_res = ContainerBuilder::new().create_from_str("bundle_only".to_string());
-        assert!(builder_res.is_err());
-
-        // Case 3: Trim spaces from name but keep spaces inside delimiter-separated parts
-        let builder = ContainerBuilder::new()
-            .create_from_str("  spaced_box :: spaced_bundle  ".to_string())
-            .unwrap();
-        let container = builder.build();
-        assert_eq!(container.boxes.len(), 1);
-        assert_eq!(&*container.boxes[0].borrow().name, "spaced_box ");
-        assert_eq!(container.bundles(), vec![" spaced_bundle".to_string()]);
-    }
 }

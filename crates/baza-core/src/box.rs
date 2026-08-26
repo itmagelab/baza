@@ -5,8 +5,8 @@ use crate::bundle::BundleRef;
 pub(crate) type BoxRef = Rc<RefCell<r#Box>>;
 
 #[derive(Debug, Default)]
-pub(crate) struct r#Box {
-    pub(crate) name: Arc<str>,
+pub struct r#Box {
+    pub name: Arc<str>,
     pub(crate) bundles: Vec<BundleRef>,
     pub(crate) parent: Option<BoxRef>,
 }

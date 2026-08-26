@@ -61,7 +61,7 @@ pub async fn get_uuid() -> BazaR<String> {
 }
 
 /// Helper function to construct a TOTP verifier from the stored secret base32 string.
-fn get_totp(secret_base32: &str) -> BazaR<TOTP> {
+pub fn get_totp(secret_base32: &str) -> BazaR<TOTP> {
     let secret = Secret::Encoded(secret_base32.to_string());
     let secret_bytes = secret
         .to_bytes()
@@ -95,63 +95,8 @@ fn get_timestamp() -> u64 {
 }
 
 /// Internal helper to verify the code against the secret base32 string.
-pub(crate) fn verify_code(secret_base32: &str, code: &str) -> BazaR<bool> {
+pub fn verify_code(secret_base32: &str, code: &str) -> BazaR<bool> {
     let totp = get_totp(secret_base32)?;
     let timestamp = get_timestamp();
     Ok(totp.check(code, timestamp))
-}
-
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
-mod tests {
-    use super::*;
-    use crate::{init, Config};
-
-    #[test]
-    fn test_totp_flow() {
-        let _lock = crate::TEST_MUTEX.lock().unwrap();
-        let test_dir = std::path::PathBuf::from(crate::test_datadir());
-        let _ = std::fs::remove_dir_all(&test_dir);
-        std::fs::create_dir_all(&test_dir).expect("Failed to create test dir");
-
-        let config_path = test_dir.join("baza.toml");
-        let mut config = Config::default();
-        config.main.datadir = test_dir.to_string_lossy().to_string();
-        let config_str = toml::to_string(&config).expect("Failed to serialize config");
-        std::fs::write(&config_path, config_str).expect("Failed to write config");
-        Config::build(&config_path).expect("Failed to build config");
-
-        pollster::block_on(async {
-            init(Some("test_passphrase".to_string()))
-                .await
-                .expect("Failed to init database");
-
-            // 1. Check is_enabled initially (should be false)
-            assert!(!is_enabled().await.expect("is_enabled failed"));
-
-            // 2. Enable TOTP
-            let (secret, url, _qr) = enable().await.expect("enable failed");
-            assert!(!secret.is_empty());
-            assert!(url.contains("secret="));
-
-            // 3. Check is_enabled again (should be true)
-            assert!(is_enabled().await.expect("is_enabled failed"));
-
-            // 4. Verify code
-            let totp = get_totp(&secret).expect("get_totp failed");
-            let code = totp.generate_current().expect("generate_current failed");
-            let valid = verify_code(&secret, &code).expect("verify_code failed");
-            assert!(valid);
-
-            // Verify invalid code
-            let invalid = verify_code(&secret, "000000").expect("verify_code failed");
-            assert!(!invalid);
-
-            // 5. Disable TOTP
-            disable().await.expect("disable failed");
-
-            // 6. Check is_enabled (should be false)
-            assert!(!is_enabled().await.expect("is_enabled failed"));
-        });
-    }
 }

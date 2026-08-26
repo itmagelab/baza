@@ -54,7 +54,7 @@ pub(crate) fn derive_key_argon2(passphrase: &str, salt: &[u8]) -> crate::BazaR<[
     Ok(key)
 }
 
-pub(crate) fn as_hash(str: &str) -> [u8; 32] {
+pub fn as_hash(str: &str) -> [u8; 32] {
     let mut hasher = sha2::Sha256::new();
     hasher.update(str.as_bytes());
     let result = hasher.finalize();

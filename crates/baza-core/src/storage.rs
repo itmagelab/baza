@@ -15,7 +15,7 @@ pub fn storage_dir(dir: &'static str) -> std::path::PathBuf {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) trait StorageBounds: Sync + Send {}
+pub trait StorageBounds: Sync + Send {}
 #[cfg(not(target_arch = "wasm32"))]
 impl<T: Sync + Send> StorageBounds for T {}
 
@@ -25,7 +25,7 @@ pub(crate) trait StorageBounds {}
 impl<T> StorageBounds for T {}
 
 #[async_trait(?Send)]
-pub(crate) trait StorageBackend: StorageBounds {
+pub trait StorageBackend: StorageBounds {
     async fn is_initialized(&self) -> BazaR<bool>;
     async fn list_keys(&self) -> BazaR<Vec<String>>;
     async fn get(&self, key: &str) -> BazaR<Vec<u8>>;
@@ -33,7 +33,7 @@ pub(crate) trait StorageBackend: StorageBounds {
     async fn remove(&self, key: &str) -> BazaR<()>;
 }
 
-pub(crate) async fn with_backend<F, Fut, R>(f: F) -> BazaR<R>
+pub async fn with_backend<F, Fut, R>(f: F) -> BazaR<R>
 where
     F: FnOnce(&'static dyn StorageBackend) -> Fut,
     Fut: std::future::Future<Output = BazaR<R>>,

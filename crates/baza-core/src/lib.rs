@@ -218,7 +218,7 @@ pub fn lock() -> BazaR<()> {
     Ok(())
 }
 
-fn set_session_key(key: Option<Vec<u8>>) -> BazaR<()> {
+pub fn set_session_key(key: Option<Vec<u8>>) -> BazaR<()> {
     let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
     let mut guard = mutex
         .lock()
@@ -228,7 +228,7 @@ fn set_session_key(key: Option<Vec<u8>>) -> BazaR<()> {
 }
 
 /// Returns the stored KDF salt, if the database has one.
-async fn get_stored_salt() -> Option<Vec<u8>> {
+pub async fn get_stored_salt() -> Option<Vec<u8>> {
     storage::with_backend(|backend| backend.get(crate::SALT_KEY))
         .await
         .ok()
@@ -482,114 +482,6 @@ pub(crate) fn decrypt_data(ciphertext: &[u8], key: &[u8]) -> BazaR<Vec<u8>> {
     cipher
         .decrypt(nonce, actual_ciphertext)
         .map_err(|e| exn::Exn::new(e.into()))
-}
-
-#[cfg(test)]
-pub static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[cfg(test)]
-pub fn test_datadir() -> &'static str {
-    static DIR: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
-    DIR.get_or_init(|| tempfile::tempdir().expect("Failed to create tempdir"))
-        .path()
-        .to_str()
-        .unwrap()
-}
-
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
-mod tests {
-    use super::*;
-
-    fn setup_test_env() {
-        let test_dir = std::path::PathBuf::from(test_datadir());
-        let _ = std::fs::remove_dir_all(&test_dir);
-        std::fs::create_dir_all(&test_dir).expect("Failed to create test dir");
-
-        let config_path = test_dir.join("baza.toml");
-        let mut config = Config::default();
-        config.main.datadir = test_dir.to_string_lossy().to_string();
-        let config_str = toml::to_string(&config).expect("Failed to serialize config");
-        std::fs::write(&config_path, config_str).expect("Failed to write config");
-        Config::build(&config_path).expect("Failed to build config");
-    }
-
-    #[test]
-    fn test_migrate_legacy_sha256_to_argon2() {
-        let _lock = TEST_MUTEX.lock().unwrap();
-        setup_test_env();
-
-        pollster::block_on(async {
-            storage::initialize().expect("Failed to initialize storage");
-
-            // Simulate a legacy database: SHA-256 key derivation, no salt stored
-            let passphrase = "legacy_passphrase";
-            set_session_key(Some(as_hash(passphrase).to_vec())).unwrap();
-            storage::save_content("test::key".to_string(), "secret_value".to_string())
-                .await
-                .expect("Failed to store test value");
-
-            // Sanity check: legacy value is readable with the SHA-256 key
-            assert_eq!(
-                storage::get_content("test::key").await.unwrap(),
-                "secret_value"
-            );
-
-            // Migrate to Argon2
-            migrate(passphrase.to_string())
-                .await
-                .expect("Migration failed");
-
-            // Salt must be stored after migration
-            assert!(get_stored_salt().await.is_some());
-
-            // Value must still be readable with the new Argon2 key
-            assert_eq!(
-                storage::get_content("test::key").await.unwrap(),
-                "secret_value"
-            );
-
-            // Second migration must be rejected
-            assert!(migrate(passphrase.to_string()).await.is_err());
-
-            // Wrong passphrase must fail during migration
-            lock().unwrap();
-            // Reset to legacy state for the wrong-passphrase check
-            set_session_key(Some(as_hash("legacy_passphrase").to_vec())).unwrap();
-            // Wipe salt to simulate legacy DB again
-            storage::with_backend(|backend| backend.remove(crate::SALT_KEY))
-                .await
-                .expect("Failed to remove salt");
-            assert!(migrate("wrong_passphrase".to_string()).await.is_err());
-        });
-    }
-
-    #[test]
-    fn test_unlock_new_database_uses_salt() {
-        let _lock = TEST_MUTEX.lock().unwrap();
-        setup_test_env();
-
-        pollster::block_on(async {
-            init(Some("init_passphrase".to_string()))
-                .await
-                .expect("Failed to init database");
-
-            assert!(get_stored_salt().await.is_some());
-
-            // Round-trip: lock, unlock, read back
-            storage::save_content("test::key".to_string(), "secret_value".to_string())
-                .await
-                .expect("Failed to store test value");
-            lock().unwrap();
-            unlock("init_passphrase".to_string(), None)
-                .await
-                .expect("Failed to unlock with correct passphrase");
-            assert_eq!(
-                storage::get_content("test::key").await.unwrap(),
-                "secret_value"
-            );
-        });
-    }
 }
 
 pub mod qr;

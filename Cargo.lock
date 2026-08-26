@@ -252,6 +252,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "baza-tests"
+version = "0.0.0"
+dependencies = [
+ "baza_core",
+ "pollster",
+ "serde",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
 name = "baza-web"
 version = "0.1.0"
 dependencies = [

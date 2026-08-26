@@ -1,0 +1,15 @@
+[package]
+name = "baza-tests"
+version = "0.0.0"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+description = "Integration tests for baza"
+publish = false
+
+[dependencies]
+baza_core = { workspace = true }
+pollster = { workspace = true }
+toml = { workspace = true }
+tempfile = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
