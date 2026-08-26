@@ -56,8 +56,6 @@ lz4_flex = { version = "0.9", optional = true }
 flate2 = { version = "1.1", optional = true, features = ["miniz_oxide"] }
 zstd = { version = "0.11", optional = true }
 qrcode = { version = "0.14.1", default-features = false }
-pbkdf2 = "0.13.0"
-hmac = "0.13.0"
 argon2 = "0.5.3"
 
 [features]

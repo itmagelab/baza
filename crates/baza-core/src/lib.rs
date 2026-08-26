@@ -212,48 +212,64 @@ impl Password {
 }
 
 pub fn lock() -> BazaR<()> {
-    if let Some(mutex) = SESSION_KEY.get() {
-        let mut guard = mutex
-            .lock()
-            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-        *guard = None;
+    if SESSION_KEY.get().is_some() {
+        set_session_key(None)?;
     }
     Ok(())
 }
 
-pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> {
-    let salt = match storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await {
-        Ok(s) => Some(s),
-        Err(_) => None,
-    };
+fn set_session_key(key: Option<Vec<u8>>) -> BazaR<()> {
+    let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
+    let mut guard = mutex
+        .lock()
+        .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
+    *guard = key;
+    Ok(())
+}
 
-    let key_bytes_resolved = if let Some(ref s) = salt {
-        crate::utils::derive_key_argon2(passphrase.trim(), s)?.to_vec()
-    } else {
-        tracing::warn!("Weak security: salt not found, falling back to SHA256 key derivation. Please migrate your database.");
-        as_hash(passphrase.trim()).to_vec()
-    };
-    let initialized = storage::is_initialized().await?;
-    if !initialized {
-        let key_bytes = key_bytes_resolved.clone();
+/// Returns the stored KDF salt, if the database has one.
+async fn get_stored_salt() -> Option<Vec<u8>> {
+    storage::with_backend(|backend| backend.get(crate::SALT_KEY))
+        .await
+        .ok()
+}
 
-        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
-        let mut guard = mutex
-            .lock()
-            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-        *guard = Some(key_bytes.to_vec());
-        return Ok(());
+/// Returns the stored KDF salt, generating and persisting a new one if absent.
+async fn ensure_salt() -> BazaR<Vec<u8>> {
+    if let Some(salt) = get_stored_salt().await {
+        return Ok(salt);
     }
+    let mut salt = [0u8; 16];
+    rand::rng().fill(&mut salt);
+    storage::with_backend(|backend| backend.set(crate::SALT_KEY, salt.to_vec()))
+        .await
+        .or_raise(|| error::Error::Message("Failed to persist KDF salt".into()))?;
+    Ok(salt.to_vec())
+}
 
-    let key_bytes = key_bytes_resolved.clone();
+/// Derives the master key with Argon2id when a salt is stored,
+/// falling back to the legacy SHA-256 derivation otherwise.
+async fn resolve_key_bytes(passphrase: &str) -> BazaR<Vec<u8>> {
+    match get_stored_salt().await {
+        Some(salt) => Ok(crate::utils::derive_key_argon2(passphrase, &salt)?.to_vec()),
+        None => {
+            tracing::warn!(
+                "Weak security: salt not found, falling back to SHA256 key derivation. Please migrate your database."
+            );
+            Ok(as_hash(passphrase).to_vec())
+        }
+    }
+}
+
+pub async fn unlock(passphrase: String, totp_code: Option<String>) -> BazaR<()> {
+    let initialized = storage::is_initialized().await?;
+    let key_bytes = resolve_key_bytes(passphrase.trim()).await?;
 
     // Temporarily unlock by setting the SESSION_KEY so we can read the database
-    let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
-    {
-        let mut guard = mutex
-            .lock()
-            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-        *guard = Some(key_bytes.to_vec());
+    set_session_key(Some(key_bytes))?;
+
+    if !initialized {
+        return Ok(());
     }
 
     // Determine if TOTP is enabled.
@@ -339,61 +355,68 @@ pub fn cleanup_tmp_folder() -> BazaR<()> {
 }
 
 pub async fn migrate(passphrase: String) -> BazaR<()> {
-    let initialized = storage::is_initialized().await?;
-    if !initialized {
-        return Err(crate::error::Error::Message("Database not initialized".into()).into());
+    if !storage::is_initialized().await? {
+        exn::bail!(error::Error::Message("Database not initialized".into()));
     }
 
-    // Check if we are already using argon2
-    if storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await.is_ok() {
-        return Err(crate::error::Error::Message("Database is already migrated to Argon2".into()).into());
+    // Check if we are already using Argon2
+    if get_stored_salt().await.is_some() {
+        exn::bail!(error::Error::Message(
+            "Database is already migrated to Argon2".into()
+        ));
     }
 
-    let key_bytes_old = as_hash(passphrase.trim());
-    {
-        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
-        let mut guard = mutex
-            .lock()
-            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-        *guard = Some(key_bytes_old.clone().to_vec());
-    }
+    let passphrase = passphrase.trim();
+    let key_bytes_old = as_hash(passphrase).to_vec();
+    set_session_key(Some(key_bytes_old.clone()))?;
 
+    let result = migrate_inner(passphrase, &key_bytes_old).await;
+    if result.is_err() {
+        // Do not leave the vault unlocked with the old key on failure
+        let _ = lock();
+    }
+    result
+}
+
+async fn migrate_inner(passphrase: &str, key_bytes_old: &[u8]) -> BazaR<()> {
     let dump_data = storage::dump().await?;
 
     let mut salt = [0u8; 16];
     rand::rng().fill(&mut salt);
-    let key_bytes_new = crate::utils::derive_key_argon2(passphrase.trim(), &salt)?;
+    let key_bytes_new = crate::utils::derive_key_argon2(passphrase, &salt)?.to_vec();
 
-    let mut migrated_data = Vec::new();
-    for (key, encrypted_val) in dump_data {
-        if crate::is_system_key(&key) {
-            migrated_data.push((key, encrypted_val));
-            continue;
-        }
-        let plaintext = match crate::decrypt_data(&encrypted_val, &key_bytes_old) {
-             Ok(pt) => pt,
-             Err(_) => {
-                 return Err(crate::error::Error::Message(format!("Failed to decrypt key: {}", key)).into());
-             }
-        };
-        let new_encrypted_val = crate::encrypt_data(&plaintext, &key_bytes_new)?;
-        migrated_data.push((key, new_encrypted_val));
-    }
+    let mut migrated_data = reencrypt_dump(dump_data, key_bytes_old, &key_bytes_new)?;
 
     // Add salt to the migrated data
     migrated_data.push((crate::SALT_KEY.to_string(), salt.to_vec()));
 
     storage::restore(migrated_data).await?;
 
-    {
-        let mutex = SESSION_KEY.get_or_init(|| std::sync::Mutex::new(None));
-        let mut guard = mutex
-            .lock()
-            .map_err(|_| crate::error::Error::Message("Failed to lock key mutex".into()))?;
-        *guard = Some(key_bytes_new.to_vec());
-    }
+    set_session_key(Some(key_bytes_new))?;
 
     Ok(())
+}
+
+fn reencrypt_dump(
+    dump: Vec<(String, Vec<u8>)>,
+    key_old: &[u8],
+    key_new: &[u8],
+) -> BazaR<Vec<(String, Vec<u8>)>> {
+    let mut out = Vec::with_capacity(dump.len() + 1);
+    for (key, encrypted_val) in dump {
+        if crate::is_system_key(&key) {
+            out.push((key, encrypted_val));
+            continue;
+        }
+        let plaintext = crate::decrypt_data(&encrypted_val, key_old).or_raise(|| {
+            error::Error::Message(format!(
+                "Failed to decrypt key: {} (invalid passphrase?)",
+                key
+            ))
+        })?;
+        out.push((key, crate::encrypt_data(&plaintext, key_new)?));
+    }
+    Ok(out)
 }
 
 pub async fn init(passphrase: Option<String>) -> BazaR<String> {
@@ -424,15 +447,10 @@ pub async fn init(passphrase: Option<String>) -> BazaR<String> {
     );
     let passphrase = passphrase.unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
 
-    // Make sure we generate salt and store it before unlocking so that it uses argon2
-    let is_migrated = storage::with_backend(|backend| backend.get(crate::SALT_KEY)).await.is_ok();
-    if !is_migrated {
-        let mut salt = [0u8; 16];
-        rand::rng().fill(&mut salt);
-        if let Err(e) = storage::with_backend(|backend| backend.set(crate::SALT_KEY, salt.to_vec())).await {
-             tracing::warn!("Failed to save sys_salt: {}", e);
-        }
-    }
+    // Make sure a salt is stored before unlocking so that new databases
+    // use Argon2 key derivation from the start
+    ensure_salt().await?;
+
     self::unlock(passphrase.clone(), None).await?;
 
     Ok(passphrase)
@@ -477,4 +495,101 @@ pub fn test_datadir() -> &'static str {
         .to_str()
         .unwrap()
 }
+
+#[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
+mod tests {
+    use super::*;
+
+    fn setup_test_env() {
+        let test_dir = std::path::PathBuf::from(test_datadir());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).expect("Failed to create test dir");
+
+        let config_path = test_dir.join("baza.toml");
+        let mut config = Config::default();
+        config.main.datadir = test_dir.to_string_lossy().to_string();
+        let config_str = toml::to_string(&config).expect("Failed to serialize config");
+        std::fs::write(&config_path, config_str).expect("Failed to write config");
+        Config::build(&config_path).expect("Failed to build config");
+    }
+
+    #[test]
+    fn test_migrate_legacy_sha256_to_argon2() {
+        let _lock = TEST_MUTEX.lock().unwrap();
+        setup_test_env();
+
+        pollster::block_on(async {
+            storage::initialize().expect("Failed to initialize storage");
+
+            // Simulate a legacy database: SHA-256 key derivation, no salt stored
+            let passphrase = "legacy_passphrase";
+            set_session_key(Some(as_hash(passphrase).to_vec())).unwrap();
+            storage::save_content("test::key".to_string(), "secret_value".to_string())
+                .await
+                .expect("Failed to store test value");
+
+            // Sanity check: legacy value is readable with the SHA-256 key
+            assert_eq!(
+                storage::get_content("test::key").await.unwrap(),
+                "secret_value"
+            );
+
+            // Migrate to Argon2
+            migrate(passphrase.to_string())
+                .await
+                .expect("Migration failed");
+
+            // Salt must be stored after migration
+            assert!(get_stored_salt().await.is_some());
+
+            // Value must still be readable with the new Argon2 key
+            assert_eq!(
+                storage::get_content("test::key").await.unwrap(),
+                "secret_value"
+            );
+
+            // Second migration must be rejected
+            assert!(migrate(passphrase.to_string()).await.is_err());
+
+            // Wrong passphrase must fail during migration
+            lock().unwrap();
+            // Reset to legacy state for the wrong-passphrase check
+            set_session_key(Some(as_hash("legacy_passphrase").to_vec())).unwrap();
+            // Wipe salt to simulate legacy DB again
+            storage::with_backend(|backend| backend.remove(crate::SALT_KEY))
+                .await
+                .expect("Failed to remove salt");
+            assert!(migrate("wrong_passphrase".to_string()).await.is_err());
+        });
+    }
+
+    #[test]
+    fn test_unlock_new_database_uses_salt() {
+        let _lock = TEST_MUTEX.lock().unwrap();
+        setup_test_env();
+
+        pollster::block_on(async {
+            init(Some("init_passphrase".to_string()))
+                .await
+                .expect("Failed to init database");
+
+            assert!(get_stored_salt().await.is_some());
+
+            // Round-trip: lock, unlock, read back
+            storage::save_content("test::key".to_string(), "secret_value".to_string())
+                .await
+                .expect("Failed to store test value");
+            lock().unwrap();
+            unlock("init_passphrase".to_string(), None)
+                .await
+                .expect("Failed to unlock with correct passphrase");
+            assert_eq!(
+                storage::get_content("test::key").await.unwrap(),
+                "secret_value"
+            );
+        });
+    }
+}
+
 pub mod qr;

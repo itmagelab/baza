@@ -289,10 +289,8 @@ dependencies = [
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "getrandom 0.4.3",
- "hmac 0.13.0",
  "js-sys",
  "lz4_flex",
- "pbkdf2",
  "pollster",
  "postcard",
  "qrcode",
@@ -463,12 +461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmov"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
-
-[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,15 +595,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctutils"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e"
-dependencies = [
- "cmov",
-]
-
-[[package]]
 name = "deranged"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -641,7 +624,6 @@ dependencies = [
  "block-buffer 0.12.1",
  "const-oid",
  "crypto-common 0.2.2",
- "ctutils",
 ]
 
 [[package]]
@@ -1326,15 +1308,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hmac"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6303bc9732ae41b04cb554b844a762b4115a61bfaa81e3e83050991eeb56863f"
-dependencies = [
- "digest 0.11.3",
-]
-
-[[package]]
 name = "home"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1842,16 +1815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pbkdf2"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "112d82ceb8c5bf524d9af484d4e4970c9fd5a0cc15ba14ad93dccd28873b0629"
-dependencies = [
- "digest 0.11.3",
- "hmac 0.13.0",
-]
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2253,7 +2216,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "hex",
- "hmac 0.12.1",
+ "hmac",
  "http 1.4.2",
  "log",
  "maybe-async",
@@ -2781,7 +2744,7 @@ checksum = "50e69a15e21b2ff22c415446983978bded3244195f17d59cb113551c1e806f91"
 dependencies = [
  "base32",
  "constant_time_eq",
- "hmac 0.12.1",
+ "hmac",
  "qrcodegen-image",
  "rand 0.9.4",
  "sha1",
