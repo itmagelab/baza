@@ -73,6 +73,7 @@ enum Commands {
     Totp(TotpArgs),
     Unlock(UnlockArgs),
     Lock(LockArgs),
+    Migrate(MigrateArgs),
     #[cfg(feature = "s3")]
     Push(PushArgs),
     #[cfg(feature = "s3")]
@@ -133,6 +134,15 @@ struct UnlockArgs {
 #[argh(subcommand, name = "lock")]
 /// Print unset command for BAZA_PASSPHRASE
 struct LockArgs {}
+
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "migrate")]
+/// Migrate master key derivation from SHA-256 to Argon2id
+struct MigrateArgs {
+    /// passphrase for the database
+    #[argh(option, short = 'p')]
+    passphrase: Option<String>,
+}
 
 #[cfg(feature = "s3")]
 #[derive(FromArgs, Debug)]
@@ -299,6 +309,14 @@ fn run_command(cmd: Commands) -> BazaR<()> {
         Commands::Lock(_) => {
             println!("unset BAZA_PASSPHRASE");
         }
+        Commands::Migrate(args) => {
+            let passphrase_opt = args
+                .passphrase
+                .or_else(|| std::env::var("BAZA_PASSPHRASE").ok());
+            let (passphrase, _) = acquire_credentials(passphrase_opt, None)?;
+            pollster::block_on(baza_core::migrate(passphrase))?;
+            println!("Database migrated to Argon2id key derivation.");
+        }
     };
     Ok(())
 }
@@ -409,7 +427,11 @@ fn handle_args() -> BazaR<()> {
 
         !matches!(
             cmd,
-            Commands::Init(_) | Commands::Version(_) | Commands::Unlock(_) | Commands::Lock(_)
+            Commands::Init(_)
+                | Commands::Version(_)
+                | Commands::Unlock(_)
+                | Commands::Lock(_)
+                | Commands::Migrate(_)
         ) && !is_s3
             && !is_password_generate
     } else {

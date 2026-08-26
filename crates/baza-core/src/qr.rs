@@ -27,7 +27,9 @@ pub async fn print_qr(name: String) -> BazaR<()> {
     #[cfg(target_arch = "wasm32")]
     {
         // QR rendering to console is not supported in WASM
-        return Err(crate::error::Error::Message("Not implemented for this platform".into()).into());
+        return Err(
+            crate::error::Error::Message("Not implemented for this platform".into()).into(),
+        );
     }
     Ok(())
 }
